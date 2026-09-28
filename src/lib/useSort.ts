@@ -1,10 +1,27 @@
 import { useMemo, useState } from 'react'
+import { parseMoney } from '@/lib/money'
+
+function asSortNumber(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  if (typeof v === 'string') {
+    const t = v.trim()
+    if (!t) return null
+    // Money / numeric strings from API (e.g. "1500000.00") — not free text.
+    if (/^-?[\d.,]+$/.test(t)) {
+      const n = parseMoney(t)
+      return Number.isFinite(n) ? n : null
+    }
+  }
+  return null
+}
 
 export function compareValues(av: unknown, bv: unknown): number {
   if (av == null && bv == null) return 0
   if (av == null) return 1
   if (bv == null) return -1
-  if (typeof av === 'number' && typeof bv === 'number') return av - bv
+  const an = asSortNumber(av)
+  const bn = asSortNumber(bv)
+  if (an !== null && bn !== null) return an - bn
   return String(av).localeCompare(String(bv), 'id', { numeric: true })
 }
 

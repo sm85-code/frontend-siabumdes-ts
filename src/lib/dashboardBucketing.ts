@@ -1,3 +1,4 @@
+import { parseMoney } from '@/lib/money'
 import type { DashboardMonthlyPoint, PeriodMode, PeriodValue } from '@/types'
 
 export const MONTHS = [
@@ -78,7 +79,12 @@ export function bucketize(
 ): Array<DashboardMonthlyPoint & { month: string }> {
   if (!list || list.length === 0) return []
   if (targetBucket === 'day' || targetBucket === 'month') {
-    return list.map((r) => ({ ...r, month: labelize(r.month, targetBucket) }))
+    return list.map((r) => ({
+      ...r,
+      month: labelize(r.month, targetBucket),
+      pendapatan: parseMoney(r.pendapatan),
+      beban: parseMoney(r.beban),
+    }))
   }
   const map = new Map<string, { pendapatan: number; beban: number }>()
   for (const r of list) {
@@ -90,8 +96,8 @@ export function bucketize(
     const key = iso(monday)
     const prev = map.get(key) || { pendapatan: 0, beban: 0 }
     map.set(key, {
-      pendapatan: prev.pendapatan + (r.pendapatan || 0),
-      beban: prev.beban + (r.beban || 0),
+      pendapatan: prev.pendapatan + parseMoney(r.pendapatan),
+      beban: prev.beban + parseMoney(r.beban),
     })
   }
   return Array.from(map.entries())

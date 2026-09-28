@@ -233,7 +233,7 @@ export default function TransactionsPage() {
         unit_usaha_id: values.unit_usaha_id || null,
         transaction_type: values.transaction_type,
         description: values.description,
-        // Keep number serialization (live FE / BE float(amount) contract).
+        // Submit number unless/until API documents string amounts on write; response may be number|string.
         amount: parseFloat(values.amount),
         debit_account_code: values.debit_account_code,
         credit_account_code: values.credit_account_code,
