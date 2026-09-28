@@ -183,3 +183,19 @@
 @media (prefers-reduced-motion: reduce) {
   .spinner-ring--outer, .spinner-ring--inner { animation: none; }
 }
+
+/* Layout helpers ported from live frontend-siabumdes */
+.page-h1 {
+  letter-spacing: -0.02em;
+}
+
+.tab-strip {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-strip::-webkit-scrollbar {
+  display: none;
+}
