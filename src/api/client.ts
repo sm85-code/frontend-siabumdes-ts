@@ -1,0 +1,61 @@
+import axios from 'axios'
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || window.location.origin
+const normalizedBackendUrl = String(BACKEND_URL).replace(/\/+$/, '').replace(/\/api$/i, '')
+export const API = `${normalizedBackendUrl}/api`
+
+/** Axios client — HttpOnly cookie auth (withCredentials). */
+const api = axios.create({ baseURL: API, withCredentials: true })
+
+const PUBLIC_PATHS = ['/', '/login']
+
+api.interceptors.response.use(
+  (r) => r,
+  (err: unknown) => {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      try {
+        localStorage.removeItem('bumdes_user')
+      } catch {
+        /* ignore */
+      }
+      if (!PUBLIC_PATHS.includes(window.location.pathname)) {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(err)
+  },
+)
+
+export default api
+
+export function getApiError(
+  error: unknown,
+  fallback = 'Terjadi kesalahan. Silakan coba lagi.',
+): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } }; message?: string })
+    ?.response?.data?.detail
+  if (Array.isArray(detail)) {
+    return detail.map((item: { msg?: string }) => item.msg ?? String(item)).join(', ')
+  }
+  if (typeof detail === 'string') return detail
+  return (error as { message?: string })?.message || fallback
+}
+
+export function fmtRp(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return 'Rp 0'
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID')
+}
+
+export function fmtDate(s: string | null | undefined): string {
+  if (!s) return '-'
+  try {
+    return new Date(s).toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+  } catch {
+    return s
+  }
+}
