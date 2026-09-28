@@ -1,6 +1,8 @@
 import axios from 'axios'
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || window.location.origin
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000')
 const normalizedBackendUrl = String(BACKEND_URL).replace(/\/+$/, '').replace(/\/api$/i, '')
 export const API = `${normalizedBackendUrl}/api`
 

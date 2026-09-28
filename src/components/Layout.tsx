@@ -5,8 +5,8 @@ import AppearancePopover from '@/components/AppearancePopover'
 import BottomNav from '@/components/BottomNav'
 import WallpaperLayer from '@/components/WallpaperLayer'
 import { Button } from '@/components/ui/button'
-import { BOTTOM_NAV_PATHS, NAV } from '@/config/nav'
-import { ROLE_LABELS, can } from '@/config/roles'
+import { BOTTOM_NAV_PATHS, filterNavForUser } from '@/config/nav'
+import { ROLE_LABELS } from '@/config/roles'
 import { useInventoryUnitIds } from '@/hooks/useUnits'
 import { useAuth } from '@/lib/auth'
 
@@ -23,16 +23,10 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
   const { inventoryUnitIds } = useInventoryUnitIds()
 
-  const visible = useMemo(() => {
-    if (!user) return []
-    return NAV.filter((n) => {
-      if (!can(user, ...n.roles)) return false
-      if (n.inventoryUnitOnly && user.role === 'pengelola') {
-        return Boolean(inventoryUnitIds) && inventoryUnitIds!.includes(user.unit_usaha_id ?? '')
-      }
-      return true
-    })
-  }, [user, inventoryUnitIds])
+  const visible = useMemo(
+    () => filterNavForUser(user, inventoryUnitIds),
+    [user, inventoryUnitIds],
+  )
 
   const allPaths = useMemo(() => visible.map((n) => n.to), [visible])
 
