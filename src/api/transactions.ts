@@ -1,9 +1,17 @@
 import api, { API } from '@/api/client'
 import type { ImportResult, PaginatedTransactions, Transaction } from '@/types'
 
+/**
+ * Query sentinel for BUMDES pusat (DB `unit_usaha_id IS NULL`).
+ * Agreed with sm85-arch B4 / export: empty string (also accepts `__null__` on BE).
+ * Omit the param entirely to list all units.
+ */
+export const UNIT_PUSAT_SENTINEL = ''
+
 export interface ListTransactionsParams {
   startDate?: string
   endDate?: string
+  /** Unit id, `null`/`''` for pusat (sentinel), or omit (`undefined`) for all units. */
   unitUsahaId?: string | null
   reference?: string
   limit?: number
@@ -33,8 +41,13 @@ export async function listTransactions(
     params: {
       start_date: startDate || undefined,
       end_date: endDate || undefined,
-      // Empty string = BUMDES pusat (null unit); omit = all units
-      unit_usaha_id: unitUsahaId === undefined ? undefined : unitUsahaId,
+      // undefined = all units; null/'' = pusat sentinel (B4); else unit id
+      unit_usaha_id:
+        unitUsahaId === undefined
+          ? undefined
+          : unitUsahaId === null || unitUsahaId === ''
+            ? UNIT_PUSAT_SENTINEL
+            : unitUsahaId,
       reference: reference || undefined,
       limit,
       offset,
@@ -145,8 +158,11 @@ export async function exportTransactions(params: {
   } else {
     if (params.startDate) qs.set('start_date', params.startDate)
     if (params.endDate) qs.set('end_date', params.endDate)
-    if (params.unitUsahaId === null) qs.set('unit_usaha_id', '')
-    else if (params.unitUsahaId) qs.set('unit_usaha_id', params.unitUsahaId)
+    if (params.unitUsahaId === null || params.unitUsahaId === '') {
+      qs.set('unit_usaha_id', UNIT_PUSAT_SENTINEL)
+    } else if (params.unitUsahaId) {
+      qs.set('unit_usaha_id', params.unitUsahaId)
+    }
   }
   const res = await fetch(`${API}/transactions/export?${qs}`, { credentials: 'include' })
   if (!res.ok) throw new Error('Gagal export Excel')
