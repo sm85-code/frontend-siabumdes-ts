@@ -8,7 +8,7 @@ Private **TypeScript** port of the live SIA BUMDes frontend.
 | **API** | [sm85-code/sm85-arch](https://github.com/sm85-code/sm85-arch) (`/api` BUMDes tenant) |
 | **Stack** | Vite · React 19 · TypeScript · Tailwind CSS v4 · TanStack Query · React Router 7 · Vitest · yarn |
 
-Business menus and roles match the live app; this repo is a new codebase. **Production cutover has not been done** — keep serving [frontend-siabumdes](https://github.com/sm85-code/frontend-siabumdes) until the checklist below is complete.
+Business menus and roles match the live app; this repo is the TypeScript production frontend. Public landing matches live transparency copy (no scaffold branding). Keep [frontend-siabumdes](https://github.com/sm85-code/frontend-siabumdes) available for rollback until smoke is solid.
 
 ## Quick start
 
@@ -39,7 +39,7 @@ yarn build
 
 ## Status
 
-**Ported (F0–F3):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles/nav config, typed `src/api/*`, TanStack Query hooks, **Dashboard**, **Transactions** (server pagination `meta=true`), **Reports** + per-unit + Tutup Buku, **Ledger**, **COA**, **Inventory (UU05)**, Unit Usaha, Org Profile, Users, Audit Log, Profile, Change Password. F3 adds vitest (role matrix + pure helpers), Login `htmlFor` a11y, StubPage removal, README cutover notes.
+**Ported (F0–F3 + public landing):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles/nav config, typed `src/api/*`, TanStack Query hooks, **public Landing / transparency** (`GET /api/public/summary`), **Dashboard**, **Transactions** (server pagination `meta=true`), **Reports** + per-unit + Tutup Buku, **Ledger**, **COA**, **Inventory (UU05)**, Unit Usaha, Org Profile, Users, Audit Log, Profile, Change Password. F3 adds vitest (role matrix + pure helpers), Login `htmlFor` a11y, StubPage removal, README cutover notes.
 
 Unit group tabs come from `GET /unit-usaha` via `buildUnitGroupTabs()` — no hardcoded UU01–UU06.
 
