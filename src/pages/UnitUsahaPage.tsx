@@ -1,7 +1,7 @@
-// @ts-nocheck — mechanical F2 port from live FE; tighten types in follow-up
 import { Pencil, Plus } from "lucide-react"
-import { useEffect, useState } from "react";
-import api from "@/api/client";
+import { useEffect, useState, type FormEvent } from "react";
+import api, { getApiError } from "@/api/client";
+import type { UnitUsaha } from "@/types";
 import { useAuth, can } from "@/lib/auth";
 import { notify } from "@/lib/feedback";
 import Spinner from "@/components/Spinner";
@@ -29,12 +29,12 @@ export default function UnitUsahaPage() {
   const { user } = useAuth();
   // Admin & Direktur can edit; Penasihat & Pengawas are view-only.
   const canWrite = can(user, "admin", "direktur");
-  const [list, setList] = useState([]);
+  const [list, setList] = useState<UnitUsaha[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [newUnit, setNewUnit] = useState(EMPTY_NEW);
-  const [editing, setEditing] = useState(null); // unit object being edited, or null
+  const [editing, setEditing] = useState<UnitUsaha | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -42,14 +42,14 @@ export default function UnitUsahaPage() {
       const r = await api.get("/unit-usaha", { params: { include_inactive: true } });
       setList(r.data || []);
     } catch (er) {
-      notify(er.response?.data?.detail || "Gagal memuat daftar unit usaha");
+      notify(getApiError(er, "Gagal memuat daftar unit usaha"));
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => { load(); }, []);
 
-  const submitNew = async (e) => {
+  const submitNew = async (e: FormEvent) => {
     e.preventDefault();
     if (!canWrite) return;
     if (!newUnit.code.trim() || !newUnit.name.trim()) {
@@ -64,15 +64,15 @@ export default function UnitUsahaPage() {
       setNewUnit(EMPTY_NEW);
       await load();
     } catch (er) {
-      notify(er.response?.data?.detail || "Gagal menambah unit usaha");
+      notify(getApiError(er, "Gagal menambah unit usaha"));
     } finally {
       setSaving(false);
     }
   };
 
-  const submitEdit = async (e) => {
+  const submitEdit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!canWrite) return;
+    if (!canWrite || !editing) return;
     setSaving(true);
     try {
       await api.patch(`/unit-usaha/${editing.id}`, {
@@ -84,7 +84,7 @@ export default function UnitUsahaPage() {
       setEditing(null);
       await load();
     } catch (er) {
-      notify(er.response?.data?.detail || "Gagal menyimpan perubahan unit usaha");
+      notify(getApiError(er, "Gagal menyimpan perubahan unit usaha"));
     } finally {
       setSaving(false);
     }
@@ -126,7 +126,7 @@ export default function UnitUsahaPage() {
               <div>
                 <Label>Jenis usaha</Label>
                 <Select value={newUnit.business_type}
-                  onValueChange={(v) => setNewUnit((f) => ({ ...f, business_type: v }))}>
+                  onValueChange={(v) => setNewUnit((f) => ({ ...f, business_type: v ?? "jasa" }))}>
                   <SelectTrigger data-testid="unit-new-business-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {BUSINESS_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -164,7 +164,7 @@ export default function UnitUsahaPage() {
             <TableRow key={u.id} data-testid={`unit-row-${u.code}`} className={u.active === false ? "opacity-60" : ""}>
               <TableCell><Badge variant="secondary">{u.code}</Badge></TableCell>
               <TableCell className="font-medium">{u.name}</TableCell>
-              <TableCell>{BUSINESS_TYPE_LABEL[u.business_type] || u.business_type}</TableCell>
+              <TableCell>{(u.business_type && BUSINESS_TYPE_LABEL[u.business_type]) || u.business_type}</TableCell>
               <TableCell>
                 {u.active === false ? <Badge variant="outline">Nonaktif</Badge> : <Badge variant="outline">Aktif</Badge>}
               </TableCell>
@@ -196,12 +196,12 @@ export default function UnitUsahaPage() {
               <div>
                 <Label htmlFor="edit-name">Nama unit</Label>
                 <Input id="edit-name" data-testid="unit-edit-name" value={editing.name}
-                  onChange={(e) => setEditing((f) => ({ ...f, name: e.target.value }))} />
+                  onChange={(e) => setEditing((f) => (f ? { ...f, name: e.target.value } : f))} />
               </div>
               <div>
                 <Label>Jenis usaha</Label>
                 <Select value={editing.business_type}
-                  onValueChange={(v) => setEditing((f) => ({ ...f, business_type: v }))}>
+                  onValueChange={(v) => setEditing((f) => (f ? { ...f, business_type: v ?? f.business_type } : f))}>
                   <SelectTrigger data-testid="unit-edit-business-type"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {BUSINESS_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
@@ -210,7 +210,7 @@ export default function UnitUsahaPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Switch id="edit-active" data-testid="unit-edit-active" checked={editing.active !== false}
-                  onCheckedChange={(v) => setEditing((f) => ({ ...f, active: v }))} />
+                  onCheckedChange={(v) => setEditing((f) => (f ? { ...f, active: v } : f))} />
                 <Label htmlFor="edit-active">Unit aktif</Label>
               </div>
               <DialogFooter>

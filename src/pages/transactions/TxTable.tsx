@@ -1,5 +1,6 @@
 import { Paperclip, Link2, Pencil, Receipt, Trash2, X } from 'lucide-react'
 import { fmtDate, fmtRp } from '@/api/client'
+import { pageWindow, rangeLabel } from '@/lib/pagination'
 import Spinner from '@/components/Spinner'
 import TableShell from '@/components/TableShell'
 import { Badge } from '@/components/ui/badge'
@@ -82,8 +83,11 @@ export default function TxTable({
     setSelected(n)
   }
 
-  const page = Math.floor(offset / limit) + 1
-  const pageCount = Math.max(1, Math.ceil(total / limit))
+  const { page, pageCount, prevOffset, nextOffset, canPrev, canNext } = pageWindow(
+    total,
+    limit,
+    offset,
+  )
 
   return (
     <Card className="overflow-hidden p-0">
@@ -273,20 +277,20 @@ export default function TxTable({
           <Button
             variant="outline"
             size="sm"
-            disabled={offset <= 0 || loading}
-            onClick={() => onPageChange(Math.max(0, offset - limit))}
+            disabled={!canPrev || loading}
+            onClick={() => onPageChange(prevOffset)}
             data-testid="tx-prev-page"
           >
             Sebelumnya
           </Button>
           <span className="text-xs text-muted-foreground">
-            {offset + 1}–{Math.min(offset + limit, total)} dari {total}
+            {rangeLabel(total, limit, offset)}
           </span>
           <Button
             variant="outline"
             size="sm"
-            disabled={!hasMore || loading}
-            onClick={() => onPageChange(offset + limit)}
+            disabled={!(hasMore || canNext) || loading}
+            onClick={() => onPageChange(nextOffset)}
             data-testid="tx-next-page"
           >
             Berikutnya

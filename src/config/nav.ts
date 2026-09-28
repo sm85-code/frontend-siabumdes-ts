@@ -20,6 +20,7 @@ import {
   ROLES_REPORTS,
   ROLES_UNIT_USAHA,
   ROLES_USERS,
+  can,
 } from '@/config/roles'
 import type { Role } from '@/types'
 
@@ -61,3 +62,19 @@ export const NAV: NavItem[] = [
   { to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
   { to: '/profile', label: 'Profil Saya', icon: UserCircle, roles: READ_MOST },
 ]
+
+/** Pure filter: which nav items a user may see (role + inventory unit gate). */
+export function filterNavForUser(
+  user: { role: Role; unit_usaha_id?: string | null } | null | undefined,
+  inventoryUnitIds: string[] | null | undefined,
+  items: NavItem[] = NAV,
+): NavItem[] {
+  if (!user) return []
+  return items.filter((n) => {
+    if (!can(user, ...n.roles)) return false
+    if (n.inventoryUnitOnly && user.role === 'pengelola') {
+      return Boolean(inventoryUnitIds?.includes(user.unit_usaha_id ?? ''))
+    }
+    return true
+  })
+}

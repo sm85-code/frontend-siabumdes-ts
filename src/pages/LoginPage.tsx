@@ -71,20 +71,27 @@ export default function LoginPage() {
             </p>
             <form onSubmit={(e) => void submit(e)} className="space-y-4">
               <div>
-                <label className="label">Username / Email</label>
+                <label className="label" htmlFor="login-username">
+                  Username / Email
+                </label>
                 <Input
+                  id="login-username"
                   data-testid="login-username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="mis. admin"
                   autoFocus
                   required
+                  autoComplete="username"
                 />
               </div>
               <div>
-                <label className="label">Password</label>
+                <label className="label" htmlFor="login-password">
+                  Password
+                </label>
                 <div className="relative">
                   <Input
+                    id="login-password"
                     data-testid="login-password"
                     className="pr-10"
                     type={showPw ? 'text' : 'password'}
@@ -93,6 +100,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
