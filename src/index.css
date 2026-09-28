@@ -93,7 +93,9 @@ h1,
 h2,
 h3,
 h4,
-.font-heading {
+.font-heading,
+.modern-brand-title,
+.auth-brand-title {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
   line-height: 1.25;

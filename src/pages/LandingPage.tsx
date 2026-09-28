@@ -93,7 +93,7 @@ export default function LandingPage() {
             className="h-11 w-11 object-contain"
           />
           <div className="leading-tight">
-            <div className="font-heading text-[1.05rem]">BUMDes Karya Raharja</div>
+            <div className="font-heading text-[1.05rem] font-semibold tracking-tight">BUMDes Karya Raharja</div>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Desa Wonoharjo
             </div>
@@ -116,7 +116,7 @@ export default function LandingPage() {
         >
           Papan Kinerja · BUMDes · Tahun {year}
         </p>
-        <h1 className="modern-brand-title text-3xl sm:text-5xl">
+        <h1 className="modern-brand-title text-3xl font-bold sm:text-5xl">
           SIA BUMDes <span style={{ color: 'var(--chart-3)' }}>Karya Raharja</span>
         </h1>
         <p className="mt-4 text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>
@@ -171,7 +171,7 @@ export default function LandingPage() {
         <section className="mx-auto max-w-5xl px-5 pb-8">
           <Card>
             <CardContent className="pt-6">
-              <h3 className="font-heading mb-1 text-lg">Tren Pendapatan & Beban {year}</h3>
+              <h3 className="font-heading mb-1 text-lg font-semibold tracking-tight">Tren Pendapatan & Beban {year}</h3>
               <p className="mb-4 text-xs" style={{ color: 'var(--text-muted)' }}>
                 Diperbarui langsung dari transaksi resmi.
               </p>
