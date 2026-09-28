@@ -124,9 +124,7 @@ export default function TransactionsPage() {
     return units.find((u) => u.code === activeGroup)?.id || null
   }, [activeGroup, units])
 
-  // Server pagination: period + unit (or null for BUMDES = pusat only via empty filter)
-  // API filters unit only when truthy; for BUMDES we pass '' and rely on period page,
-  // then keep pusat rows (null unit). See listTransactions params.
+  // Server pagination: period + unit. BUMDES tab uses B4 pusat sentinel (null → '').
   const listParams = useMemo(() => {
     if (refFilter) {
       return { reference: refFilter, limit: 200, offset: 0 }
@@ -134,9 +132,8 @@ export default function TransactionsPage() {
     return {
       startDate: period.startDate,
       endDate: period.endDate,
-      // undefined = all units; string id = that unit; for BUMDES we omit unit and
-      // filter null client-side after fetch (API lacks IS NULL sentinel yet).
-      unitUsahaId: activeGroup === 'BUMDES' ? undefined : activeUnitId,
+      // null = pusat sentinel (IS NULL); unit id = that unit
+      unitUsahaId: activeGroup === 'BUMDES' ? null : activeUnitId,
       limit: PAGE_SIZE,
       offset,
     }
@@ -144,11 +141,7 @@ export default function TransactionsPage() {
 
   const txQ = useTransactionsPage(listParams)
   const pageData = txQ.data
-  const rawItems = pageData?.items ?? []
-  const items =
-    refFilter || activeGroup !== 'BUMDES'
-      ? rawItems
-      : rawItems.filter((t) => !t.unit_usaha_id)
+  const items = pageData?.items ?? []
   const hasMore = pageData?.has_more ?? false
   const loading = txQ.isFetching
 
@@ -618,10 +611,10 @@ export default function TransactionsPage() {
         loading={loading}
         activeGroup={activeGroup}
         periodLabel={periodLabel}
-        total={refFilter || activeGroup !== 'BUMDES' ? (pageData?.total ?? items.length) : items.length}
+        total={pageData?.total ?? items.length}
         offset={offset}
         limit={PAGE_SIZE}
-        hasMore={hasMore && activeGroup !== 'BUMDES'}
+        hasMore={hasMore}
         onPageChange={setOffset}
         units={units}
         accounts={accounts}

@@ -27,3 +27,19 @@ jobs:
 
       - name: Build
         run: yarn build
+
+      # Thin Playwright smoke (chromium only). API mocked — no backend.
+      # Cached browsers keep free-tier CI affordable; retries=1 in config.
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+
+      - name: Install Playwright Chromium
+        run: yarn smoke:install --with-deps
+
+      - name: Smoke (login + protected redirect)
+        run: yarn smoke
+        env:
+          CI: true
