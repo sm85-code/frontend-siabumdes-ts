@@ -1,7 +1,8 @@
-// @ts-nocheck — mechanical F2 port from live FE; tighten types in follow-up
 import { Key, Lock, Pencil, Plus, Trash2 } from "lucide-react"
 import { ROLE_LABELS } from "@/config/roles"
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import api, { getApiError } from "@/api/client";
 import { useAuth } from "@/lib/auth";
 import { notify, notifySuccess, notifyError } from "@/lib/feedback";
@@ -20,8 +21,10 @@ import {
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
+import type { Role, UnitUsaha, User } from "@/types";
+import { createUserSchema, type CreateUserFormValues } from "@/schemas/users";
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "admin", label: "Admin Utama" },
   { value: "direktur", label: "Direktur" },
   { value: "bendahara", label: "Bendahara" },
@@ -30,34 +33,52 @@ const ROLE_OPTIONS = [
   { value: "penasihat", label: "Penasihat (read-only)" },
 ];
 
-const ROLE_BADGE_VARIANT = {
+const ROLE_BADGE_VARIANT: Record<Role, "default" | "secondary" | "outline"> = {
   admin: "default", direktur: "secondary", bendahara: "secondary",
   pengelola: "outline", pengawas: "secondary", penasihat: "secondary",
 };
 
+type EditUserForm = {
+  name: string
+  username: string
+  email: string
+  role: Role | ""
+  unit_usaha_id: string
+}
+
+const EMPTY_CREATE: CreateUserFormValues = {
+  username: "", email: "", name: "", password: "", role: "pengelola", unit_usaha_id: "",
+};
+
+
 export default function UsersPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
-  const [users, setUsers] = useState([]);
-  const [units, setUnits] = useState([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [units, setUnits] = useState<UnitUsaha[]>([]);
   const [show, setShow] = useState(false);
-  const [showResetFor, setShowResetFor] = useState(null); // user id
-  const [showLockFor, setShowLockFor] = useState(null); // user id
-  const [editingUser, setEditingUser] = useState(null); // user object
-  const [editForm, setEditForm] = useState({ name: "", username: "", email: "", role: "", unit_usaha_id: "" });
-  const [lockPeriods, setLockPeriods] = useState(new Set()); // Set of "YYYY-MM"
+  const [showResetFor, setShowResetFor] = useState<string | null>(null);
+  const [showLockFor, setShowLockFor] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editForm, setEditForm] = useState<EditUserForm>({ name: "", username: "", email: "", role: "", unit_usaha_id: "" });
+  const [lockPeriods, setLockPeriods] = useState<Set<string>>(new Set());
   const [newPw, setNewPw] = useState("");
-  const [form, setForm] = useState({
-    username: "", email: "", name: "", password: "", role: "pengelola", unit_usaha_id: "",
+  const createForm = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: EMPTY_CREATE,
   });
+  const createRole = createForm.watch("role");
 
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [u, un] = await Promise.all([api.get("/users"), api.get("/unit-usaha")]);
-      setUsers(u.data); setUnits(un.data);
+      const [u, un] = await Promise.all([
+        api.get<User[]>("/users"),
+        api.get<UnitUsaha[]>("/unit-usaha"),
+      ]);
+      setUsers(u.data ?? []); setUnits(un.data ?? []);
     } catch (er) {
       notifyError(getApiError(er, "Gagal memuat data pengguna"));
     } finally {
@@ -66,63 +87,79 @@ export default function UsersPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const onCreateUser = async (values: CreateUserFormValues) => {
     try {
       await api.post("/auth/register", {
-        ...form, unit_usaha_id: form.role === "pengelola" ? form.unit_usaha_id : null,
+        ...values,
+        unit_usaha_id: values.role === "pengelola" ? values.unit_usaha_id : null,
       });
       setShow(false);
-      setForm({ username: "", email: "", name: "", password: "", role: "pengelola", unit_usaha_id: "" });
-      load();
+      createForm.reset(EMPTY_CREATE);
+      void load();
       notifySuccess("Pengguna berhasil ditambahkan.");
-    } catch (er) { notifyError(er.response?.data?.detail || "Gagal"); }
+    } catch (er: unknown) {
+      notifyError(getApiError(er, "Gagal"));
+    }
   };
 
-  const openEdit = (u) => {
+  const openEdit = (u: User) => {
     setEditingUser(u);
-    setEditForm({ name: u.name, username: u.username, email: u.email, role: u.role, unit_usaha_id: u.unit_usaha_id || "" });
+    setEditForm({
+      name: u.name,
+      username: u.username,
+      email: u.email || "",
+      role: u.role,
+      unit_usaha_id: u.unit_usaha_id || "",
+    });
   };
 
-  const saveEdit = async (e) => {
+  const saveEdit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!editingUser) return;
     try {
       await api.put(`/users/${editingUser.id}`, {
         ...editForm,
         unit_usaha_id: editForm.role === "pengelola" ? editForm.unit_usaha_id : null,
       });
       setEditingUser(null);
-      load();
+      void load();
       notifySuccess("Pengguna berhasil diperbarui.");
-    } catch (er) { notifyError(er.response?.data?.detail || "Gagal memperbarui pengguna"); }
+    } catch (er: unknown) {
+      notifyError(getApiError(er, "Gagal memperbarui pengguna"));
+    }
   };
 
-  const del = async (id) => {
+  const del = async (id: string) => {
     if (!(await confirm({ title: "Hapus pengguna", description: "Pengguna akan dihapus dan tidak dapat dipulihkan.", confirmLabel: "Hapus", destructive: true }))) return;
     try {
       await api.delete(`/users/${id}`);
-      load();
+      void load();
       notifySuccess("Pengguna berhasil dihapus.");
-    } catch (er) { notifyError(er.response?.data?.detail || "Gagal menghapus pengguna"); }
+    } catch (er: unknown) {
+      notifyError(getApiError(er, "Gagal menghapus pengguna"));
+    }
   };
 
-  const resetPw = async (e) => {
+  const resetPw = async (e: FormEvent) => {
     e.preventDefault();
+    if (!showResetFor) return;
     if (newPw.length < 6) { notify("Password minimal 6 karakter"); return; }
     try {
       await api.post(`/users/${showResetFor}/reset-password`, { new_password: newPw });
       setShowResetFor(null); setNewPw("");
-      load();
+      void load();
       notifySuccess("Password berhasil direset.");
-    } catch (er) { notifyError(er.response?.data?.detail || "Gagal reset"); }
+    } catch (er: unknown) {
+      notifyError(getApiError(er, "Gagal reset"));
+    }
   };
 
   // ---- Period Access Control ----
-  const openLock = (u) => {
+  const openLock = (u: User) => {
     setShowLockFor(u.id);
     setLockPeriods(new Set(u.blocked_periods || []));
   };
-  const togglePeriod = (ym) => {
+  const togglePeriod = (ym: string) => {
     setLockPeriods(prev => {
       const n = new Set(prev);
       if (n.has(ym)) n.delete(ym); else n.add(ym);
@@ -130,18 +167,22 @@ export default function UsersPage() {
     });
   };
   const saveLock = async () => {
+    if (!showLockFor) return;
     try {
       await api.put(`/users/${showLockFor}/blocked-periods`, {
         blocked_periods: Array.from(lockPeriods),
       });
       setShowLockFor(null); setLockPeriods(new Set());
-      load();
+      void load();
       notifySuccess("Periode terkunci berhasil disimpan.");
-    } catch (er) { notifyError(er.response?.data?.detail || "Gagal menyimpan"); }
+    } catch (er: unknown) {
+      notifyError(getApiError(er, "Gagal menyimpan"));
+    }
   };
 
-  const isAdmin = user.role === "admin";
-  const userSort = useSort(users, "name", "asc");
+  const isAdmin = user?.role === "admin";
+  const userSort = useSort(users as unknown as Record<string, unknown>[], "name", "asc");
+  const sortedUsers = userSort.sorted as unknown as User[];
 
   if (!isAdmin) {
     return (
@@ -158,7 +199,7 @@ export default function UsersPage() {
     );
   }
 
-  const actionButtons = (u) => (
+  const actionButtons = (u: User) => (
     <div className="flex gap-1">
       <Button
         data-testid={`btn-edit-${u.id}`}
@@ -218,7 +259,7 @@ export default function UsersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button data-testid="btn-new-user" onClick={() => setShow(true)}>
+          <Button data-testid="btn-new-user" onClick={() => { createForm.reset(EMPTY_CREATE); setShow(true); }}>
             <Plus  className="size-4" /> Tambah Pengguna
           </Button>
         </div>
@@ -229,58 +270,79 @@ export default function UsersPage() {
           <CardHeader>
             <CardTitle className="font-heading text-lg">Tambah Pengguna Baru</CardTitle>
           </CardHeader>
-          <form onSubmit={submit}>
+          <form onSubmit={(e) => void createForm.handleSubmit(onCreateUser)(e)}>
             <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Nama Lengkap</Label>
-                <Input required value={form.name}
-                       onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input aria-invalid={Boolean(createForm.formState.errors.name)} {...createForm.register("name")} />
+                {createForm.formState.errors.name && (
+                  <p className="text-xs text-destructive">{createForm.formState.errors.name.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Username</Label>
-                <Input required value={form.username}
-                       onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                <Input aria-invalid={Boolean(createForm.formState.errors.username)} {...createForm.register("username")} />
+                {createForm.formState.errors.username && (
+                  <p className="text-xs text-destructive">{createForm.formState.errors.username.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Email</Label>
-                <Input type="email" required value={form.email}
-                       onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <Input type="email" aria-invalid={Boolean(createForm.formState.errors.email)} {...createForm.register("email")} />
+                {createForm.formState.errors.email && (
+                  <p className="text-xs text-destructive">{createForm.formState.errors.email.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Password</Label>
-                <Input type="text" required minLength={6} value={form.password}
-                       onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="min. 6 karakter" />
+                <Input type="text" placeholder="min. 6 karakter" aria-invalid={Boolean(createForm.formState.errors.password)} {...createForm.register("password")} />
+                {createForm.formState.errors.password && (
+                  <p className="text-xs text-destructive">{createForm.formState.errors.password.message}</p>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label>Role</Label>
-                <Select required value={form.role}
-                        onValueChange={(v) => setForm({ ...form, role: v })}>
-                  <SelectTrigger data-testid="select-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={createForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger data-testid="select-role">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
-              {form.role === "pengelola" && (
+              {createRole === "pengelola" && (
                 <div className="space-y-1.5">
                   <Label>Unit Usaha</Label>
-                  <Select required value={form.unit_usaha_id}
-                          onValueChange={(v) => setForm({ ...form, unit_usaha_id: v })}>
-                    <SelectTrigger data-testid="select-unit-usaha">
-                      <SelectValue placeholder="— pilih unit —" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    control={createForm.control}
+                    name="unit_usaha_id"
+                    render={({ field }) => (
+                      <Select value={field.value || undefined} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid="select-unit-usaha">
+                          <SelectValue placeholder="— pilih unit —" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {createForm.formState.errors.unit_usaha_id && (
+                    <p className="text-xs text-destructive">{createForm.formState.errors.unit_usaha_id.message}</p>
+                  )}
                 </div>
               )}
             </CardContent>
             <CardFooter className="sm:col-span-2 justify-end gap-2">
-              <Button type="button" onClick={() => setShow(false)} variant="outline">Batal</Button>
-              <Button type="submit" data-testid="btn-save-user">Simpan</Button>
+              <Button type="button" onClick={() => { setShow(false); createForm.reset(EMPTY_CREATE); }} variant="outline">Batal</Button>
+              <Button type="submit" data-testid="btn-save-user" disabled={createForm.formState.isSubmitting}>Simpan</Button>
             </CardFooter>
           </form>
         </Card>
@@ -311,7 +373,7 @@ export default function UsersPage() {
               <div className="space-y-1.5">
                 <Label>Role</Label>
                 <Select required value={editForm.role}
-                        onValueChange={(v) => setEditForm({ ...editForm, role: v })}>
+                        onValueChange={(v) => setEditForm({ ...editForm, role: v as Role })}>
                   <SelectTrigger data-testid="edit-select-role">
                     <SelectValue />
                   </SelectTrigger>
@@ -463,7 +525,7 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {userSort.sorted.map(u => {
+                {sortedUsers.map((u) => {
                   const blockedCnt = (u.blocked_periods || []).length;
                   return (
                     <TableRow key={u.id}>
@@ -471,7 +533,7 @@ export default function UsersPage() {
                       <TableCell>{u.username}</TableCell>
                       <TableCell className="text-xs">{u.email}</TableCell>
                       <TableCell>
-                        <Badge variant={ROLE_BADGE_VARIANT[u.role] || "outline"}>{ROLE_LABELS[u.role] || u.role}</Badge>
+                        <Badge variant={ROLE_BADGE_VARIANT[u.role] ?? "outline"}>{ROLE_LABELS[u.role] || u.role}</Badge>
                       </TableCell>
                       <TableCell className="text-xs">{units.find(x => x.id === u.unit_usaha_id)?.code || "-"}</TableCell>
                       <TableCell className="text-xs" data-testid={`blocked-count-${u.id}`}>

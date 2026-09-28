@@ -1,45 +1,50 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
 import { getApiError } from '@/api/client'
+import {
+  changePasswordSchema,
+  type ChangePasswordFormValues,
+} from '@/schemas/auth'
 
 export default function ChangePasswordPage() {
   const { changePassword, logout } = useAuth()
   const navigate = useNavigate()
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmation, setConfirmation] = useState('')
   const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ChangePasswordFormValues>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmation: '',
+    },
+  })
+
+  const onSubmit = async (values: ChangePasswordFormValues) => {
     setError('')
-    if (newPassword.length < 8) {
-      setError('Password baru minimal 8 karakter.')
-      return
-    }
-    if (newPassword !== confirmation) {
-      setError('Konfirmasi password tidak cocok.')
-      return
-    }
-    if (newPassword === currentPassword) {
-      setError('Password baru harus berbeda dari password sementara.')
-      return
-    }
-    setSaving(true)
     try {
-      await changePassword(currentPassword, newPassword)
+      await changePassword(values.currentPassword, values.newPassword)
       navigate('/dashboard', { replace: true })
     } catch (err) {
       setError(getApiError(err, 'Gagal mengganti password.'))
-    } finally {
-      setSaving(false)
     }
   }
+
+  const fieldError =
+    errors.currentPassword?.message ||
+    errors.newPassword?.message ||
+    errors.confirmation?.message ||
+    error
 
   return (
     <div className="auth-bg flex items-center justify-center p-4">
@@ -50,7 +55,7 @@ export default function ChangePasswordPage() {
           <p className="mt-2 mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Password sementara harus diganti sebelum Anda dapat melanjutkan.
           </p>
-          <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
             <div>
               <label className="label" htmlFor="current-password">
                 Password sementara
@@ -58,10 +63,9 @@ export default function ChangePasswordPage() {
               <Input
                 id="current-password"
                 type="password"
-                required
                 maxLength={72}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                aria-invalid={Boolean(errors.currentPassword)}
+                {...register('currentPassword')}
               />
             </div>
             <div>
@@ -71,11 +75,9 @@ export default function ChangePasswordPage() {
               <Input
                 id="new-password"
                 type="password"
-                minLength={8}
                 maxLength={72}
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                aria-invalid={Boolean(errors.newPassword)}
+                {...register('newPassword')}
               />
             </div>
             <div>
@@ -85,23 +87,21 @@ export default function ChangePasswordPage() {
               <Input
                 id="confirm-password"
                 type="password"
-                minLength={8}
                 maxLength={72}
-                required
-                value={confirmation}
-                onChange={(e) => setConfirmation(e.target.value)}
+                aria-invalid={Boolean(errors.confirmation)}
+                {...register('confirmation')}
               />
             </div>
-            {error && (
+            {fieldError && (
               <div
                 className="rounded-lg p-3 text-sm"
                 style={{ background: 'var(--status-error-bg)', color: 'var(--status-error)' }}
               >
-                {error}
+                {fieldError}
               </div>
             )}
-            <Button className="w-full" disabled={saving}>
-              {saving ? 'Menyimpan...' : 'Simpan Password Baru'}
+            <Button className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? 'Menyimpan...' : 'Simpan Password Baru'}
             </Button>
             <Button type="button" variant="outline" className="w-full" onClick={() => void logout()}>
               Keluar

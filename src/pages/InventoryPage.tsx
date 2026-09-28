@@ -1,9 +1,21 @@
-// @ts-nocheck — mechanical F2 port from live FE; tighten types in follow-up
 import { ArrowDown, ArrowUp, BarChart3, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
 import { useAuth, can } from "@/lib/auth";
+import type {
+  InventoryAdjustment,
+  InventoryCategory,
+  InventoryMeta,
+  InventoryMovement,
+  InventoryMovementReport,
+  InventoryPartner,
+  InventoryProduct,
+  InventoryPurchase,
+  InventorySale,
+  InventoryValuation,
+  PeriodValue,
+} from "@/types";
 import {
   CoaSelect, KAS_ACCOUNT_CODE, PERSEDIAAN_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE,
   UTANG_ACCOUNT_CODE, PENDAPATAN_ACCOUNT_CODE, HPP_ACCOUNT_CODE,
@@ -21,20 +33,88 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-function formatApiError(err, fallback = "Terjadi kesalahan") {
-  const detail = err?.response?.data?.detail;
-  if (detail == null) return err?.message || fallback;
+function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
+  const detail = (err as { response?: { data?: { detail?: unknown }; message?: string }; message?: string })
+    ?.response?.data?.detail;
+  if (detail == null) {
+    return (err as { message?: string })?.message || fallback;
+  }
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
-    return detail.map((item) => {
+    return detail.map((item: unknown) => {
       if (typeof item === "string") return item;
-      const loc = Array.isArray(item?.loc) ? item.loc.filter((x) => x !== "body").join(".") : "";
-      const msg = item?.msg || item?.message || JSON.stringify(item);
+      const obj = item as { loc?: unknown[]; msg?: string; message?: string };
+      const loc = Array.isArray(obj?.loc)
+        ? obj.loc.filter((x) => x !== "body").join(".")
+        : "";
+      const msg = obj?.msg || obj?.message || JSON.stringify(item);
       return loc ? `${loc}: ${msg}` : msg;
     }).join("; ");
   }
-  if (typeof detail === "object") return detail.message || JSON.stringify(detail);
+  if (typeof detail === "object" && detail !== null) {
+    const msg = (detail as { message?: string }).message;
+    return msg || JSON.stringify(detail);
+  }
   return String(detail);
+}
+
+type Numish = number | string;
+
+type ProductFormState = {
+  sku: string
+  name: string
+  category_id: string
+  unit_of_measure: string
+  cost_price: Numish
+  sell_price: Numish
+  opening_qty: Numish
+}
+
+type StockInForm = {
+  product_id: string
+  quantity: Numish
+  unit_cost: Numish
+  movement_date: string
+  debit_account_code: string
+  credit_account_code: string
+  vendor_id: string
+  invoice_number: string
+  payment_method: string
+  due_date: string
+}
+
+type StockOutForm = {
+  isInternal: boolean
+  product_id: string
+  quantity: Numish
+  movement_date: string
+  debit_account_code: string
+  credit_account_code: string
+  customer_id: string
+  sell_price: Numish
+  invoice_number: string
+  payment_method: string
+  due_date: string
+  revenue_debit_account_code: string
+  revenue_credit_account_code: string
+  note: string
+}
+
+type PartnerForm = {
+  id: string | null
+  name: string
+  contact: string
+  address: string
+}
+
+type AdjustForm = {
+  product_id: string
+  quantity_delta: Numish
+  reason: string
+  adjustment_date: string
+  notes: string
+  debit_account_code: string
+  credit_account_code: string
 }
 
 const BASE = "/v1/uu05_inventory";
@@ -53,13 +133,13 @@ const TABS = [
   { id: "laporan", label: "Laporan", icon: BarChart3 },
 ];
 
-const emptyStockIn = () => ({
+const emptyStockIn = (): StockInForm => ({
   product_id: "", quantity: 1, unit_cost: 0, movement_date: today(),
   debit_account_code: PERSEDIAAN_ACCOUNT_CODE, credit_account_code: KAS_ACCOUNT_CODE,
   vendor_id: "", invoice_number: "", payment_method: "cash", due_date: "",
 });
 
-const emptyStockOut = () => ({
+const emptyStockOut = (): StockOutForm => ({
   isInternal: false,
   product_id: "", quantity: 1, movement_date: today(),
   debit_account_code: HPP_ACCOUNT_CODE, credit_account_code: PERSEDIAAN_ACCOUNT_CODE,
@@ -68,9 +148,9 @@ const emptyStockOut = () => ({
   note: "",
 });
 
-const emptyPartnerForm = () => ({ id: null, name: "", contact: "", address: "" });
+const emptyPartnerForm = (): PartnerForm => ({ id: null, name: "", contact: "", address: "" });
 
-const emptyAdjustForm = () => ({
+const emptyAdjustForm = (): AdjustForm => ({
   product_id: "", quantity_delta: -1, reason: "rusak",
   adjustment_date: today(), notes: "",
   debit_account_code: PERSEDIAAN_ACCOUNT_CODE, credit_account_code: PENDAPATAN_ACCOUNT_CODE,
@@ -79,34 +159,36 @@ const emptyAdjustForm = () => ({
 export default function Inventory() {
   const { user } = useAuth();
   const [tab, setTab] = useState("summary");
-  const [meta, setMeta] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [adjustments, setAdjustments] = useState([]);
-  const [vendors, setVendors] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [purchases, setPurchases] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [valuation, setValuation] = useState(null);
-  const [movementReport, setMovementReport] = useState(null);
+  const [meta, setMeta] = useState<InventoryMeta | null>(null);
+  const [products, setProducts] = useState<InventoryProduct[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
+  const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
+  const [vendors, setVendors] = useState<InventoryPartner[]>([]);
+  const [customers, setCustomers] = useState<InventoryPartner[]>([]);
+  const [purchases, setPurchases] = useState<InventoryPurchase[]>([]);
+  const [sales, setSales] = useState<InventorySale[]>([]);
+  const [valuation, setValuation] = useState<InventoryValuation | null>(null);
+  const [movementReport, setMovementReport] = useState<InventoryMovementReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [productForm, setProductForm] = useState({
+  const [productForm, setProductForm] = useState<ProductFormState>({
     sku: "", name: "", category_id: "", unit_of_measure: "pcs",
     cost_price: 0, sell_price: 0, opening_qty: 0,
   });
-  const [stockIn, setStockIn] = useState(emptyStockIn());
-  const [stockOut, setStockOut] = useState(emptyStockOut());
-  const [adjust, setAdjust] = useState(emptyAdjustForm());
-  const [vendorForm, setVendorForm] = useState(emptyPartnerForm());
-  const [customerForm, setCustomerForm] = useState(emptyPartnerForm());
-  const [period, setPeriod] = useState({ mode: "monthly", startDate: "", endDate: "" });
+  const [stockIn, setStockIn] = useState<StockInForm>(emptyStockIn());
+  const [stockOut, setStockOut] = useState<StockOutForm>(emptyStockOut());
+  const [adjust, setAdjust] = useState<AdjustForm>(emptyAdjustForm());
+  const [vendorForm, setVendorForm] = useState<PartnerForm>(emptyPartnerForm());
+  const [customerForm, setCustomerForm] = useState<PartnerForm>(emptyPartnerForm());
+  const [period, setPeriod] = useState<PeriodValue>({
+    mode: "monthly", startDate: "", endDate: "", label: "",
+  });
 
   const canAccessRole = can(user, "admin", "direktur", "bendahara", "pengelola");
   const canWrite = can(user, "admin", "direktur", "bendahara", "pengelola");
@@ -214,7 +296,7 @@ export default function Inventory() {
     setShowForm(true);
   };
 
-  const openEditProduct = (p) => {
+  const openEditProduct = (p: InventoryProduct) => {
     setEditingId(p.id);
     setProductForm({
       sku: p.sku,
@@ -234,7 +316,7 @@ export default function Inventory() {
     setProductForm(emptyProductForm());
   };
 
-  const submitProduct = async (e) => {
+  const submitProduct = async (e: FormEvent) => {
     e.preventDefault();
     try {
       if (editingId) {
@@ -261,7 +343,7 @@ export default function Inventory() {
     }
   };
 
-  const removeProduct = async (id) => {
+  const removeProduct = async (id: string) => {
     if (!window.confirm("Hapus produk ini? Stok harus 0. Riwayat mutasi/penyesuaian & jurnal terkait ikut dihapus.")) return;
     try {
       await api.delete(`${BASE}/products/${id}`);
@@ -271,7 +353,7 @@ export default function Inventory() {
     }
   };
 
-  const submitStockIn = async (e) => {
+  const submitStockIn = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
@@ -292,7 +374,7 @@ export default function Inventory() {
     }
   };
 
-  const submitStockOut = async (e) => {
+  const submitStockOut = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     const product = products.find((p) => p.id === stockOut.product_id);
@@ -330,7 +412,7 @@ export default function Inventory() {
     }
   };
 
-  const submitAdjust = async (e) => {
+  const submitAdjust = async (e: FormEvent) => {
     e.preventDefault();
     if (submitting) return;
     setSubmitting(true);
@@ -349,7 +431,7 @@ export default function Inventory() {
     }
   };
 
-  const cancelMovement = async (id) => {
+  const cancelMovement = async (id: string) => {
     if (!window.confirm("Batalkan mutasi ini? Mutasi, transaksi pembelian/penjualan & jurnal terkait akan dihapus permanen.")) return;
     try {
       await api.post(`${BASE}/cancel-movement`, { stock_card_id: id });
@@ -359,7 +441,7 @@ export default function Inventory() {
     }
   };
 
-  const cancelAdjustment = async (id) => {
+  const cancelAdjustment = async (id: string) => {
     if (!window.confirm("Batalkan penyesuaian ini? Qty dikembalikan dan jurnal terkait dihapus.")) return;
     try {
       await api.post(`${BASE}/cancel-adjustment`, { adjustment_id: id });
@@ -369,7 +451,7 @@ export default function Inventory() {
     }
   };
 
-  const submitVendor = async (e) => {
+  const submitVendor = async (e: FormEvent) => {
     e.preventDefault();
     try {
       if (vendorForm.id) {
@@ -389,7 +471,7 @@ export default function Inventory() {
     }
   };
 
-  const toggleVendorActive = async (v) => {
+  const toggleVendorActive = async (v: InventoryPartner) => {
     try {
       await api.put(`${BASE}/vendors/${v.id}`, { is_active: !v.is_active });
       await loadTrade();
@@ -398,7 +480,7 @@ export default function Inventory() {
     }
   };
 
-  const submitCustomer = async (e) => {
+  const submitCustomer = async (e: FormEvent) => {
     e.preventDefault();
     try {
       if (customerForm.id) {
@@ -418,7 +500,7 @@ export default function Inventory() {
     }
   };
 
-  const toggleCustomerActive = async (c) => {
+  const toggleCustomerActive = async (c: InventoryPartner) => {
     try {
       await api.put(`${BASE}/customers/${c.id}`, { is_active: !c.is_active });
       await loadTrade();
@@ -427,10 +509,10 @@ export default function Inventory() {
     }
   };
 
-  const payPurchase = async (purchase) => {
+  const payPurchase = async (purchase: InventoryPurchase) => {
     const amountStr = window.prompt(
       `Jumlah pelunasan utang (sisa ${fmtRp(Number(purchase.outstanding))}):`,
-      purchase.outstanding,
+      String(purchase.outstanding ?? ""),
     );
     if (!amountStr) return;
     try {
@@ -448,10 +530,10 @@ export default function Inventory() {
     }
   };
 
-  const paySale = async (sale) => {
+  const paySale = async (sale: InventorySale) => {
     const amountStr = window.prompt(
       `Jumlah pelunasan piutang (sisa ${fmtRp(Number(sale.outstanding))}):`,
-      sale.outstanding,
+      String(sale.outstanding ?? ""),
     );
     if (!amountStr) return;
     try {
@@ -691,7 +773,7 @@ export default function Inventory() {
             ) : <p className="text-sm">Role Anda read-only.</p>}
           </CardContent>
           </Card>
-          <MovementTable rows={movements.filter((m) => m.direction === "in" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : null} />
+          <MovementTable rows={movements.filter((m) => m.direction === "in" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
         </div>
       )}
 
@@ -813,7 +895,7 @@ export default function Inventory() {
             ) : <p className="text-sm">Role Anda read-only.</p>}
           </CardContent>
           </Card>
-          <MovementTable rows={movements.filter((m) => m.direction === "out" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : null} />
+          <MovementTable rows={movements.filter((m) => m.direction === "out" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
         </div>
       )}
 
@@ -901,7 +983,7 @@ export default function Inventory() {
                     <TableCell>{fmtDate(a.adjustment_date)}</TableCell>
                     <TableCell>{a.sku}</TableCell>
                     <TableCell>{a.product_name}</TableCell>
-                    <TableCell className="num">{a.quantity_delta > 0 ? `+${a.quantity_delta}` : a.quantity_delta}</TableCell>
+                    <TableCell className="num">{Number(a.quantity_delta) > 0 ? `+${a.quantity_delta}` : a.quantity_delta}</TableCell>
                     <TableCell><Badge variant="secondary">{a.reason}</Badge></TableCell>
                     <TableCell>{a.notes || "-"}</TableCell>
                     <TableCell className="text-xs">
@@ -1031,18 +1113,18 @@ export default function Inventory() {
                   <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada utang usaha.</TableCell></TableRow>
                 ) : purchases.filter((p) => p.payment_method === "credit").map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell>{p.invoice_number || "-"}</TableCell>
-                    <TableCell>{p.vendor_name}</TableCell>
-                    <TableCell><Badge variant="secondary">{p.payment_method}</Badge></TableCell>
+                    <TableCell>{String(p.invoice_number || "-")}</TableCell>
+                    <TableCell>{String(p.vendor_name ?? "")}</TableCell>
+                    <TableCell><Badge variant="secondary">{String(p.payment_method ?? "")}</Badge></TableCell>
                     <TableCell className="num">{fmtRp(Number(p.total_amount))}</TableCell>
                     <TableCell className="num">{fmtRp(Number(p.paid_amount))}</TableCell>
                     <TableCell className="num">{fmtRp(Number(p.outstanding))}</TableCell>
-                    <TableCell>{p.due_date ? fmtDate(p.due_date) : "-"}</TableCell>
+                    <TableCell>{p.due_date ? fmtDate(String(p.due_date)) : "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant={p.status === "paid" ? "default" : "outline"}>{p.status}</Badge>
+                        <Badge variant={p.status === "paid" ? "default" : "outline"}>{String(p.status ?? "")}</Badge>
                         {canWrite && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => cancelMovement(p.stock_card_id)}>Batalkan</Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => cancelMovement(String(p.stock_card_id ?? ""))}>Batalkan</Button>
                         )}
                       </div>
                     </TableCell>
@@ -1071,18 +1153,18 @@ export default function Inventory() {
                   <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada piutang usaha.</TableCell></TableRow>
                 ) : sales.filter((s) => s.payment_method === "piutang").map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell>{s.invoice_number || "-"}</TableCell>
-                    <TableCell>{s.customer_name}</TableCell>
-                    <TableCell><Badge variant="secondary">{s.payment_method}</Badge></TableCell>
+                    <TableCell>{String(s.invoice_number || "-")}</TableCell>
+                    <TableCell>{String(s.customer_name ?? "")}</TableCell>
+                    <TableCell><Badge variant="secondary">{String(s.payment_method ?? "")}</Badge></TableCell>
                     <TableCell className="num">{fmtRp(Number(s.total_amount))}</TableCell>
                     <TableCell className="num">{fmtRp(Number(s.paid_amount))}</TableCell>
                     <TableCell className="num">{fmtRp(Number(s.outstanding))}</TableCell>
-                    <TableCell>{s.due_date ? fmtDate(s.due_date) : "-"}</TableCell>
+                    <TableCell>{s.due_date ? fmtDate(String(s.due_date)) : "-"}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant={s.status === "paid" ? "default" : "outline"}>{s.status}</Badge>
+                        <Badge variant={s.status === "paid" ? "default" : "outline"}>{String(s.status ?? "")}</Badge>
                         {canWrite && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => cancelMovement(s.stock_card_id)}>Batalkan</Button>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => cancelMovement(String(s.stock_card_id ?? ""))}>Batalkan</Button>
                         )}
                       </div>
                     </TableCell>
@@ -1139,13 +1221,13 @@ export default function Inventory() {
             </Card>
           )}
 
-          {valuation?.by_category?.length > 0 && (
+          {(valuation?.by_category?.length ?? 0) > 0 && (
             <Card className="p-0 overflow-hidden">
               <TableShell minWidth={720}>
               <Table>
                 <TableHeader><TableRow><TableHead>Kategori</TableHead><TableHead className="num">SKU</TableHead><TableHead className="num">Qty</TableHead><TableHead className="num">Nilai</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {valuation.by_category.map((c) => (
+                  {(valuation?.by_category ?? []).map((c) => (
                     <TableRow key={c.category}>
                       <TableCell>{c.category}</TableCell>
                       <TableCell className="num">{c.sku_count}</TableCell>
@@ -1164,7 +1246,7 @@ export default function Inventory() {
   );
 }
 
-function Stat({ label, value }) {
+function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
     <Card className="p-4">
       <p className="label mb-1">{label}</p>
@@ -1173,7 +1255,13 @@ function Stat({ label, value }) {
   );
 }
 
-function MovementTable({ rows, onCancel }) {
+function MovementTable({
+  rows,
+  onCancel,
+}: {
+  rows: InventoryMovement[]
+  onCancel?: (id: string) => void
+}) {
   return (
     <Card className="p-0 overflow-hidden">
       <TableShell minWidth={720}>

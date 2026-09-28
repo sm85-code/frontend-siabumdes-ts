@@ -120,8 +120,9 @@ export interface Account {
   id: string
   code: string
   name: string
-  type: string
+  type?: string
   category?: string | null
+  subcategory?: string | null
   normal_balance?: string | null
   group?: string | null
   parent_code?: string | null
@@ -137,6 +138,7 @@ export interface TransactionType {
   debit?: string | null
   credit?: string | null
   description?: string | null
+  unit_codes?: string[]
 }
 
 export interface AuditLogRow {
@@ -150,6 +152,8 @@ export interface AuditLogRow {
 }
 
 export interface OrgProfile {
+  org_name?: string
+  org_legal_name?: string
   name?: string
   address?: string | null
   village?: string | null
@@ -159,14 +163,24 @@ export interface OrgProfile {
   phone?: string | null
   email?: string | null
   npwp?: string | null
-  share_pengurus?: number
-  share_penasihat?: number
-  share_pengawas?: number
-  share_dana_sosial?: number
-  share_pades?: number
-  share_modal_bumdes?: number
-  share_unit_pengelola?: number
-  share_unit_bumdes?: number
+  tagline?: string | null
+  logo_url?: string | null
+  primary_color?: string | null
+  signatory_left_title?: string | null
+  signatory_left_name?: string | null
+  signatory_mid_title?: string | null
+  signatory_mid_name?: string | null
+  signatory_right_title?: string | null
+  signatory_right_name?: string | null
+  share_pengurus?: number | string
+  share_penasihat?: number | string
+  share_pengawas?: number | string
+  share_dana_sosial?: number | string
+  share_pades?: number | string
+  share_modal_bumdes?: number | string
+  share_unit_pengelola?: number | string
+  share_unit_bumdes?: number | string
+  updated_at?: string | null
   [key: string]: unknown
 }
 
@@ -201,3 +215,96 @@ export interface LedgerData {
   total_credit?: number
   entries: LedgerEntry[]
 }
+
+/** UU05 inventory domain (Incremental typing for Inventory pages). */
+export interface InventoryMeta {
+  unit_usaha_id?: string | null
+  unit_code?: string | null
+  unit_name?: string | null
+  [key: string]: unknown
+}
+
+export interface InventoryCategory {
+  id: string
+  name: string
+}
+
+export interface InventoryProduct {
+  id: string
+  sku: string
+  name: string
+  category_id?: string | null
+  category_name?: string | null
+  unit_of_measure?: string | null
+  cost_price?: number | string | null
+  sell_price?: number | string | null
+  qty_on_hand?: number | string | null
+  stock_value?: number | string | null
+  is_active?: boolean
+  [key: string]: unknown
+}
+
+export interface InventoryMovement {
+  id: string
+  product_id?: string | null
+  sku?: string | null
+  product_name?: string | null
+  direction?: string | null
+  quantity?: number | string | null
+  total_value?: number | string | null
+  movement_date?: string | null
+  finance_status?: string | null
+  [key: string]: unknown
+}
+
+export interface InventoryAdjustment {
+  id: string
+  product_id?: string | null
+  sku?: string | null
+  product_name?: string | null
+  quantity_delta?: number | string | null
+  reason?: string | null
+  notes?: string | null
+  adjustment_date?: string | null
+  [key: string]: unknown
+}
+
+export interface InventoryPartner {
+  id: string
+  name: string
+  contact?: string | null
+  address?: string | null
+  [key: string]: unknown
+}
+
+export interface InventoryPurchase {
+  id: string
+  [key: string]: unknown
+}
+
+export interface InventorySale {
+  id: string
+  [key: string]: unknown
+}
+
+export interface InventoryValuation {
+  summary?: {
+    sku_count?: number
+    total_qty?: number
+    total_value?: number
+  }
+  by_category?: {
+    category?: string
+    value?: number
+    qty?: number
+    sku_count?: number
+  }[]
+  [key: string]: unknown
+}
+
+export interface InventoryMovementReport {
+  stock_in?: { qty?: number; value?: number; count?: number }
+  stock_out?: { qty?: number; value?: number; count?: number }
+  [key: string]: unknown
+}
+

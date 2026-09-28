@@ -1,6 +1,7 @@
-// @ts-nocheck — mechanical F2 port from live FE; tighten types in follow-up
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { API, getApiError } from "@/api/client"
 import api from "@/api/client";
 import { useAuth } from "@/lib/auth";
@@ -16,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { Account, TransactionType, UnitUsaha } from "@/types";
+import { accountFormSchema, type AccountFormValues } from "@/schemas/accounts";
 
-const CAT_LABELS = {
+const CAT_LABELS: Record<string, string> = {
   aset: "Aset", kewajiban: "Kewajiban", ekuitas: "Ekuitas",
   pendapatan: "Pendapatan", hpp: "Harga Pokok Penjualan", beban: "Beban",
 };
@@ -37,18 +40,23 @@ const SUBCATEGORIES = {
   pendapatan: ["pendapatan_operasional", "pendapatan_lain_lain"],
   hpp: ["hpp_barang_dagangan", "hpp_barang_jadi"],
   beban: ["beban_administrasi", "beban_operasional", "beban_lain_lain"],
-};
+} as const;
 
-const DEFAULT_NB = {
+type AccCategory = keyof typeof SUBCATEGORIES;
+
+const DEFAULT_NB: Record<AccCategory, "debit" | "kredit"> = {
   aset: "debit", kewajiban: "kredit", ekuitas: "kredit",
   pendapatan: "kredit", hpp: "debit", beban: "debit",
 };
 
-const emptyAcc = {
+const emptyAcc: AccountFormValues = {
   code: "", name: "", category: "aset", subcategory: "aset_lancar",
   normal_balance: "debit",
 };
-const emptyTT = { code: "", name: "", debit: "", credit: "" };
+type TTFormState = { code: string; name: string; debit: string; credit: string };
+const emptyTT: TTFormState = { code: "", name: "", debit: "", credit: "" };
+
+type CoaAccount = Account & { subcategory?: string | null };
 
 export default function COAPage() {
   const { user } = useAuth();
@@ -56,27 +64,32 @@ export default function COAPage() {
   const isAdmin = user?.role === "admin";
   const canAdd = isAdmin;
 
-  const [list, setList] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [units, setUnits] = useState([]);
+  const [list, setList] = useState<CoaAccount[]>([]);
+  const [types, setTypes] = useState<TransactionType[]>([]);
+  const [units, setUnits] = useState<UnitUsaha[]>([]);
   const [group, setGroup] = useState("BUMDES");
-  const [activeSection, setActiveSection] = useState("accounts");
+  const [activeSection, setActiveSection] = useState<"accounts" | "transaction-types">("accounts");
 
   const [filter, setFilter] = useState(""); // category filter (aset/kewajiban/...)
 
   const [showAcc, setShowAcc] = useState(false);
-  const [editAccCode, setEditAccCode] = useState(null);
-  const [accForm, setAccForm] = useState(emptyAcc);
+  const [editAccCode, setEditAccCode] = useState<string | null>(null);
   const [accErr, setAccErr] = useState("");
+  const accForm = useForm<AccountFormValues>({
+    resolver: zodResolver(accountFormSchema),
+    defaultValues: emptyAcc,
+  });
+  const watchedCategory = accForm.watch("category");
+  const watchedSubcategory = accForm.watch("subcategory");
 
   const [showTT, setShowTT] = useState(false);
-  const [editTTCode, setEditTTCode] = useState(null);
-  const [ttForm, setTtForm] = useState(emptyTT);
+  const [editTTCode, setEditTTCode] = useState<string | null>(null);
+  const [ttForm, setTtForm] = useState<TTFormState>(emptyTT);
   const [ttErr, setTtErr] = useState("");
-  const accountFileRef = useRef(null);
-  const transactionFileRef = useRef(null);
+  const accountFileRef = useRef<HTMLInputElement | null>(null);
+  const transactionFileRef = useRef<HTMLInputElement | null>(null);
 
-  const downloadTemplate = async (section) => {
+  const downloadTemplate = async (section: "accounts" | "transaction-types") => {
     try {
       const isTransactions = section === "transaction-types";
       const templatePath = isTransactions ? "transaction-types/template" : "accounts/template";
@@ -87,10 +100,10 @@ export default function COAPage() {
       const a = document.createElement("a");
       a.href = url; a.download = section === "transaction-types" ? "Template-Jenis-Transaksi.xlsx" : "Template-Kode-Akun.xlsx"; a.click();
       URL.revokeObjectURL(url);
-    } catch (er) { notify(er.message || "Gagal"); }
+    } catch (er: unknown) { notify(getApiError(er, "Gagal")); }
   };
 
-  const importFile = async (e, section) => {
+  const importFile = async (e: ChangeEvent<HTMLInputElement>, section: "accounts" | "transaction-types") => {
     const file = e.target.files?.[0];
     if (!file) return;
     const isTransactions = section === "transaction-types";
@@ -111,13 +124,13 @@ export default function COAPage() {
       notify(msg);
       load();
     } catch (er) {
-      notify(er.response?.data?.detail || "Gagal import");
+      notify(getApiError(er, "Gagal import"));
     } finally {
       e.target.value = "";
     }
   };
 
-  const exportMasterData = async (section) => {
+  const exportMasterData = async (section: string) => {
     try {
       const res = await fetch(`${API}/master-data/export?group=${encodeURIComponent(group)}&section=${section}`, { credentials: "include" });
       if (!res.ok) { notify("Gagal export master data"); return; }
@@ -126,19 +139,7 @@ export default function COAPage() {
       const a = document.createElement("a");
       a.href = url; a.download = `Master-Data-${group}.xlsx`; a.click();
       URL.revokeObjectURL(url);
-    } catch (er) { notify(er.message || "Gagal export"); }
-  };
-
-  const resetAll = async () => {
-    if (!(await confirm({ title: "Reset semua kode akun", description: "Semua kode akun di seluruh kelompok akan dihapus. Transaksi tidak dihapus, tetapi laporan tidak dapat dibuat sampai akun diimpor ulang.", confirmLabel: "Lanjutkan", destructive: true }))) return;
-    if (!(await confirm({ title: "Konfirmasi kedua", description: "Apakah Anda benar-benar yakin ingin menghapus semua kode akun?", confirmLabel: "Hapus semua", destructive: true }))) return;
-    try {
-      const r = await api.delete("/accounts/reset-all", { params: { confirm: "YES" } });
-      notify(`${r.data.deleted} akun dihapus. Silakan download template & import ulang.`);
-      load();
-    } catch (er) {
-      notify(er.response?.data?.detail || "Gagal reset");
-    }
+    } catch (er: unknown) { notify(getApiError(er, "Gagal export")); }
   };
 
   const [loading, setLoading] = useState(true);
@@ -147,9 +148,11 @@ export default function COAPage() {
     setLoading(true);
     try {
       const [a, t, u] = await Promise.all([
-        api.get("/accounts"), api.get("/transaction-types"), api.get("/unit-usaha"),
+        api.get<CoaAccount[]>("/accounts"),
+        api.get<TransactionType[]>("/transaction-types"),
+        api.get<UnitUsaha[]>("/unit-usaha"),
       ]);
-      setList(a.data); setTypes(t.data); setUnits(u.data);
+      setList(a.data ?? []); setTypes(t.data ?? []); setUnits(u.data ?? []);
     } catch (er) {
       notify(getApiError(er, "Gagal memuat kode akun/jenis transaksi"));
     } finally {
@@ -158,30 +161,41 @@ export default function COAPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const onCatChange = (cat) => setAccForm(f => ({
-    ...f, category: cat,
-    subcategory: SUBCATEGORIES[cat]?.[0] || "",
-    normal_balance: DEFAULT_NB[cat] || "debit",
-  }));
-
-  const openCreateAcc = () => { setEditAccCode(null); setAccForm(emptyAcc); setAccErr(""); setShowAcc(true); };
-  const openEditAcc = (a) => {
-    setEditAccCode(a.code);
-    setAccForm({
-      code: a.code, name: a.name, category: a.category,
-      subcategory: a.subcategory || (SUBCATEGORIES[a.category]?.[0] || ""),
-      normal_balance: a.normal_balance,
-    });
-    setAccErr(""); setShowAcc(true);
+  const onCatChange = (cat: string) => {
+    const key = cat as AccCategory;
+    const subs = SUBCATEGORIES[key];
+    accForm.setValue("category", cat);
+    accForm.setValue("subcategory", subs?.[0] || "");
+    accForm.setValue("normal_balance", DEFAULT_NB[key] || "debit");
   };
 
-  const submitAcc = async (e) => {
-    e.preventDefault(); setAccErr("");
+  const openCreateAcc = () => {
+    setEditAccCode(null);
+    accForm.reset(emptyAcc);
+    setAccErr("");
+    setShowAcc(true);
+  };
+  const openEditAcc = (a: CoaAccount) => {
+    setEditAccCode(a.code);
+    const cat = (a.category || "aset") as AccCategory;
+    accForm.reset({
+      code: a.code,
+      name: a.name,
+      category: a.category || "aset",
+      subcategory: a.subcategory || (SUBCATEGORIES[cat]?.[0] || ""),
+      normal_balance: (a.normal_balance === "kredit" ? "kredit" : "debit"),
+    });
+    setAccErr("");
+    setShowAcc(true);
+  };
+
+  const submitAcc = async (values: AccountFormValues) => {
+    setAccErr("");
     try {
       const body = {
-        code: accForm.code.trim(), name: accForm.name.trim(),
-        category: accForm.category, subcategory: accForm.subcategory,
-        normal_balance: accForm.normal_balance,
+        code: values.code.trim(), name: values.name.trim(),
+        category: values.category, subcategory: values.subcategory,
+        normal_balance: values.normal_balance,
         group,
       };
       if (editAccCode) {
@@ -189,26 +203,26 @@ export default function COAPage() {
       } else {
         await api.post("/accounts", body);
       }
-      setShowAcc(false); setEditAccCode(null); load();
-    } catch (ex) { setAccErr(ex.response?.data?.detail || "Gagal menyimpan"); }
+      setShowAcc(false); setEditAccCode(null); void load();
+    } catch (ex: unknown) { setAccErr(getApiError(ex, "Gagal menyimpan")); }
   };
 
-  const delAcc = async (code) => {
+  const delAcc = async (code: string) => {
     if (!(await confirm({ title: "Hapus kode akun", description: `Hapus kode akun ${code} di kelompok ${group}?`, confirmLabel: "Hapus", destructive: true }))) return;
     try {
       await api.delete(`/accounts/${encodeURIComponent(code)}`, { params: { group } });
-      load();
-    } catch (ex) { notify(ex.response?.data?.detail || "Gagal hapus"); }
+      void load();
+    } catch (ex: unknown) { notify(getApiError(ex, "Gagal hapus")); }
   };
 
   const openCreateTT = () => { setEditTTCode(null); setTtForm(emptyTT); setTtErr(""); setShowTT(true); };
-  const openEditTT = (t) => {
+  const openEditTT = (t: TransactionType) => {
     setEditTTCode(t.code);
     setTtForm({ code: t.code, name: t.name, debit: t.debit || "", credit: t.credit || "" });
     setTtErr(""); setShowTT(true);
   };
 
-  const submitTT = async (e) => {
+  const submitTT = async (e: FormEvent) => {
     e.preventDefault(); setTtErr("");
     try {
       const body = {
@@ -219,16 +233,16 @@ export default function COAPage() {
       };
       if (editTTCode) await api.put(`/transaction-types/${encodeURIComponent(editTTCode)}`, body);
       else await api.post("/transaction-types", body);
-      setShowTT(false); setEditTTCode(null); load();
-    } catch (ex) { setTtErr(ex.response?.data?.detail || "Gagal menyimpan"); }
+      setShowTT(false); setEditTTCode(null); void load();
+    } catch (ex: unknown) { setTtErr(getApiError(ex, "Gagal menyimpan")); }
   };
 
-  const delTT = async (code) => {
+  const delTT = async (code: string) => {
     if (!(await confirm({ title: "Hapus jenis transaksi", description: `Hapus jenis transaksi ${code}?`, confirmLabel: "Hapus", destructive: true }))) return;
     try {
       await api.delete(`/transaction-types/${encodeURIComponent(code)}`);
-      load();
-    } catch (ex) { notify(ex.response?.data?.detail || "Gagal hapus"); }
+      void load();
+    } catch (ex: unknown) { notify(getApiError(ex, "Gagal hapus")); }
   };
 
   // Filter by active group tab + category
@@ -245,12 +259,14 @@ export default function COAPage() {
     [types, group]
   );
 
-  const accSort = useSort(filteredAccounts, "code", "asc");
-  const ttSort = useSort(groupTypes, "code", "asc");
+  const accSort = useSort(filteredAccounts as unknown as Record<string, unknown>[], "code", "asc");
+  const ttSort = useSort(groupTypes as unknown as Record<string, unknown>[], "code", "asc");
+  const sortedAccounts = accSort.sorted as unknown as CoaAccount[];
+  const sortedTypes = ttSort.sorted as unknown as TransactionType[];
 
   // Bulk selection state
-  const [selAcc, setSelAcc] = useState(new Set());
-  const [selTT, setSelTT] = useState(new Set());
+  const [selAcc, setSelAcc] = useState<Set<string>>(new Set());
+  const [selTT, setSelTT] = useState<Set<string>>(new Set());
   useEffect(() => { setSelAcc(new Set()); setSelTT(new Set()); }, [group]);
 
   const bulkDelAcc = async () => {
@@ -326,7 +342,7 @@ export default function COAPage() {
         <div>
           <h2 className="font-heading text-2xl font-bold">Kode Akun — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            {accSort.sorted.length} akun aktif pada kelompok <b>{group}</b>.
+            {sortedAccounts.length} akun aktif pada kelompok <b>{group}</b>.
           </p>
         </div>
         {canAdd && (
@@ -344,68 +360,103 @@ export default function COAPage() {
               ? `Edit Kode Akun (${editAccCode}) — ${groupLabel}`
               : `Kode Akun Baru — ${groupLabel}`}
           </h3>
-          <form onSubmit={submitAcc} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="label">Kode Akun</label>
-              <Input data-testid="acc-code" required
-                     value={accForm.code} onChange={(e) => setAccForm({ ...accForm, code: e.target.value })} /></div>
-            <div><label className="label">Nama Akun</label>
-              <Input data-testid="acc-name" required
-                     value={accForm.name} onChange={(e) => setAccForm({ ...accForm, name: e.target.value })} /></div>
-            <div><label className="label">Kategori</label>
-              <Select value={
-                Object.keys(CAT_LABELS).includes(accForm.category) ? accForm.category : "__custom__"
-              }
-                      onValueChange={(v) => {
-                        if (v === "__custom__") {
-                          setAccForm(f => ({ ...f, category: "", subcategory: "" }));
-                        } else {
-                          onCatChange(v);
-                        }
-                      }}>
+          <form onSubmit={(e) => void accForm.handleSubmit(submitAcc)(e)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Kode Akun</label>
+              <Input data-testid="acc-code" {...accForm.register("code")} />
+              {accForm.formState.errors.code && (
+                <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.code.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="label">Nama Akun</label>
+              <Input data-testid="acc-name" {...accForm.register("name")} />
+              {accForm.formState.errors.name && (
+                <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.name.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="label">Kategori</label>
+              <Select
+                value={Object.keys(CAT_LABELS).includes(watchedCategory) ? watchedCategory : "__custom__"}
+                onValueChange={(v) => {
+                  if (v === "__custom__") {
+                    accForm.setValue("category", "");
+                    accForm.setValue("subcategory", "");
+                  } else {
+                    onCatChange(v);
+                  }
+                }}
+              >
                 <SelectTrigger data-testid="acc-category"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                   <SelectItem value="__custom__">+ Kategori Baru (custom)</SelectItem>
                 </SelectContent>
               </Select>
-              {!Object.keys(CAT_LABELS).includes(accForm.category) && (
-                <Input data-testid="acc-category-custom" className="mt-2"
-                       placeholder="Ketik nama kategori baru..."
-                       value={accForm.category}
-                       onChange={(e) => setAccForm(f => ({ ...f, category: e.target.value.toLowerCase() }))} />
+              {!Object.keys(CAT_LABELS).includes(watchedCategory) && (
+                <Input
+                  data-testid="acc-category-custom"
+                  className="mt-2"
+                  placeholder="Ketik nama kategori baru..."
+                  value={watchedCategory}
+                  onChange={(e) => accForm.setValue("category", e.target.value.toLowerCase())}
+                />
               )}
             </div>
-            <div><label className="label">Sub-Kategori</label>
-              <Select value={
-                (SUBCATEGORIES[accForm.category] || []).includes(accForm.subcategory)
-                  ? accForm.subcategory
-                  : accForm.subcategory ? "__custom__" : "__none__"
-              }
-                      onValueChange={(v) => {
-                        if (v === "__custom__" || v === "__none__") setAccForm(f => ({ ...f, subcategory: "" }));
-                        else setAccForm(f => ({ ...f, subcategory: v }));
-                      }}>
+            <div>
+              <label className="label">Sub-Kategori</label>
+              <Select
+                value={
+                  ((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).includes(watchedSubcategory)
+                    ? watchedSubcategory
+                    : watchedSubcategory ? "__custom__" : "__none__"
+                }
+                onValueChange={(v) => {
+                  if (v === "__custom__" || v === "__none__") accForm.setValue("subcategory", "");
+                  else accForm.setValue("subcategory", v);
+                }}
+              >
                 <SelectTrigger data-testid="acc-subcategory"><SelectValue placeholder="— pilih —" /></SelectTrigger>
                 <SelectContent>
-                  {(SUBCATEGORIES[accForm.category] || []).map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+                  {((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).map((s) => (
+                    <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
+                  ))}
                   <SelectItem value="__custom__">+ Sub-Kategori Baru (custom)</SelectItem>
                 </SelectContent>
               </Select>
-              {(!SUBCATEGORIES[accForm.category] || !SUBCATEGORIES[accForm.category].includes(accForm.subcategory)) && (
-                <Input data-testid="acc-subcategory-custom" className="mt-2"
-                       placeholder="Ketik nama sub-kategori baru..."
-                       value={accForm.subcategory}
-                       onChange={(e) => setAccForm(f => ({ ...f, subcategory: e.target.value.toLowerCase().replace(/\s+/g, "_") }))} />
+              {(!(SUBCATEGORIES[watchedCategory as AccCategory]) ||
+                !(SUBCATEGORIES[watchedCategory as AccCategory] as readonly string[]).includes(watchedSubcategory)) && (
+                <Input
+                  data-testid="acc-subcategory-custom"
+                  className="mt-2"
+                  placeholder="Ketik nama sub-kategori baru..."
+                  value={watchedSubcategory}
+                  onChange={(e) =>
+                    accForm.setValue(
+                      "subcategory",
+                      e.target.value.toLowerCase().replace(/\s+/g, "_"),
+                    )
+                  }
+                />
               )}
             </div>
-            <div><label className="label">Saldo Normal</label>
-              <Select value={accForm.normal_balance} onValueChange={(v) => setAccForm({ ...accForm, normal_balance: v })}>
-                <SelectTrigger data-testid="acc-normal-balance"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="debit">Debit</SelectItem>
-                  <SelectItem value="kredit">Kredit</SelectItem>
-                </SelectContent>
-              </Select></div>
+            <div>
+              <label className="label">Saldo Normal</label>
+              <Controller
+                control={accForm.control}
+                name="normal_balance"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger data-testid="acc-normal-balance"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="debit">Debit</SelectItem>
+                      <SelectItem value="kredit">Kredit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
             <p className="sm:col-span-2 text-xs" style={{ color: "var(--text-muted)" }}>
               Akun ini akan disimpan pada kelompok <b>{group}</b>.
             </p>
@@ -445,8 +496,8 @@ export default function COAPage() {
               {isAdmin && (
                 <TableHead style={{ width: 32 }}>
                   <Checkbox data-testid="coa-select-all"
-                         checked={accSort.sorted.length > 0 && accSort.sorted.every(a => selAcc.has(a.code))}
-                         onCheckedChange={(checked) => setSelAcc(checked ? new Set(accSort.sorted.map(a => a.code)) : new Set())} />
+                         checked={sortedAccounts.length > 0 && sortedAccounts.every(a => selAcc.has(a.code))}
+                         onCheckedChange={(checked) => setSelAcc(checked ? new Set(sortedAccounts.map(a => a.code)) : new Set())} />
                 </TableHead>
               )}
               <TableHead {...accSort.headerProps("code")}>Kode{accSort.sortIndicator("code")}</TableHead>
@@ -458,12 +509,12 @@ export default function COAPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {accSort.sorted.length === 0 ? (
+            {sortedAccounts.length === 0 ? (
               <TableRow><TableCell colSpan={isAdmin ? 7 : 5} className="text-center py-8"
                       style={{ color: "var(--text-muted)" }}>
                 Belum ada kode akun pada kelompok <b>{group}</b>.
               </TableCell></TableRow>
-            ) : accSort.sorted.map(a => (
+            ) : sortedAccounts.map(a => (
               <TableRow key={a.code}>
                 {isAdmin && (
                   <TableCell>
@@ -478,7 +529,7 @@ export default function COAPage() {
                 )}
                 <TableCell className="font-mono font-semibold">{a.code}</TableCell>
                 <TableCell>{a.name}</TableCell>
-                <TableCell>{CAT_LABELS[a.category] ? <Badge>{CAT_LABELS[a.category]}</Badge> : <Badge variant="secondary">{a.category}</Badge>}</TableCell>
+                <TableCell>{(a.category && CAT_LABELS[a.category]) ? <Badge>{CAT_LABELS[a.category]}</Badge> : <Badge variant="secondary">{a.category}</Badge>}</TableCell>
                 <TableCell className="text-xs">{a.subcategory}</TableCell>
                 <TableCell>{a.normal_balance === "debit"
                   ? <Badge variant="outline">Debit</Badge>
@@ -518,7 +569,7 @@ export default function COAPage() {
         <div>
           <h2 className="font-heading text-2xl font-bold">Jenis Transaksi — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            {ttSort.sorted.length} jenis transaksi pada kelompok <b>{group}</b>. Debit & Kredit hanya bisa memilih akun dari kelompok yang sama.
+            {sortedTypes.length} jenis transaksi pada kelompok <b>{group}</b>. Debit & Kredit hanya bisa memilih akun dari kelompok yang sama.
           </p>
         </div>
         {isAdmin && (
@@ -591,8 +642,8 @@ export default function COAPage() {
               {isAdmin && (
                 <TableHead style={{ width: 32 }}>
                   <Checkbox data-testid="tt-select-all"
-                         checked={ttSort.sorted.length > 0 && ttSort.sorted.every(t => selTT.has(t.code))}
-                         onCheckedChange={(checked) => setSelTT(checked ? new Set(ttSort.sorted.map(t => t.code)) : new Set())} />
+                         checked={sortedTypes.length > 0 && sortedTypes.every(t => selTT.has(t.code))}
+                         onCheckedChange={(checked) => setSelTT(checked ? new Set(sortedTypes.map(t => t.code)) : new Set())} />
                 </TableHead>
               )}
               <TableHead {...ttSort.headerProps("name")}>Nama Transaksi{ttSort.sortIndicator("name")}</TableHead>
@@ -601,11 +652,11 @@ export default function COAPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ttSort.sorted.length === 0 ? (
+            {sortedTypes.length === 0 ? (
               <TableRow><TableCell colSpan={isAdmin ? 4 : 2} className="text-center py-6" style={{ color: "var(--text-muted)" }}>
                 Belum ada jenis transaksi pada kelompok <b>{group}</b>.
               </TableCell></TableRow>
-            ) : ttSort.sorted.map(t => (
+            ) : sortedTypes.map(t => (
               <TableRow key={t.code}>
                 {isAdmin && (
                   <TableCell>
