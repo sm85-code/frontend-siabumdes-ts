@@ -53,7 +53,7 @@ Appearance matches live: **Biru** color theme, **Ripple** wallpaper, **Plus Jaka
 
 ## Forms & typing
 
-- **zod + react-hook-form** on Login, Change Password, Users create, and COA account create/edit (`src/schemas/*`). Indonesian validation messages; live business rules unchanged.
+- **zod + react-hook-form** on Login, Change Password, Users create, COA account create/edit, Unit Usaha create/edit, and **Transactions create/edit** (`src/schemas/*`). Indonesian validation messages; live business rules unchanged. Money still sent as `number` (`parseFloat`) — no JSON string change.
 - **`@ts-nocheck` cleared** on Accounts, Inventory, InventorySummary, OrgProfile, Users — incremental domain types in `src/types` (inventory + expanded OrgProfile/Account). Prefer real types over `any`.
 - Utility `cn` remains `clsx` + `tailwind-merge` in `src/lib/utils.ts` (wrong npm `cn` package removed).
 
@@ -78,7 +78,8 @@ CI runs the same after `yarn build` (Chromium cached). Keep the suite small so f
 | Done | Landing/Login typography | Soft `text-shadow` via `.modern-brand-title` / `.auth-brand-title`; weight/tracking aligned with live transparency tone. |
 | Done | Unit Usaha RHF+zod | Create + edit dialogs (`src/schemas/units.ts`) — same pattern as Login/Users/COA. |
 | Deferred | Money JSON | Prefer string/Decimal for `amount` on API + FE; **skip while live JS FE still active** (`fmtRp`/`Math.round` assume number). Coordinate at cutover. |
-| Next | Broader RHF+zod | Transactions create/edit + Inventory mutating forms. |
+| Done | Transactions RHF+zod | Create/edit card (`src/schemas/transactions.ts`) — amount stays string in form, `parseFloat` on submit. |
+| Next | Broader RHF+zod | Inventory mutating forms. |
 | Next | Tighten types | Replace residual `any` / loose casts on large pages; keep incremental. |
 | Next | Inventory multi-unit | BE still UU05-centric; multi-perdagangan inventory is a dedicated BE+FE PR. |
 | Later | Full E2E | Role-matrix Playwright against staging (not free CI); keep this repo’s smoke mocked. |
