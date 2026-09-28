@@ -303,7 +303,7 @@ function StatCard({
         >
           {label}
         </div>
-        <div className="font-heading mt-1 text-xl tabular-nums sm:text-2xl">{value}</div>
+        <div className="modern-brand-title mt-1 text-xl font-bold leading-tight break-words tabular-nums sm:text-2xl">{value}</div>
       </CardContent>
     </Card>
   )
