@@ -24,9 +24,9 @@ yarn lint
 
 ## Status
 
-**Ported (F0+F1):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles config, typed `src/api/*` (auth, units, reports/dashboard, transactions B3 helper), TanStack Query hooks, **Dashboard** (KPIs, charts, dynamic unit count from API).
+**Ported (F0–F2):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles config, typed `src/api/*`, TanStack Query hooks, **Dashboard**, **Transactions** (server pagination `meta=true`), **Reports** + per-unit + Tutup Buku, **Ledger (Buku Besar)**, **COA (Kode Akun)**, **Inventory (UU05)**, Unit Usaha, Org Profile, Users, Audit Log, Profile, Change Password.
 
-**Still stubs (F2+):** Inventory, Transactions UI, Reports, Ledger, COA, Users, Audit Log, Org Profile, Unit Usaha page, Profile, Change Password.
+Unit group tabs come from `GET /unit-usaha` via `buildUnitGroupTabs()` — no hardcoded UU01–UU06.
 
 Unit group tabs must come from `GET /unit-usaha` via `buildUnitGroupTabs()` — no hardcoded UU01–UU06.
 

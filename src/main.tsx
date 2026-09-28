@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '@/App'
 import { Toaster } from '@/components/ui/sonner'
+import { ConfirmProvider } from '@/components/ConfirmProvider'
 import { ThemeProvider } from '@/lib/theme'
 import '@/index.css'
 
@@ -19,8 +20,10 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <App />
-        <Toaster />
+        <ConfirmProvider>
+          <App />
+          <Toaster />
+        </ConfirmProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,

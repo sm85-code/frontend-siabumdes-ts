@@ -115,3 +115,89 @@ export interface UnitGroupTab {
   label: string
   unitId: string | null
 }
+
+export interface Account {
+  id: string
+  code: string
+  name: string
+  type: string
+  category?: string | null
+  normal_balance?: string | null
+  group?: string | null
+  parent_code?: string | null
+  is_header?: boolean
+  active?: boolean
+}
+
+export interface TransactionType {
+  id?: string
+  code: string
+  name: string
+  group?: string | null
+  debit?: string | null
+  credit?: string | null
+  description?: string | null
+}
+
+export interface AuditLogRow {
+  id: string
+  created_at: string
+  actor_name: string
+  actor_role: string
+  action: string
+  detail?: string | null
+  ip?: string | null
+}
+
+export interface OrgProfile {
+  name?: string
+  address?: string | null
+  village?: string | null
+  district?: string | null
+  regency?: string | null
+  province?: string | null
+  phone?: string | null
+  email?: string | null
+  npwp?: string | null
+  share_pengurus?: number
+  share_penasihat?: number
+  share_pengawas?: number
+  share_dana_sosial?: number
+  share_pades?: number
+  share_modal_bumdes?: number
+  share_unit_pengelola?: number
+  share_unit_bumdes?: number
+  [key: string]: unknown
+}
+
+export interface ImportResult {
+  inserted: number
+  total_rows: number
+  errors?: { row: number; error: string }[]
+}
+
+export interface DriveStatus {
+  connected: boolean
+  email?: string | null
+}
+
+export interface LedgerEntry {
+  id?: string
+  date: string
+  description?: string
+  reference?: string
+  debit: number
+  credit: number
+  balance: number
+  other_account_code?: string
+  other_account_name?: string
+}
+
+export interface LedgerData {
+  account: { code: string; name: string; category?: string; normal_balance?: string }
+  saldo_awal: number
+  saldo_akhir: number
+  total_debit?: number
+  total_credit?: number
+  entries: LedgerEntry[]
+}
