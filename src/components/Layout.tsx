@@ -1,15 +1,14 @@
 import { LogOut } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import api from '@/api/client'
 import AppearancePopover from '@/components/AppearancePopover'
 import BottomNav from '@/components/BottomNav'
 import WallpaperLayer from '@/components/WallpaperLayer'
 import { Button } from '@/components/ui/button'
 import { BOTTOM_NAV_PATHS, NAV } from '@/config/nav'
 import { ROLE_LABELS, can } from '@/config/roles'
+import { useInventoryUnitIds } from '@/hooks/useUnits'
 import { useAuth } from '@/lib/auth'
-import type { UnitUsaha } from '@/types'
 
 function isNavActive(pathname: string, to: string, allPaths: string[]) {
   const matches = allPaths.filter((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -22,26 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [open, setOpen] = useState(false)
-  const [inventoryUnitIds, setInventoryUnitIds] = useState<string[] | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    api
-      .get<UnitUsaha[]>('/unit-usaha')
-      .then((r) => {
-        if (!alive) return
-        const ids = (r.data || [])
-          .filter((x) => ['perdagangan', 'manufaktur'].includes(x.business_type ?? ''))
-          .map((x) => x.id)
-        setInventoryUnitIds(ids)
-      })
-      .catch(() => {
-        /* ignore — inventory filter stays open for non-pengelola */
-      })
-    return () => {
-      alive = false
-    }
-  }, [])
+  const { inventoryUnitIds } = useInventoryUnitIds()
 
   const visible = useMemo(() => {
     if (!user) return []
