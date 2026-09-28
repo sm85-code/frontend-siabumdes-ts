@@ -2,7 +2,7 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Building2, HeartHandshake, TrendingUp } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
-import api, { fmtRp } from '@/api/client'
+import api, { fmtRp, parseMoney } from '@/api/client'
 import AppearancePopover from '@/components/AppearancePopover'
 import Spinner from '@/components/Spinner'
 import WallpaperLayer from '@/components/WallpaperLayer'
@@ -40,16 +40,16 @@ const TREND_CHART_CONFIG = {
 
 type PublicTrendPoint = {
   month: string
-  pendapatan: number
-  beban: number
+  pendapatan: number | string
+  beban: number | string
 }
 
 type PublicSummary = {
   year?: number
-  total_pendapatan?: number
-  total_beban?: number
-  laba_bersih?: number
-  pades_estimasi?: number
+  total_pendapatan?: number | string
+  total_beban?: number | string
+  laba_bersih?: number | string
+  pades_estimasi?: number | string
   trend?: PublicTrendPoint[]
 }
 
@@ -77,8 +77,8 @@ export default function LandingPage() {
   const year = data?.year || new Date().getFullYear()
   const trend: TrendRow[] = (data?.trend || []).map((t) => ({
     label: MONTH_LABELS[Number(t.month.slice(5, 7)) - 1] || t.month,
-    pendapatan: t.pendapatan,
-    beban: t.beban,
+    pendapatan: parseMoney(t.pendapatan),
+    beban: parseMoney(t.beban),
   }))
 
   return (

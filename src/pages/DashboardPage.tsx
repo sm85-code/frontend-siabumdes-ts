@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { fmtRp } from '@/api/client'
+import { fmtRp, parseMoney } from '@/api/client'
 import PeriodFilter from '@/components/PeriodFilter'
 import Spinner from '@/components/Spinner'
 import TableShell from '@/components/TableShell'
@@ -118,9 +118,9 @@ export default function DashboardPage() {
   const kpis = useMemo<KpiItem[]>(() => {
     if (!data) return []
     return [
-      { key: 'pendapatan', label: 'Total Pendapatan', value: data.total_pendapatan, icon: TrendingUp },
-      { key: 'beban', label: 'Total Beban', value: data.total_beban, icon: TrendingDown },
-      { key: 'laba', label: 'Laba Bersih', value: data.laba_bersih, icon: Coins },
+      { key: 'pendapatan', label: 'Total Pendapatan', value: parseMoney(data.total_pendapatan), icon: TrendingUp },
+      { key: 'beban', label: 'Total Beban', value: parseMoney(data.total_beban), icon: TrendingDown },
+      { key: 'laba', label: 'Laba Bersih', value: parseMoney(data.laba_bersih), icon: Coins },
       {
         key: 'tx',
         label: 'Jumlah Transaksi',
@@ -135,27 +135,27 @@ export default function DashboardPage() {
     if (!data) return []
     const pct = (num: number, denom: number) => (denom ? (num / denom) * 100 : 0)
     return [
-      { key: 'total-aset', label: 'Total Aset', value: data.total_aset, icon: Building2 },
-      { key: 'total-kewajiban', label: 'Total Kewajiban', value: data.total_kewajiban, icon: Scale },
-      { key: 'total-ekuitas', label: 'Total Ekuitas', value: data.total_ekuitas, icon: Wallet },
+      { key: 'total-aset', label: 'Total Aset', value: parseMoney(data.total_aset), icon: Building2 },
+      { key: 'total-kewajiban', label: 'Total Kewajiban', value: parseMoney(data.total_kewajiban), icon: Scale },
+      { key: 'total-ekuitas', label: 'Total Ekuitas', value: parseMoney(data.total_ekuitas), icon: Wallet },
       {
         key: 'margin-laba',
         label: 'Margin Laba Bersih',
-        value: pct(data.laba_bersih, data.total_pendapatan),
+        value: pct(parseMoney(data.laba_bersih), parseMoney(data.total_pendapatan)),
         icon: ChartLine,
         isPct: true,
       },
       {
         key: 'rasio-kas',
         label: 'Rasio Kas',
-        value: pct(data.kas_bank, data.total_kewajiban),
+        value: pct(parseMoney(data.kas_bank), parseMoney(data.total_kewajiban)),
         icon: Coins,
         isPct: true,
       },
       {
         key: 'rasio-solvabilitas',
         label: 'Rasio Solvabilitas',
-        value: pct(data.total_kewajiban, data.total_ekuitas),
+        value: pct(parseMoney(data.total_kewajiban), parseMoney(data.total_ekuitas)),
         icon: ChartPie,
         isPct: true,
       },
@@ -170,7 +170,7 @@ export default function DashboardPage() {
   const useBar = chartData.length <= 1
   const unitCount = data?.unit_summaries?.length ?? 0
   const profitableUnits = useMemo(
-    () => (data?.unit_summaries ?? []).filter((u) => (u.laba || 0) > 0),
+    () => (data?.unit_summaries ?? []).filter((u) => parseMoney(u.laba) > 0),
     [data],
   )
 
@@ -470,13 +470,13 @@ export default function DashboardPage() {
                     TOTAL {unitCount} UNIT USAHA
                   </TableCell>
                   <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + (u.pendapatan || 0), 0))}
+                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.pendapatan), 0))}
                   </TableCell>
                   <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + (u.beban || 0), 0))}
+                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.beban), 0))}
                   </TableCell>
                   <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + (u.laba || 0), 0))}
+                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.laba), 0))}
                   </TableCell>
                 </TableRow>
               )}

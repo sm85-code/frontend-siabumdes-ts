@@ -1,3 +1,6 @@
+/** Money field from API: number today; string after BE Decimal→str JSON. */
+export type MoneyAmount = number | string
+
 /** BUMDes roles from live frontend-siabumdes / sm85-arch. */
 export type Role =
   | 'admin'
@@ -33,30 +36,30 @@ export interface UnitUsaha {
 
 export interface DashboardMonthlyPoint {
   month: string
-  pendapatan: number
-  beban: number
+  pendapatan: MoneyAmount
+  beban: MoneyAmount
 }
 
 export interface UnitSummary {
   id: string
   code: string
   name: string
-  pendapatan: number
-  beban: number
-  laba: number
+  pendapatan: MoneyAmount
+  beban: MoneyAmount
+  laba: MoneyAmount
 }
 
 export interface DashboardData {
-  total_pendapatan: number
-  total_beban: number
-  laba_bersih: number
+  total_pendapatan: MoneyAmount
+  total_beban: MoneyAmount
+  laba_bersih: MoneyAmount
   total_transactions: number
   monthly: DashboardMonthlyPoint[]
   unit_summaries: UnitSummary[]
-  total_aset: number
-  total_kewajiban: number
-  total_ekuitas: number
-  kas_bank: number
+  total_aset: MoneyAmount
+  total_kewajiban: MoneyAmount
+  total_ekuitas: MoneyAmount
+  kas_bank: MoneyAmount
 }
 
 export interface TransactionProof {
@@ -71,7 +74,7 @@ export interface Transaction {
   unit_usaha_id: string | null
   transaction_type: string
   description: string
-  amount: number
+  amount: MoneyAmount
   debit_account_code: string
   credit_account_code: string
   reference: string
@@ -200,19 +203,19 @@ export interface LedgerEntry {
   date: string
   description?: string
   reference?: string
-  debit: number
-  credit: number
-  balance: number
+  debit: MoneyAmount
+  credit: MoneyAmount
+  balance: MoneyAmount
   other_account_code?: string
   other_account_name?: string
 }
 
 export interface LedgerData {
   account: { code: string; name: string; category?: string; normal_balance?: string }
-  saldo_awal: number
-  saldo_akhir: number
-  total_debit?: number
-  total_credit?: number
+  saldo_awal: MoneyAmount
+  saldo_akhir: MoneyAmount
+  total_debit?: MoneyAmount
+  total_credit?: MoneyAmount
   entries: LedgerEntry[]
 }
 

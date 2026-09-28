@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** Create / edit transaction form. Amount stays a string in the form; API still gets number via parseFloat. */
+/** Create / edit transaction form. Amount stays a string in the form; submit still sends number via parseFloat. */
 export const transactionFormSchema = z.object({
   date: z.string().trim().min(1, 'Tanggal wajib diisi'),
   /** Empty string = BUMDES pusat (null on API). Optional for non-pengelola. */

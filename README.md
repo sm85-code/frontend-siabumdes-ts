@@ -53,7 +53,7 @@ Appearance matches live: **Biru** color theme, **Ripple** wallpaper, **Plus Jaka
 
 ## Forms & typing
 
-- **zod + react-hook-form** on Login, Change Password, Users create, COA account create/edit, Unit Usaha create/edit, and **Transactions create/edit** (`src/schemas/*`). Indonesian validation messages; live business rules unchanged. Money still sent as `number` (`parseFloat`) — no JSON string change.
+- **zod + react-hook-form** on Login, Change Password, Users create, COA account create/edit, Unit Usaha create/edit, and **Transactions create/edit** (`src/schemas/*`). Indonesian validation messages; live business rules unchanged. Display/parsers accept `number | string` (`parseMoney` / `fmtRp`). Form submits still send `number` (`parseFloat`) unless/until write API documents strings.
 - **`@ts-nocheck` cleared** on Accounts, Inventory, InventorySummary, OrgProfile, Users — incremental domain types in `src/types` (inventory + expanded OrgProfile/Account). Prefer real types over `any`.
 - Utility `cn` remains `clsx` + `tailwind-merge` in `src/lib/utils.ts` (wrong npm `cn` package removed).
 
@@ -77,7 +77,7 @@ CI runs the same after `yarn build` (Chromium cached). Keep the suite small so f
 | Done | B4 pusat sentinel | FE sends `unit_usaha_id=` for BUMDES; drop client filter (needs sm85-arch B4 merged/deployed). |
 | Done | Landing/Login typography | Soft `text-shadow` via `.modern-brand-title` / `.auth-brand-title`; weight/tracking aligned with live transparency tone. |
 | Done | Unit Usaha RHF+zod | Create + edit dialogs (`src/schemas/units.ts`) — same pattern as Login/Users/COA. |
-| Deferred | Money JSON | Prefer string/Decimal for `amount` on API + FE; **skip while live JS FE still active** (`fmtRp`/`Math.round` assume number). Coordinate at cutover. |
+| Done (FE) | Money dual-accept | `parseMoney` / `fmtRp` / sort accept `number \| string`; types use `MoneyAmount`. **Next:** BE serialize Decimal→str on JSON out (tx/reports) — see sm85-arch IDEAL_FOLLOWUPS. |
 | Done | Transactions RHF+zod | Create/edit card (`src/schemas/transactions.ts`) — amount stays string in form, `parseFloat` on submit. |
 | Next | Broader RHF+zod | Inventory mutating forms. |
 | Next | Tighten types | Replace residual `any` / loose casts on large pages; keep incremental. |

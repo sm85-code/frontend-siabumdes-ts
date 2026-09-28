@@ -1,4 +1,8 @@
 import axios from 'axios'
+import { parseMoney, type MoneyInput } from '@/lib/money'
+
+export type { MoneyInput }
+export { parseMoney }
 
 const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -44,9 +48,10 @@ export function getApiError(
   return (error as { message?: string })?.message || fallback
 }
 
-export function fmtRp(n: number | null | undefined): string {
-  if (n === null || n === undefined || Number.isNaN(n)) return 'Rp 0'
-  return 'Rp ' + Math.round(n).toLocaleString('id-ID')
+export function fmtRp(n: MoneyInput): string {
+  const v = parseMoney(n)
+  if (Number.isNaN(v)) return 'Rp 0'
+  return 'Rp ' + Math.round(v).toLocaleString('id-ID')
 }
 
 export function fmtDate(s: string | null | undefined): string {

@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { fetchOrgProfile } from '@/api/admin'
-import { fmtRp, getApiError } from '@/api/client'
+import { fmtRp, getApiError, parseMoney } from '@/api/client'
 import {
   closePeriod,
   downloadReportFile,
@@ -228,7 +228,7 @@ export default function ReportsPage() {
     }
   }
 
-  const labaBersih = Number((data as { laba_bersih?: number } | null)?.laba_bersih || 0)
+  const labaBersih = parseMoney((data as { laba_bersih?: number | string } | null)?.laba_bersih)
 
   return (
     <div className="space-y-6" data-testid="reports-page">
