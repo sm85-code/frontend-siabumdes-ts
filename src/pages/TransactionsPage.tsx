@@ -6,7 +6,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getApiError } from '@/api/client'
 import { fetchDriveConnectUrl, fetchDriveStatus } from '@/api/admin'
@@ -49,6 +49,7 @@ import type { DriveStatus, ImportResult, PeriodValue, Transaction } from '@/type
 import TxFormCard from '@/pages/transactions/TxFormCard'
 import TxTable from '@/pages/transactions/TxTable'
 import { emptyTxForm, type TxFormState } from '@/pages/transactions/types'
+import type { TransactionFormValues } from '@/schemas/transactions'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -95,7 +96,7 @@ export default function TransactionsPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState<TxFormState>(emptyTxForm)
+  const [formDefaults, setFormDefaults] = useState<TxFormState>(emptyTxForm)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null)
   const [activeGroup, setActiveGroup] = useState('BUMDES')
@@ -206,13 +207,13 @@ export default function TransactionsPage() {
       initialUnit = units.find((u) => u.code === activeGroup)?.id || ''
     }
     if (isPengelola) initialUnit = user?.unit_usaha_id || ''
-    setForm({ ...emptyTxForm(), unit_usaha_id: initialUnit })
+    setFormDefaults({ ...emptyTxForm(), unit_usaha_id: initialUnit })
     setShowForm(true)
   }
 
   const openEdit = (tx: Transaction) => {
     setEditingId(tx.id)
-    setForm({
+    setFormDefaults({
       date: tx.date,
       unit_usaha_id: tx.unit_usaha_id || '',
       transaction_type: tx.transaction_type || '',
@@ -225,18 +226,18 @@ export default function TransactionsPage() {
     setShowForm(true)
   }
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
+  const submit = async (values: TransactionFormValues) => {
     try {
       const body = {
-        date: form.date,
-        unit_usaha_id: form.unit_usaha_id || null,
-        transaction_type: form.transaction_type,
-        description: form.description,
-        amount: parseFloat(form.amount),
-        debit_account_code: form.debit_account_code,
-        credit_account_code: form.credit_account_code,
-        reference: form.reference,
+        date: values.date,
+        unit_usaha_id: values.unit_usaha_id || null,
+        transaction_type: values.transaction_type,
+        description: values.description,
+        // Keep number serialization (live FE / BE float(amount) contract).
+        amount: parseFloat(values.amount),
+        debit_account_code: values.debit_account_code,
+        credit_account_code: values.credit_account_code,
+        reference: values.reference,
       }
       if (editingId) await updateTransaction(editingId, body)
       else await createTransaction(body)
@@ -539,15 +540,15 @@ export default function TransactionsPage() {
 
       {showForm && canWrite && user && (
         <TxFormCard
+          key={editingId ?? 'create'}
           editingId={editingId}
-          form={form}
-          setForm={setForm}
+          defaultValues={formDefaults}
           units={units}
           types={types}
           accounts={accounts}
           user={user}
           isPengelola={isPengelola}
-          onSubmit={(e) => void submit(e)}
+          onSubmit={(v) => void submit(v)}
           onCancel={() => {
             setShowForm(false)
             setEditingId(null)
