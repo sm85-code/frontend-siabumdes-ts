@@ -53,16 +53,18 @@ Appearance matches live: **Biru** color theme, **Ripple** wallpaper, **Plus Jaka
 
 ## Forms & typing
 
-- **zod + react-hook-form** on Login, Change Password, Users create, COA account create/edit, Unit Usaha create/edit, and **Transactions create/edit** (`src/schemas/*`). Indonesian validation messages; live business rules unchanged. Display/parsers accept `number | string` (`parseMoney` / `fmtRp`). Form submits still send `number` (`parseFloat`) unless/until write API documents strings.
+- **zod + react-hook-form** on Login, Change Password, Users create, COA account create/edit, Unit Usaha create/edit, **Transactions create/edit**, and **Inventory** (product, stock-in/out, adjust, vendor/customer — `src/schemas/inventory.ts` + `src/pages/inventory/*`). Indonesian validation messages; live business rules unchanged. Display/parsers accept `number | string` (`parseMoney` / `fmtRp`). Form submits still send `number` (`parseFloat`) unless/until write API documents strings.
 - **`@ts-nocheck` cleared** on Accounts, Inventory, InventorySummary, OrgProfile, Users — incremental domain types in `src/types` (inventory + expanded OrgProfile/Account). Prefer real types over `any`.
 - Utility `cn` remains `clsx` + `tailwind-merge` in `src/lib/utils.ts` (wrong npm `cn` package removed).
 
 ## Browser smoke (Playwright)
 
-Thin Chromium-only suite under `e2e/` — **no real API** (all `/api/**` mocked 401):
+Thin Chromium-only suite under `e2e/` — **no real API** (routes mocked; keep small for free CI):
 
 1. Login page renders (logo, username/password, submit).
 2. Unauthenticated `/dashboard` redirects to `/login`.
+3. Login empty submit shows Indonesian zod messages (no network).
+4. Landing `/` renders public summary KPIs from a **mocked** `GET /api/public/summary` (other `/api/**` still 401).
 
 ```bash
 yarn build && yarn smoke:install && yarn smoke
@@ -77,13 +79,14 @@ CI runs the same after `yarn build` (Chromium cached). Keep the suite small so f
 | Done | B4 pusat sentinel | FE sends `unit_usaha_id=` for BUMDES; drop client filter (needs sm85-arch B4 merged/deployed). |
 | Done | Landing/Login typography | Soft `text-shadow` via `.modern-brand-title` / `.auth-brand-title`; weight/tracking aligned with live transparency tone. |
 | Done | Unit Usaha RHF+zod | Create + edit dialogs (`src/schemas/units.ts`) — same pattern as Login/Users/COA. |
-| Done (FE) | Money dual-accept | `parseMoney` / `fmtRp` / sort accept `number \| string`; types use `MoneyAmount`. **Next:** BE serialize Decimal→str on JSON out (tx/reports) — see sm85-arch IDEAL_FOLLOWUPS. |
+| Done (FE) | Money dual-accept | `parseMoney` / `fmtRp` / sort accept `number \| string`; types use `MoneyAmount`. BE string JSON out landed on sm85-arch (#158). |
 | Done | Transactions RHF+zod | Create/edit card (`src/schemas/transactions.ts`) — amount stays string in form, `parseFloat` on submit. |
-| Next | Broader RHF+zod | Inventory mutating forms. |
+| Done | Inventory RHF+zod | Product / stock-in / stock-out / adjust (#12) + **vendor/customer** partner forms (`PartnerFormCard`). |
+| Done | Thin E2E expand | Smoke: login render, auth redirect, login zod messages, landing public summary mock (still no real API; Chromium-only). |
 | Next | Tighten types | Replace residual `any` / loose casts on large pages; keep incremental. |
 | Next | Inventory multi-unit | BE still UU05-centric; multi-perdagangan inventory is a dedicated BE+FE PR. |
 | Later | Full E2E | Role-matrix Playwright against staging (not free CI); keep this repo’s smoke mocked. |
-| Later | Cutover | Follow checklist below; keep live JS FE rollback-ready. |
+| Later | Cutover checklist residual | Production already serves this TS FE; keep checklist for env/CORS smoke when rotating hosts. |
 
 Reports / Ledger already treat omitted `unit_usaha_id` as pusat on the API — no client-filter hack there.
 

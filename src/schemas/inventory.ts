@@ -209,3 +209,22 @@ export const emptyAdjustForm = (): AdjustFormValues => ({
   debit_account_code: PERSEDIAAN_ACCOUNT_CODE,
   credit_account_code: PENDAPATAN_ACCOUNT_CODE,
 })
+
+/** Mitra pemasok / customer — same shape; name required, contact/address optional. */
+export const partnerFormSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, 'Nama wajib diisi')
+    .max(200, 'Nama maksimal 200 karakter'),
+  contact: z.string().max(120, 'Kontak maksimal 120 karakter'),
+  address: z.string().max(500, 'Alamat maksimal 500 karakter'),
+})
+
+export type PartnerFormValues = z.infer<typeof partnerFormSchema>
+
+export const emptyPartnerFormValues = (): PartnerFormValues => ({
+  name: '',
+  contact: '',
+  address: '',
+})

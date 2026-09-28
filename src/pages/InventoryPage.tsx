@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp, BarChart3, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
 import { useAuth, can } from "@/lib/auth";
@@ -24,9 +24,12 @@ import ProductFormCard from "@/pages/inventory/ProductFormCard";
 import StockInFormCard from "@/pages/inventory/StockInFormCard";
 import StockOutFormCard from "@/pages/inventory/StockOutFormCard";
 import AdjustFormCard from "@/pages/inventory/AdjustFormCard";
+import PartnerFormCard from "@/pages/inventory/PartnerFormCard";
 import {
+  emptyPartnerFormValues,
   emptyProductForm,
   type AdjustFormValues,
+  type PartnerFormValues,
   type ProductFormValues,
   type StockInFormValues,
   type StockOutFormValues,
@@ -66,13 +69,6 @@ function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
   return String(detail);
 }
 
-type PartnerForm = {
-  id: string | null
-  name: string
-  contact: string
-  address: string
-}
-
 const BASE = "/v1/uu05_inventory";
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -88,8 +84,6 @@ const TABS = [
   { id: "piutang", label: "Piutang", icon: HandCoins },
   { id: "laporan", label: "Laporan", icon: BarChart3 },
 ];
-
-const emptyPartnerForm = (): PartnerForm => ({ id: null, name: "", contact: "", address: "" });
 
 export default function Inventory() {
   const { user } = useAuth();
@@ -112,8 +106,10 @@ export default function Inventory() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productDefaults, setProductDefaults] = useState<ProductFormValues>(emptyProductForm());
-  const [vendorForm, setVendorForm] = useState<PartnerForm>(emptyPartnerForm());
-  const [customerForm, setCustomerForm] = useState<PartnerForm>(emptyPartnerForm());
+  const [vendorEditingId, setVendorEditingId] = useState<string | null>(null);
+  const [vendorDefaults, setVendorDefaults] = useState<PartnerFormValues>(emptyPartnerFormValues());
+  const [customerEditingId, setCustomerEditingId] = useState<string | null>(null);
+  const [customerDefaults, setCustomerDefaults] = useState<PartnerFormValues>(emptyPartnerFormValues());
   const [period, setPeriod] = useState<PeriodValue>({
     mode: "monthly", startDate: "", endDate: "", label: "",
   });
@@ -348,20 +344,24 @@ export default function Inventory() {
     }
   };
 
-  const submitVendor = async (e: FormEvent) => {
-    e.preventDefault();
+  const closeVendorForm = () => {
+    setVendorEditingId(null);
+    setVendorDefaults(emptyPartnerFormValues());
+  };
+
+  const submitVendor = async (values: PartnerFormValues) => {
     try {
-      if (vendorForm.id) {
-        await api.put(`${BASE}/vendors/${vendorForm.id}`, {
-          name: vendorForm.name, contact: vendorForm.contact, address: vendorForm.address,
+      if (vendorEditingId) {
+        await api.put(`${BASE}/vendors/${vendorEditingId}`, {
+          name: values.name, contact: values.contact, address: values.address,
         });
       } else {
         await api.post(`${BASE}/vendors`, {
-          name: vendorForm.name, contact: vendorForm.contact, address: vendorForm.address,
+          name: values.name, contact: values.contact, address: values.address,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
-      setVendorForm(emptyPartnerForm());
+      closeVendorForm();
       await loadTrade();
     } catch (err) {
       setError(formatApiError(err, "Gagal menyimpan mitra pemasok"));
@@ -377,20 +377,24 @@ export default function Inventory() {
     }
   };
 
-  const submitCustomer = async (e: FormEvent) => {
-    e.preventDefault();
+  const closeCustomerForm = () => {
+    setCustomerEditingId(null);
+    setCustomerDefaults(emptyPartnerFormValues());
+  };
+
+  const submitCustomer = async (values: PartnerFormValues) => {
     try {
-      if (customerForm.id) {
-        await api.put(`${BASE}/customers/${customerForm.id}`, {
-          name: customerForm.name, contact: customerForm.contact, address: customerForm.address,
+      if (customerEditingId) {
+        await api.put(`${BASE}/customers/${customerEditingId}`, {
+          name: values.name, contact: values.contact, address: values.address,
         });
       } else {
         await api.post(`${BASE}/customers`, {
-          name: customerForm.name, contact: customerForm.contact, address: customerForm.address,
+          name: values.name, contact: values.contact, address: values.address,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
-      setCustomerForm(emptyPartnerForm());
+      closeCustomerForm();
       await loadTrade();
     } catch (err) {
       setError(formatApiError(err, "Gagal menyimpan customer"));
@@ -674,20 +678,13 @@ export default function Inventory() {
       {tab === "vendor" && (
         <div className="space-y-4">
           {canWrite && (
-            <Card>
-            <CardContent className="pt-6">
-              <p className="label mb-3">{vendorForm.id ? "Edit mitra pemasok" : "Tambah mitra pemasok"}</p>
-              <form onSubmit={submitVendor} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className="label">Nama</label><Input required value={vendorForm.name} onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })} /></div>
-                <div><label className="label">Kontak</label><Input value={vendorForm.contact} onChange={(e) => setVendorForm({ ...vendorForm, contact: e.target.value })} /></div>
-                <div><label className="label">Alamat</label><Input value={vendorForm.address} onChange={(e) => setVendorForm({ ...vendorForm, address: e.target.value })} /></div>
-                <div className="sm:col-span-3 flex justify-end gap-2">
-                  {vendorForm.id && <Button type="button" variant="outline" onClick={() => setVendorForm(emptyPartnerForm())}>Batal</Button>}
-                  <Button type="submit">{vendorForm.id ? "Simpan perubahan" : "Simpan mitra pemasok"}</Button>
-                </div>
-              </form>
-            </CardContent>
-            </Card>
+            <PartnerFormCard
+              kind="vendor"
+              editingId={vendorEditingId}
+              defaultValues={vendorDefaults}
+              onSubmit={submitVendor}
+              onCancel={closeVendorForm}
+            />
           )}
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
@@ -704,7 +701,7 @@ export default function Inventory() {
                       <TableCell><Badge variant={v.is_active ? "default" : "outline"}>{v.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => setVendorForm({ id: v.id, name: v.name, contact: v.contact || "", address: v.address || "" })}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setVendorEditingId(v.id); setVendorDefaults({ name: v.name, contact: v.contact || "", address: v.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleVendorActive(v)}>{v.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}
@@ -720,20 +717,13 @@ export default function Inventory() {
       {tab === "customer" && (
         <div className="space-y-4">
           {canWrite && (
-            <Card>
-            <CardContent className="pt-6">
-              <p className="label mb-3">{customerForm.id ? "Edit customer" : "Tambah customer"}</p>
-              <form onSubmit={submitCustomer} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div><label className="label">Nama</label><Input required value={customerForm.name} onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })} /></div>
-                <div><label className="label">Kontak</label><Input value={customerForm.contact} onChange={(e) => setCustomerForm({ ...customerForm, contact: e.target.value })} /></div>
-                <div><label className="label">Alamat</label><Input value={customerForm.address} onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })} /></div>
-                <div className="sm:col-span-3 flex justify-end gap-2">
-                  {customerForm.id && <Button type="button" variant="outline" onClick={() => setCustomerForm(emptyPartnerForm())}>Batal</Button>}
-                  <Button type="submit">{customerForm.id ? "Simpan perubahan" : "Simpan customer"}</Button>
-                </div>
-              </form>
-            </CardContent>
-            </Card>
+            <PartnerFormCard
+              kind="customer"
+              editingId={customerEditingId}
+              defaultValues={customerDefaults}
+              onSubmit={submitCustomer}
+              onCancel={closeCustomerForm}
+            />
           )}
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
@@ -750,7 +740,7 @@ export default function Inventory() {
                       <TableCell><Badge variant={c.is_active ? "default" : "outline"}>{c.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => setCustomerForm({ id: c.id, name: c.name, contact: c.contact || "", address: c.address || "" })}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setCustomerEditingId(c.id); setCustomerDefaults({ name: c.name, contact: c.contact || "", address: c.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleCustomerActive(c)}>{c.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}
