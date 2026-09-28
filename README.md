@@ -32,14 +32,14 @@ yarn build
 | | Live (JS) | This repo (TS) |
 |---|---|---|
 | Status | **Production** | Private port — not cut over |
-| Language | JSX | TypeScript (strict; some pages still `@ts-nocheck`) |
+| Language | JSX | TypeScript (strict) |
 | Data | Axios + local state | Axios + TanStack Query |
 | Tx list | Client-heavy / array | Server pagination via `meta=true` |
 | Unit tabs | Hardcoded UU01–UU06 | `buildUnitGroupTabs()` from `GET /unit-usaha` |
 
 ## Status
 
-**Ported (F0–F3 + public landing):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles/nav config, typed `src/api/*`, TanStack Query hooks, **public Landing / transparency** (`GET /api/public/summary`), **Dashboard**, **Transactions** (server pagination `meta=true`), **Reports** + per-unit + Tutup Buku, **Ledger**, **COA**, **Inventory (UU05)**, Unit Usaha, Org Profile, Users, Audit Log, Profile, Change Password. F3 adds vitest (role matrix + pure helpers), Login `htmlFor` a11y, StubPage removal, README cutover notes.
+**Ported (F0–F3 + public landing + forms/typing):** Auth, Theme/Appearance, Layout + BottomNav, Login, roles/nav config, typed `src/api/*`, TanStack Query hooks, **public Landing / transparency** (`GET /api/public/summary`), **Dashboard**, **Transactions** (server pagination `meta=true`), **Reports** + per-unit + Tutup Buku, **Ledger**, **COA**, **Inventory (UU05)**, Unit Usaha, Org Profile, Users, Audit Log, Profile, Change Password. F3 adds vitest (role matrix + pure helpers), Login `htmlFor` a11y, StubPage removal, README cutover notes.
 
 Unit group tabs come from `GET /unit-usaha` via `buildUnitGroupTabs()` — no hardcoded UU01–UU06.
 
@@ -47,17 +47,11 @@ Unit group tabs come from `GET /unit-usaha` via `buildUnitGroupTabs()` — no ha
 
 Appearance matches live: **Biru** color theme, **Ripple** wallpaper, **Plus Jakarta Sans**, light mode.
 
-## Remaining `@ts-nocheck` (typing debt)
+## Forms & typing
 
-| File | Notes |
-|---|---|
-| `src/pages/AccountsPage.tsx` | COA port |
-| `src/pages/InventoryPage.tsx` | Large UU05 surface |
-| `src/pages/InventorySummary.tsx` | Charts summary |
-| `src/pages/OrgProfilePage.tsx` | Form-heavy |
-| `src/pages/UsersPage.tsx` | Admin users |
-
-`UnitUsahaPage` had `@ts-nocheck` removed in F3 (light types). Full typing of the rest is follow-up — do not block cutover on it.
+- **zod + react-hook-form** on Login, Change Password, Users create, and COA account create/edit (`src/schemas/*`). Indonesian validation messages; live business rules unchanged.
+- **`@ts-nocheck` cleared** on Accounts, Inventory, InventorySummary, OrgProfile, Users — incremental domain types in `src/types` (inventory + expanded OrgProfile/Account). Prefer real types over `any`.
+- Utility `cn` remains `clsx` + `tailwind-merge` in `src/lib/utils.ts` (wrong npm `cn` package removed).
 
 ## Cutover checklist (do **not** run until ready)
 

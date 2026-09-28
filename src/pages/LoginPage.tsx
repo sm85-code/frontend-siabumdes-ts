@@ -1,5 +1,7 @@
 import { ArrowLeft, Eye, EyeOff, LogIn } from 'lucide-react'
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
 import AppearancePopover from '@/components/AppearancePopover'
 import Spinner from '@/components/Spinner'
@@ -8,30 +10,33 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth'
+import { loginSchema, type LoginFormValues } from '@/schemas/auth'
 
 const COPYRIGHT_YEAR = new Date().getFullYear()
 
 export default function LoginPage() {
   const { login } = useAuth()
   const nav = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [err, setErr] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: '', password: '' },
+  })
+
+  const onSubmit = async (values: LoginFormValues) => {
     setErr('')
-    setLoading(true)
     try {
-      await login(username.trim(), password)
+      await login(values.username.trim(), values.password)
       nav('/dashboard')
     } catch (er: unknown) {
       const detail = (er as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       setErr(detail || 'Login gagal')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -69,7 +74,7 @@ export default function LoginPage() {
             <p className="mb-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
               Silakan gunakan username & password Anda.
             </p>
-            <form onSubmit={(e) => void submit(e)} className="space-y-4">
+            <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">
               <div>
                 <label className="label" htmlFor="login-username">
                   Username / Email
@@ -77,13 +82,17 @@ export default function LoginPage() {
                 <Input
                   id="login-username"
                   data-testid="login-username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
                   placeholder="mis. admin"
                   autoFocus
-                  required
                   autoComplete="username"
+                  aria-invalid={Boolean(errors.username)}
+                  {...register('username')}
                 />
+                {errors.username && (
+                  <p className="mt-1 text-xs" style={{ color: 'var(--status-error)' }}>
+                    {errors.username.message}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="label" htmlFor="login-password">
@@ -96,11 +105,10 @@ export default function LoginPage() {
                     className="pr-10"
                     type={showPw ? 'text' : 'password'}
                     maxLength={72}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    required
                     autoComplete="current-password"
+                    aria-invalid={Boolean(errors.password)}
+                    {...register('password')}
                   />
                   <button
                     type="button"
@@ -113,6 +121,11 @@ export default function LoginPage() {
                     {showPw ? <EyeOff className="size-4.5" /> : <Eye className="size-4.5" />}
                   </button>
                 </div>
+                {errors.password && (
+                  <p className="mt-1 text-xs" style={{ color: 'var(--status-error)' }}>
+                    {errors.password.message}
+                  </p>
+                )}
               </div>
               {err && (
                 <div
@@ -127,8 +140,8 @@ export default function LoginPage() {
                   {err}
                 </div>
               )}
-              <Button data-testid="login-submit" disabled={loading} className="w-full">
-                {loading ? (
+              <Button data-testid="login-submit" disabled={isSubmitting} className="w-full">
+                {isSubmitting ? (
                   <Spinner size={18} label="Memproses..." />
                 ) : (
                   <>
