@@ -17,12 +17,20 @@ import type {
   PeriodValue,
 } from "@/types";
 import {
-  CoaSelect, KAS_ACCOUNT_CODE, PERSEDIAAN_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE,
-  UTANG_ACCOUNT_CODE, PENDAPATAN_ACCOUNT_CODE, HPP_ACCOUNT_CODE,
-  PENYESUAIAN_NILAI_PERSEDIAAN_ACCOUNT_CODE, BEBAN_KERUGIAN_BARANG_ACCOUNT_CODE,
-  BEBAN_PENJUALAN_BARANG_ACCOUNT_CODE,
+  KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE, UTANG_ACCOUNT_CODE,
 } from "@/lib/uu05InventoryCoa";
 import InventorySummary from "@/pages/InventorySummary";
+import ProductFormCard from "@/pages/inventory/ProductFormCard";
+import StockInFormCard from "@/pages/inventory/StockInFormCard";
+import StockOutFormCard from "@/pages/inventory/StockOutFormCard";
+import AdjustFormCard from "@/pages/inventory/AdjustFormCard";
+import {
+  emptyProductForm,
+  type AdjustFormValues,
+  type ProductFormValues,
+  type StockInFormValues,
+  type StockOutFormValues,
+} from "@/schemas/inventory";
 import PeriodFilter from "@/components/PeriodFilter";
 import TableShell from "@/components/TableShell";
 import Spinner from "@/components/Spinner";
@@ -58,63 +66,11 @@ function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
   return String(detail);
 }
 
-type Numish = number | string;
-
-type ProductFormState = {
-  sku: string
-  name: string
-  category_id: string
-  unit_of_measure: string
-  cost_price: Numish
-  sell_price: Numish
-  opening_qty: Numish
-}
-
-type StockInForm = {
-  product_id: string
-  quantity: Numish
-  unit_cost: Numish
-  movement_date: string
-  debit_account_code: string
-  credit_account_code: string
-  vendor_id: string
-  invoice_number: string
-  payment_method: string
-  due_date: string
-}
-
-type StockOutForm = {
-  isInternal: boolean
-  product_id: string
-  quantity: Numish
-  movement_date: string
-  debit_account_code: string
-  credit_account_code: string
-  customer_id: string
-  sell_price: Numish
-  invoice_number: string
-  payment_method: string
-  due_date: string
-  revenue_debit_account_code: string
-  revenue_credit_account_code: string
-  note: string
-}
-
 type PartnerForm = {
   id: string | null
   name: string
   contact: string
   address: string
-}
-
-type AdjustForm = {
-  product_id: string
-  quantity_delta: Numish
-  reason: string
-  adjustment_date: string
-  notes: string
-  debit_account_code: string
-  credit_account_code: string
 }
 
 const BASE = "/v1/uu05_inventory";
@@ -133,28 +89,7 @@ const TABS = [
   { id: "laporan", label: "Laporan", icon: BarChart3 },
 ];
 
-const emptyStockIn = (): StockInForm => ({
-  product_id: "", quantity: 1, unit_cost: 0, movement_date: today(),
-  debit_account_code: PERSEDIAAN_ACCOUNT_CODE, credit_account_code: KAS_ACCOUNT_CODE,
-  vendor_id: "", invoice_number: "", payment_method: "cash", due_date: "",
-});
-
-const emptyStockOut = (): StockOutForm => ({
-  isInternal: false,
-  product_id: "", quantity: 1, movement_date: today(),
-  debit_account_code: HPP_ACCOUNT_CODE, credit_account_code: PERSEDIAAN_ACCOUNT_CODE,
-  customer_id: "", sell_price: 0, invoice_number: "", payment_method: "cash", due_date: "",
-  revenue_debit_account_code: KAS_ACCOUNT_CODE, revenue_credit_account_code: PENDAPATAN_ACCOUNT_CODE,
-  note: "",
-});
-
 const emptyPartnerForm = (): PartnerForm => ({ id: null, name: "", contact: "", address: "" });
-
-const emptyAdjustForm = (): AdjustForm => ({
-  product_id: "", quantity_delta: -1, reason: "rusak",
-  adjustment_date: today(), notes: "",
-  debit_account_code: PERSEDIAAN_ACCOUNT_CODE, credit_account_code: PENDAPATAN_ACCOUNT_CODE,
-});
 
 export default function Inventory() {
   const { user } = useAuth();
@@ -176,14 +111,7 @@ export default function Inventory() {
   const [catFilter, setCatFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [productForm, setProductForm] = useState<ProductFormState>({
-    sku: "", name: "", category_id: "", unit_of_measure: "pcs",
-    cost_price: 0, sell_price: 0, opening_qty: 0,
-  });
-  const [stockIn, setStockIn] = useState<StockInForm>(emptyStockIn());
-  const [stockOut, setStockOut] = useState<StockOutForm>(emptyStockOut());
-  const [adjust, setAdjust] = useState<AdjustForm>(emptyAdjustForm());
+  const [productDefaults, setProductDefaults] = useState<ProductFormValues>(emptyProductForm());
   const [vendorForm, setVendorForm] = useState<PartnerForm>(emptyPartnerForm());
   const [customerForm, setCustomerForm] = useState<PartnerForm>(emptyPartnerForm());
   const [period, setPeriod] = useState<PeriodValue>({
@@ -266,14 +194,6 @@ export default function Inventory() {
     if (["stock-in", "stock-out", "vendor", "customer", "utang", "piutang"].includes(tab)) loadTrade();
   }, [tab, loadOps, loadReports, loadTrade]);
 
-  const productOptions = useMemo(
-    () => products.map((p) => ({
-      id: p.id,
-      label: `${p.sku} — ${p.name} (stok ${p.qty_on_hand})`,
-    })),
-    [products],
-  );
-
   const activeVendors = useMemo(() => vendors.filter((v) => v.is_active), [vendors]);
   const activeCustomers = useMemo(() => customers.filter((c) => c.is_active), [customers]);
 
@@ -285,27 +205,22 @@ export default function Inventory() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const emptyProductForm = () => ({
-    sku: "", name: "", category_id: "", unit_of_measure: "pcs",
-    cost_price: 0, sell_price: 0, opening_qty: 0,
-  });
-
   const openCreateProduct = () => {
     setEditingId(null);
-    setProductForm(emptyProductForm());
+    setProductDefaults(emptyProductForm());
     setShowForm(true);
   };
 
   const openEditProduct = (p: InventoryProduct) => {
     setEditingId(p.id);
-    setProductForm({
+    setProductDefaults({
       sku: p.sku,
       name: p.name,
       category_id: p.category_id || "",
       unit_of_measure: p.unit_of_measure || "pcs",
-      cost_price: Number(p.cost_price || 0),
-      sell_price: Number(p.sell_price || 0),
-      opening_qty: 0,
+      cost_price: String(Number(p.cost_price || 0)),
+      sell_price: String(Number(p.sell_price || 0)),
+      opening_qty: "0",
     });
     setShowForm(true);
   };
@@ -313,26 +228,28 @@ export default function Inventory() {
   const closeProductForm = () => {
     setShowForm(false);
     setEditingId(null);
-    setProductForm(emptyProductForm());
+    setProductDefaults(emptyProductForm());
   };
 
-  const submitProduct = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitProduct = async (values: ProductFormValues) => {
     try {
       if (editingId) {
         await api.put(`${BASE}/products/${editingId}`, {
-          name: productForm.name,
-          category_id: productForm.category_id,
-          unit_of_measure: productForm.unit_of_measure,
-          cost_price: Number(productForm.cost_price || 0),
-          sell_price: Number(productForm.sell_price || 0),
+          name: values.name,
+          category_id: values.category_id,
+          unit_of_measure: values.unit_of_measure,
+          cost_price: Number(values.cost_price || 0),
+          sell_price: Number(values.sell_price || 0),
         });
       } else {
         await api.post(`${BASE}/products`, {
-          ...productForm,
-          cost_price: Number(productForm.cost_price || 0),
-          sell_price: Number(productForm.sell_price || 0),
-          opening_qty: Number(productForm.opening_qty || 0),
+          sku: values.sku,
+          name: values.name,
+          category_id: values.category_id,
+          unit_of_measure: values.unit_of_measure,
+          cost_price: Number(values.cost_price || 0),
+          sell_price: Number(values.sell_price || 0),
+          opening_qty: Number(values.opening_qty || 0),
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
@@ -353,81 +270,61 @@ export default function Inventory() {
     }
   };
 
-  const submitStockIn = async (e: FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-    setSubmitting(true);
+  const submitStockIn = async (values: StockInFormValues) => {
     try {
       await api.post(`${BASE}/stock-in`, {
-        ...stockIn,
-        quantity: Number(stockIn.quantity),
-        unit_cost: Number(stockIn.unit_cost),
-        due_date: stockIn.payment_method === "credit" ? stockIn.due_date : null,
+        ...values,
+        quantity: Number(values.quantity),
+        unit_cost: Number(values.unit_cost),
+        due_date: values.payment_method === "credit" ? values.due_date : null,
         unit_usaha_id: meta?.unit_usaha_id,
       });
-      setStockIn(emptyStockIn());
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
     } catch (err) {
       setError(formatApiError(err));
-    } finally {
-      setSubmitting(false);
+      throw err;
     }
   };
 
-  const submitStockOut = async (e: FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-    const product = products.find((p) => p.id === stockOut.product_id);
-    if (product && Number(stockOut.quantity) > Number(product.qty_on_hand)) {
-      setError(`Qty keluar (${stockOut.quantity}) melebihi stok tersedia (${product.qty_on_hand}).`);
-      return;
-    }
-    setSubmitting(true);
+  const submitStockOut = async (values: StockOutFormValues) => {
     try {
-      if (stockOut.isInternal) {
+      if (values.isInternal) {
         await api.post(`${BASE}/stock-out-internal`, {
-          product_id: stockOut.product_id,
-          quantity: Number(stockOut.quantity),
-          movement_date: stockOut.movement_date,
-          debit_account_code: stockOut.debit_account_code,
-          credit_account_code: stockOut.credit_account_code,
-          note: stockOut.note,
+          product_id: values.product_id,
+          quantity: Number(values.quantity),
+          movement_date: values.movement_date,
+          debit_account_code: values.debit_account_code,
+          credit_account_code: values.credit_account_code,
+          note: values.note,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       } else {
         await api.post(`${BASE}/stock-out`, {
-          ...stockOut,
-          quantity: Number(stockOut.quantity),
-          sell_price: Number(stockOut.sell_price),
-          due_date: stockOut.payment_method === "piutang" ? stockOut.due_date : null,
+          ...values,
+          quantity: Number(values.quantity),
+          sell_price: Number(values.sell_price),
+          due_date: values.payment_method === "piutang" ? values.due_date : null,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
-      setStockOut(emptyStockOut());
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
     } catch (err) {
       setError(formatApiError(err));
-    } finally {
-      setSubmitting(false);
+      throw err;
     }
   };
 
-  const submitAdjust = async (e: FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-    setSubmitting(true);
+  const submitAdjust = async (values: AdjustFormValues) => {
     try {
       await api.post(`${BASE}/adjustments`, {
-        ...adjust,
-        quantity_delta: Number(adjust.quantity_delta),
+        ...values,
+        quantity_delta: Number(values.quantity_delta),
         unit_usaha_id: meta?.unit_usaha_id,
       });
-      setAdjust(emptyAdjustForm());
       await Promise.all([loadCore(), loadOps()]);
     } catch (err) {
       setError(formatApiError(err));
-    } finally {
-      setSubmitting(false);
+      throw err;
     }
   };
 
@@ -626,38 +523,13 @@ export default function Inventory() {
           </Card>
 
           {showForm && canWrite && (
-            <Card className="fade-in">
-            <CardContent className="pt-6">
-              <p className="label mb-3">{editingId ? "Edit produk" : "Tambah produk"}</p>
-              <form onSubmit={submitProduct} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">SKU</label>
-                  <Input required value={productForm.sku} disabled={!!editingId} onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })} />
-                </div>
-                <div><label className="label">Nama produk</label><Input required value={productForm.name} onChange={(e) => setProductForm({ ...productForm, name: e.target.value })} /></div>
-                <div>
-                  <label className="label">Kategori</label>
-                  <Select required value={productForm.category_id || "__none__"} onValueChange={(v) => setProductForm({ ...productForm, category_id: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="— pilih —" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— pilih —</SelectItem>
-                      {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><label className="label">Satuan</label><Input value={productForm.unit_of_measure} onChange={(e) => setProductForm({ ...productForm, unit_of_measure: e.target.value })} /></div>
-                <div><label className="label">Harga pokok (Rp)</label><Input type="number" min="0" value={productForm.cost_price} onChange={(e) => setProductForm({ ...productForm, cost_price: e.target.value })} /></div>
-                <div><label className="label">Harga jual (Rp)</label><Input type="number" min="0" value={productForm.sell_price} onChange={(e) => setProductForm({ ...productForm, sell_price: e.target.value })} /></div>
-                {!editingId && (
-                  <div><label className="label">Qty awal</label><Input type="number" min="0" value={productForm.opening_qty} onChange={(e) => setProductForm({ ...productForm, opening_qty: e.target.value })} /></div>
-                )}
-                <div className="sm:col-span-2 flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={closeProductForm}>Batal</Button>
-                  <Button type="submit">{editingId ? "Simpan perubahan" : "Simpan produk"}</Button>
-                </div>
-              </form>
-            </CardContent>
-            </Card>
+            <ProductFormCard
+              editingId={editingId}
+              defaultValues={productDefaults}
+              categories={categories}
+              onSubmit={submitProduct}
+              onCancel={closeProductForm}
+            />
           )}
 
           <Card className="p-0 overflow-hidden">
@@ -710,66 +582,11 @@ export default function Inventory() {
             <p className="label mb-2">Penerimaan barang (Stock In / Pembelian)</p>
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</p>
             {canWrite ? (
-              <form onSubmit={submitStockIn} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Produk</label>
-                  <Select required value={stockIn.product_id || "__none__"} onValueChange={(v) => {
-                    const id = v === "__none__" ? "" : v;
-                    const p = products.find((x) => x.id === id);
-                    setStockIn({ ...stockIn, product_id: id, unit_cost: p ? Number(p.cost_price) : 0 });
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="— pilih —" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— pilih —</SelectItem>
-                      {productOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="label">Mitra Pemasok</label>
-                  <Select required value={stockIn.vendor_id || "__none__"} onValueChange={(v) => setStockIn({ ...stockIn, vendor_id: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="— pilih mitra pemasok —" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— pilih mitra pemasok —</SelectItem>
-                      {activeVendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  {activeVendors.length === 0 && (
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Belum ada mitra pemasok — tambahkan di tab Mitra Pemasok.</p>
-                  )}
-                </div>
-                <div><label className="label">Tanggal</label><Input type="date" required value={stockIn.movement_date} onChange={(e) => setStockIn({ ...stockIn, movement_date: e.target.value })} /></div>
-                <div><label className="label">No. Invoice</label><Input value={stockIn.invoice_number} onChange={(e) => setStockIn({ ...stockIn, invoice_number: e.target.value })} /></div>
-                <div><label className="label">Qty masuk</label><Input type="number" min="1" required value={stockIn.quantity} onChange={(e) => setStockIn({ ...stockIn, quantity: e.target.value })} /></div>
-                <div><label className="label">HPP / unit (Rp)</label><Input type="number" min="0" required value={stockIn.unit_cost} onChange={(e) => setStockIn({ ...stockIn, unit_cost: e.target.value })} /></div>
-                <div>
-                  <label className="label">Metode bayar</label>
-                  <Select value={stockIn.payment_method} onValueChange={(method) => {
-                    setStockIn({
-                      ...stockIn, payment_method: method,
-                      credit_account_code: method === "credit" ? UTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE,
-                    });
-                  }}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Tunai</SelectItem>
-                      <SelectItem value="credit">Kredit (Utang Usaha)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {stockIn.payment_method === "credit" && (
-                  <div><label className="label">Jatuh tempo</label><Input type="date" required value={stockIn.due_date} onChange={(e) => setStockIn({ ...stockIn, due_date: e.target.value })} /></div>
-                )}
-                <div>
-                  <label className="label">Akun debit (Persediaan)</label>
-                  <CoaSelect value={stockIn.debit_account_code} onChange={(e) => setStockIn({ ...stockIn, debit_account_code: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Akun kredit ({stockIn.payment_method === "credit" ? "Utang Usaha" : "Kas/Bank"})</label>
-                  <CoaSelect value={stockIn.credit_account_code} onChange={(e) => setStockIn({ ...stockIn, credit_account_code: e.target.value })} />
-                </div>
-                <div className="sm:col-span-2 flex justify-end"><Button type="submit" disabled={submitting}>{submitting ? "Menyimpan…" : "Catat stock in"}</Button></div>
-              </form>
+              <StockInFormCard
+                products={products}
+                vendors={activeVendors}
+                onSubmit={submitStockIn}
+              />
             ) : <p className="text-sm">Role Anda read-only.</p>}
           </CardContent>
           </Card>
@@ -783,115 +600,15 @@ export default function Inventory() {
           <CardContent className="pt-6">
             <p className="label mb-2">Pengeluaran barang (Stock Out / Penjualan)</p>
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-              {stockOut.isInternal
-                ? "Pemakaian/transfer internal: stok berkurang dan tercatat sebagai beban, tanpa jurnal penjualan/pendapatan."
-                : "Stock out menghasilkan transaksi stok keluar + jurnal HPP, sekaligus transaksi Penjualan (jurnal pendapatan) tunai atau piutang."}
+              Centang pemakaian internal untuk beban tanpa jurnal penjualan; tanpa centang = stock out penjualan (HPP + pendapatan, tunai/piutang).
             </p>
             {canWrite ? (
-              <form onSubmit={submitStockOut} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="sm:col-span-2 flex items-center gap-2 text-sm cursor-pointer" data-testid="stock-out-internal-toggle">
-                  <input
-                    type="checkbox"
-                    checked={stockOut.isInternal}
-                    onChange={(e) => {
-                      const isInternal = e.target.checked;
-                      setStockOut({
-                        ...stockOut,
-                        isInternal,
-                        debit_account_code: isInternal ? BEBAN_PENJUALAN_BARANG_ACCOUNT_CODE : HPP_ACCOUNT_CODE,
-                      });
-                    }}
-                  />
-                  Pemakaian / transfer internal (bukan penjualan ke pihak luar)
-                </label>
-                <div>
-                  <label className="label">Produk</label>
-                  <Select required value={stockOut.product_id || "__none__"} onValueChange={(v) => {
-                    const id = v === "__none__" ? "" : v;
-                    const p = products.find((x) => x.id === id);
-                    setStockOut({ ...stockOut, product_id: id, sell_price: p ? Number(p.sell_price) : 0 });
-                  }}>
-                    <SelectTrigger><SelectValue placeholder="— pilih —" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— pilih —</SelectItem>
-                      {productOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {!stockOut.isInternal && (
-                  <div>
-                    <label className="label">Customer</label>
-                    <Select required value={stockOut.customer_id || "__none__"} onValueChange={(v) => setStockOut({ ...stockOut, customer_id: v === "__none__" ? "" : v })}>
-                      <SelectTrigger><SelectValue placeholder="— pilih customer —" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— pilih customer —</SelectItem>
-                        {activeCustomers.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    {activeCustomers.length === 0 && (
-                      <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Belum ada customer — tambahkan di tab Customer.</p>
-                    )}
-                  </div>
-                )}
-                <div><label className="label">Tanggal</label><Input type="date" required value={stockOut.movement_date} onChange={(e) => setStockOut({ ...stockOut, movement_date: e.target.value })} /></div>
-                <div><label className="label">Qty keluar</label><Input type="number" min="1" required value={stockOut.quantity} onChange={(e) => setStockOut({ ...stockOut, quantity: e.target.value })} /></div>
-                {stockOut.isInternal ? (
-                  <div className="sm:col-span-2">
-                    <label className="label">Catatan (opsional)</label>
-                    <Input value={stockOut.note} onChange={(e) => setStockOut({ ...stockOut, note: e.target.value })} placeholder="mis. dipakai untuk operasional kantor" />
-                  </div>
-                ) : (
-                  <>
-                    <div><label className="label">No. Invoice</label><Input value={stockOut.invoice_number} onChange={(e) => setStockOut({ ...stockOut, invoice_number: e.target.value })} /></div>
-                    <div><label className="label">Harga jual / unit (Rp)</label><Input type="number" min="0" required value={stockOut.sell_price} onChange={(e) => setStockOut({ ...stockOut, sell_price: e.target.value })} /></div>
-                    <div>
-                      <label className="label">Metode bayar</label>
-                      <Select value={stockOut.payment_method} onValueChange={(method) => {
-                        setStockOut({
-                          ...stockOut, payment_method: method,
-                          revenue_debit_account_code: method === "piutang" ? PIUTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE,
-                        });
-                      }}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Tunai</SelectItem>
-                          <SelectItem value="piutang">Piutang</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {stockOut.payment_method === "piutang" && (
-                      <div><label className="label">Jatuh tempo</label><Input type="date" required value={stockOut.due_date} onChange={(e) => setStockOut({ ...stockOut, due_date: e.target.value })} /></div>
-                    )}
-                  </>
-                )}
-                <div>
-                  <label className="label">{stockOut.isInternal ? "Akun debit (Beban)" : "Akun debit (HPP)"}</label>
-                  <CoaSelect value={stockOut.debit_account_code} onChange={(e) => setStockOut({ ...stockOut, debit_account_code: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Akun kredit (Persediaan)</label>
-                  <CoaSelect value={stockOut.credit_account_code} onChange={(e) => setStockOut({ ...stockOut, credit_account_code: e.target.value })} />
-                </div>
-                {!stockOut.isInternal && (
-                  <>
-                    <div>
-                      <label className="label">Akun debit penjualan ({stockOut.payment_method === "piutang" ? "Piutang" : "Kas/Bank"})</label>
-                      <CoaSelect value={stockOut.revenue_debit_account_code} onChange={(e) => setStockOut({ ...stockOut, revenue_debit_account_code: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="label">Akun kredit (Pendapatan)</label>
-                      <CoaSelect value={stockOut.revenue_credit_account_code} onChange={(e) => setStockOut({ ...stockOut, revenue_credit_account_code: e.target.value })} />
-                    </div>
-                  </>
-                )}
-                <Card className="sm:col-span-2 p-3 text-sm" style={{ background: "var(--surface-alt)" }}>
-                  <p>Preview jurnal {stockOut.isInternal ? "Beban" : "HPP"}: <strong>{fmtRp(Number(stockOut.quantity || 0) * Number(products.find((p) => p.id === stockOut.product_id)?.cost_price || 0))}</strong></p>
-                  {!stockOut.isInternal && (
-                    <p>Preview jurnal Penjualan: <strong>{fmtRp(Number(stockOut.quantity || 0) * Number(stockOut.sell_price || 0))}</strong></p>
-                  )}
-                </Card>
-                <div className="sm:col-span-2 flex justify-end"><Button type="submit" disabled={submitting}>{submitting ? "Menyimpan…" : "Catat stock out"}</Button></div>
-              </form>
+              <StockOutFormCard
+                products={products}
+                customers={activeCustomers}
+                onSubmit={submitStockOut}
+                onClientError={setError}
+              />
             ) : <p className="text-sm">Role Anda read-only.</p>}
           </CardContent>
           </Card>
@@ -909,64 +626,7 @@ export default function Inventory() {
               Penambahan stok (delta positif) tetap 1 jurnal dengan akun kredit/offset pilihan Anda.
             </p>
             {canWrite ? (
-              <form onSubmit={submitAdjust} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="label">Produk</label>
-                  <Select required value={adjust.product_id || "__none__"} onValueChange={(v) => setAdjust({ ...adjust, product_id: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue placeholder="— pilih —" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">— pilih —</SelectItem>
-                      {productOptions.map((o) => <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><label className="label">Tanggal</label><Input type="date" required value={adjust.adjustment_date} onChange={(e) => setAdjust({ ...adjust, adjustment_date: e.target.value })} /></div>
-                <div><label className="label">Delta qty (+/-)</label><Input type="number" required value={adjust.quantity_delta} onChange={(e) => setAdjust({ ...adjust, quantity_delta: e.target.value })} /></div>
-                <div>
-                  <label className="label">Alasan</label>
-                  <Select value={adjust.reason} onValueChange={(v) => setAdjust({ ...adjust, reason: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="rusak">Rusak</SelectItem>
-                      <SelectItem value="kadaluarsa">Kadaluarsa</SelectItem>
-                      <SelectItem value="koreksi">Koreksi</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {Number(adjust.quantity_delta) < 0 ? (
-                  <Card className="sm:col-span-2 p-3 text-sm space-y-3" style={{ background: "var(--surface-alt)" }}>
-                    <div>
-                      <p className="font-medium mb-1">Jurnal 1 — Pengurangan fisik nilai persediaan</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <CoaSelect value={PENYESUAIAN_NILAI_PERSEDIAAN_ACCOUNT_CODE} onChange={() => {}} disabled id="adj-loss-debit-1" />
-                        <CoaSelect value={PERSEDIAAN_ACCOUNT_CODE} onChange={() => {}} disabled id="adj-loss-credit-1" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">Jurnal 2 — Pengakuan beban kerugian</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <CoaSelect value={BEBAN_KERUGIAN_BARANG_ACCOUNT_CODE} onChange={() => {}} disabled id="adj-loss-debit-2" />
-                        <CoaSelect value={PENYESUAIAN_NILAI_PERSEDIAAN_ACCOUNT_CODE} onChange={() => {}} disabled id="adj-loss-credit-2" />
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <>
-                    <div>
-                      <label className="label">Akun debit (Persediaan)</label>
-                      <CoaSelect value={adjust.debit_account_code} onChange={(e) => setAdjust({ ...adjust, debit_account_code: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="label">Akun kredit (Pendapatan/Offset)</label>
-                      <CoaSelect value={adjust.credit_account_code} onChange={(e) => setAdjust({ ...adjust, credit_account_code: e.target.value })} />
-                    </div>
-                  </>
-                )}
-
-                <div className="sm:col-span-2"><label className="label">Catatan</label><Input value={adjust.notes} onChange={(e) => setAdjust({ ...adjust, notes: e.target.value })} /></div>
-                <div className="sm:col-span-2 flex justify-end"><Button type="submit" disabled={submitting}>{submitting ? "Menyimpan…" : "Simpan penyesuaian"}</Button></div>
-              </form>
+              <AdjustFormCard products={products} onSubmit={submitAdjust} />
             ) : <p className="text-sm">Role Anda read-only.</p>}
           </CardContent>
           </Card>
