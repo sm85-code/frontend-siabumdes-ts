@@ -184,6 +184,28 @@
   .spinner-ring--outer, .spinner-ring--inner { animation: none; }
 }
 
+/* Public / auth brand titles — refined hierarchy + soft depth (not heavy) */
+.modern-brand-title,
+.auth-brand-title {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--primary-dark);
+  /* Soft lift for wallpaper/hero readability; stays subtle on solid cards */
+  text-shadow:
+    0 1px 0 color-mix(in srgb, var(--bg) 70%, transparent),
+    0 1px 10px color-mix(in srgb, var(--primary-dark) 14%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modern-brand-title,
+  .auth-brand-title {
+    text-shadow:
+      0 1px 0 color-mix(in srgb, var(--bg) 55%, transparent);
+  }
+}
+
 /* Layout helpers ported from live frontend-siabumdes */
 .page-h1 {
   letter-spacing: -0.02em;

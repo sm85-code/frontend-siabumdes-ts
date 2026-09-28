@@ -63,14 +63,14 @@ export default function LoginPage() {
             data-testid="bumdes-logo"
             className="mx-auto mb-3 h-28 w-28 object-contain"
           />
-          <h1 className="font-heading mt-1 text-2xl sm:text-3xl">BUMDes Karya Raharja</h1>
+          <h1 className="auth-brand-title mt-1 text-2xl font-bold tracking-tight sm:text-3xl">BUMDes Karya Raharja</h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Sistem Informasi Akuntansi
           </p>
         </div>
         <Card>
           <CardContent className="pt-2">
-            <h2 className="font-heading mb-1 text-xl">Masuk ke Akun</h2>
+            <h2 className="font-heading mb-1 text-xl font-semibold tracking-tight">Masuk ke Akun</h2>
             <p className="mb-5 text-sm" style={{ color: 'var(--text-secondary)' }}>
               Silakan gunakan username & password Anda.
             </p>

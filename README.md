@@ -75,8 +75,10 @@ CI runs the same after `yarn build` (Chromium cached). Keep the suite small so f
 | Priority | Item | Notes |
 |----------|------|--------|
 | Done | B4 pusat sentinel | FE sends `unit_usaha_id=` for BUMDES; drop client filter (needs sm85-arch B4 merged/deployed). |
-| Next | Money JSON | Prefer string/Decimal for `amount` on API + FE (B3 deferred); coordinate with live FE retirement. |
-| Next | Broader RHF+zod | Wire remaining create/edit forms (Transactions, Inventory, Unit Usaha) like Login/Users/COA. |
+| Done | Landing/Login typography | Soft `text-shadow` via `.modern-brand-title` / `.auth-brand-title`; weight/tracking aligned with live transparency tone. |
+| Done | Unit Usaha RHF+zod | Create + edit dialogs (`src/schemas/units.ts`) — same pattern as Login/Users/COA. |
+| Deferred | Money JSON | Prefer string/Decimal for `amount` on API + FE; **skip while live JS FE still active** (`fmtRp`/`Math.round` assume number). Coordinate at cutover. |
+| Next | Broader RHF+zod | Transactions create/edit + Inventory mutating forms. |
 | Next | Tighten types | Replace residual `any` / loose casts on large pages; keep incremental. |
 | Next | Inventory multi-unit | BE still UU05-centric; multi-perdagangan inventory is a dedicated BE+FE PR. |
 | Later | Full E2E | Role-matrix Playwright against staging (not free CI); keep this repo’s smoke mocked. |
