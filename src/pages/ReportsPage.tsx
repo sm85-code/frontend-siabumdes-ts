@@ -15,8 +15,11 @@ import {
   closePeriod,
   downloadReportFile,
   fetchClosedPeriods,
+  fetchLockedPeriods,
   fetchReport,
+  lockPeriod,
   reopenPeriod,
+  unlockPeriod,
 } from '@/api/reports'
 import { buildUnitGroupTabs } from '@/api/units'
 import { useConfirm } from '@/components/ConfirmProvider'
@@ -101,6 +104,10 @@ export default function ReportsPage() {
     { period: string; group: string; laba_bersih?: number }[]
   >([])
 
+  const [lockGroup, setLockGroup] = useState('ALL')
+  const [lockPeriodKey, setLockPeriodKey] = useState(`${currentYear}-${pad(currentMonth)}`)
+  const [lockedList, setLockedList] = useState<{ period: string; group: string }[]>([])
+
   useEffect(() => {
     fetchOrgProfile()
       .then((r) => setBagiHasil((b) => ({ ...b, ...r })))
@@ -111,8 +118,15 @@ export default function ReportsPage() {
     fetchClosedPeriods()
       .then((r) => setClosedList(r as { period: string; group: string; laba_bersih?: number }[]))
       .catch(() => {})
+  const loadLocked = () =>
+    fetchLockedPeriods()
+      .then(setLockedList)
+      .catch(() => {})
   useEffect(() => {
-    if (isAdmin) void loadClosed()
+    if (isAdmin) {
+      void loadClosed()
+      void loadLocked()
+    }
   }, [isAdmin])
 
   useEffect(() => {
@@ -225,6 +239,34 @@ export default function ReportsPage() {
       void loadClosed()
     } catch (er) {
       notify(getApiError(er, 'Gagal batalkan'))
+    }
+  }
+
+  const doLock = async () => {
+    try {
+      await lockPeriod(lockPeriodKey, lockGroup)
+      notify(`Periode ${lockPeriodKey} (${lockGroup}) dikunci untuk non-admin.`)
+      void loadLocked()
+    } catch (er) {
+      notify(getApiError(er, 'Gagal mengunci periode'))
+    }
+  }
+
+  const doUnlock = async (p: string, grp: string) => {
+    if (
+      !(await confirm({
+        title: 'Buka kunci periode',
+        description: `Buka kunci periode ${p} (${grp})? Pengguna non-admin bisa menulis lagi.`,
+        confirmLabel: 'Buka kunci',
+        destructive: true,
+      }))
+    )
+      return
+    try {
+      await unlockPeriod(p, grp)
+      void loadLocked()
+    } catch (er) {
+      notify(getApiError(er, 'Gagal membuka kunci'))
     }
   }
 
@@ -521,6 +563,73 @@ export default function ReportsPage() {
                   </TableBody>
                 </Table>
               </TableShell>
+            </div>
+            <div className="mt-8 border-t pt-6" data-testid="lock-period-section">
+              <div className="mb-3 flex items-center gap-2">
+                <Lock className="size-5 text-sky-500" />
+                <h3 className="font-heading font-semibold">Kunci Periode</h3>
+              </div>
+              <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                Pengguna non-admin tidak bisa tambah/ubah/hapus transaksi di periode yang dikunci.
+                Admin masih bisa mengoreksi. Lakukan ini sebelum Tutup Buku.
+              </p>
+              <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-5">
+                <div>
+                  <label className="label">Kelompok</label>
+                  <Select value={lockGroup} onValueChange={setLockGroup}>
+                    <SelectTrigger data-testid="lock-group-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">Semua kelompok</SelectItem>
+                      <SelectItem value="BUMDES">BUMDES</SelectItem>
+                      {units.map((u) => (
+                        <SelectItem key={u.code} value={u.code}>
+                          {u.code} - {u.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="label">Periode</label>
+                  <Input
+                    type="month"
+                    data-testid="lock-period-input"
+                    value={lockPeriodKey}
+                    onChange={(e) => setLockPeriodKey(e.target.value)}
+                  />
+                </div>
+                <Button data-testid="btn-lock-period" onClick={() => void doLock()}>
+                  <Lock className="size-4" /> Kunci
+                </Button>
+              </div>
+              <div className="mt-4">
+                <p className="label mb-2">Periode Dikunci ({lockedList.length})</p>
+                {lockedList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Belum ada periode yang dikunci.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {lockedList.map((l) => (
+                      <span
+                        key={l.period + l.group}
+                        className="inline-flex items-center gap-2 rounded-lg border px-2 py-1 text-sm"
+                      >
+                        {l.period} <Badge>{l.group}</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-xs"
+                          data-testid={`unlock-${l.period}-${l.group}`}
+                          onClick={() => void doUnlock(l.period, l.group)}
+                        >
+                          Buka
+                        </Button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -81,3 +81,18 @@ export async function closePeriod(period: string, group: string) {
 export async function reopenPeriod(period: string, group: string) {
   await api.delete('/reports/close-period', { params: { period, group } })
 }
+
+export async function fetchLockedPeriods(): Promise<
+  { period: string; group: string; locked_at?: string }[]
+> {
+  const r = await api.get('/reports/locked-periods')
+  return r.data ?? []
+}
+
+export async function lockPeriod(period: string, group: string) {
+  await api.post('/reports/lock-period', { period, group })
+}
+
+export async function unlockPeriod(period: string, group: string) {
+  await api.delete('/reports/lock-period', { params: { period, group } })
+}

@@ -22,6 +22,7 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from "@/components/ui/table";
 import type { Role, UnitUsaha, User } from "@/types";
+import { fetchClosedPeriods } from "@/api/reports";
 import { createUserSchema, type CreateUserFormValues } from "@/schemas/users";
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -62,6 +63,7 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState<EditUserForm>({ name: "", username: "", email: "", role: "", unit_usaha_id: "" });
   const [lockPeriods, setLockPeriods] = useState<Set<string>>(new Set());
+  const [closed, setClosed] = useState<{ period: string; group: string }[]>([]);
   const [newPw, setNewPw] = useState("");
   const createForm = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
@@ -86,6 +88,7 @@ export default function UsersPage() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetchClosedPeriods().then(setClosed).catch(() => {}); }, []);
 
   const onCreateUser = async (values: CreateUserFormValues) => {
     try {
@@ -433,6 +436,8 @@ export default function UsersPage() {
 
       {showLockFor && (() => {
         const targetUser = users.find(u => u.id === showLockFor);
+        const targetGroup = units.find(x => x.id === targetUser?.unit_usaha_id)?.code || "BUMDES";
+        const isClosed = (ym: string) => closed.some(c => c.period === ym && c.group === targetGroup);
         const MONTHS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"];
         const YEARS = [];
         for (let y = 2022; y <= 2030; y++) YEARS.push(y);
@@ -444,7 +449,7 @@ export default function UsersPage() {
                   <Lock className="text-destructive"  /> Kunci Periode Transaksi
                 </CardTitle>
                 <p className="text-sm mt-1 text-muted-foreground">
-                  Untuk <b>{targetUser?.name}</b>. Bulan yang dicentang akan diblokir dari input/edit/hapus transaksi.
+                  Untuk <b>{targetUser?.name}</b>. Bulan yang dicentang akan diblokir dari input/edit/hapus transaksi. Bulan bertanda <b>•</b> bukunya sudah ditutup ({targetGroup}), jadi sudah terkunci untuk semua orang.
                 </p>
               </div>
               <div className="flex gap-2">
@@ -488,8 +493,9 @@ export default function UsersPage() {
                                   onClick={() => togglePeriod(ym)}
                                   variant={blocked ? "destructive" : "outline"}
                                   size="sm"
+                                  title={isClosed(ym) ? `Buku ${targetGroup} sudah ditutup` : undefined}
                                   className="h-7 px-0 text-xs font-normal data-[blocked=true]:font-semibold">
-                            {mn}
+                            {mn}{isClosed(ym) ? " •" : ""}
                           </Button>
                         );
                       })}
