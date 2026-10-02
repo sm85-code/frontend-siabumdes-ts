@@ -158,7 +158,9 @@ export default function ReportsPage() {
     })
     return isPengelola
       ? list.filter((o) => o.code === units.find((u) => u.id === user?.unit_usaha_id)?.code)
-      : list
+      : list.filter(
+          (o) => o.code === 'BUMDES' || units.find((u) => u.code === o.code)?.active !== false,
+        )
   }, [units, isPengelola, user])
 
   const activeUnitId = useMemo(() => {
