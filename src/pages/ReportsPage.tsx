@@ -216,7 +216,7 @@ export default function ReportsPage() {
     try {
       const r = await closePeriod(closePeriodKey, closeGroup)
       notify(
-        `Berhasil ditutup. Jurnal dibuat: ${r.entries}. Laba bersih: Rp ${r.laba_bersih.toLocaleString('id-ID')}`,
+        `Berhasil ditutup. Jurnal dibuat: ${r.entries}. Laba bersih: ${fmtRp(r.laba_bersih)}`,
       )
       void loadClosed()
     } catch (er) {
@@ -494,11 +494,13 @@ export default function ReportsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="BUMDES">BUMDES</SelectItem>
-                    {units.map((u) => (
-                      <SelectItem key={u.code} value={u.code}>
-                        {u.code} - {u.name}
-                      </SelectItem>
-                    ))}
+                    {units
+                      .filter((u) => u.active !== false)
+                      .map((u) => (
+                        <SelectItem key={u.code} value={u.code}>
+                          {u.code} - {u.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
