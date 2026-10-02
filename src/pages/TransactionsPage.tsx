@@ -96,6 +96,7 @@ export default function TransactionsPage() {
 
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [formKey, setFormKey] = useState(0)
   const [formDefaults, setFormDefaults] = useState<TxFormState>(emptyTxForm)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [driveStatus, setDriveStatus] = useState<DriveStatus | null>(null)
@@ -226,7 +227,7 @@ export default function TransactionsPage() {
     setShowForm(true)
   }
 
-  const submit = async (values: TransactionFormValues) => {
+  const submit = async (values: TransactionFormValues, addAnother = false) => {
     try {
       const body = {
         date: values.date,
@@ -241,8 +242,14 @@ export default function TransactionsPage() {
       }
       if (editingId) await updateTransaction(editingId, body)
       else await createTransaction(body)
-      setShowForm(false)
-      setEditingId(null)
+      if (addAnother && !editingId) {
+        // Keep date & unit so entries for the same day need no re-typing.
+        setFormDefaults({ ...emptyTxForm(), date: values.date, unit_usaha_id: values.unit_usaha_id })
+        setFormKey((k) => k + 1)
+      } else {
+        setShowForm(false)
+        setEditingId(null)
+      }
       invalidate()
       notifySuccess(editingId ? 'Transaksi berhasil diperbarui.' : 'Transaksi berhasil disimpan.')
     } catch (er) {
@@ -540,7 +547,7 @@ export default function TransactionsPage() {
 
       {showForm && canWrite && user && (
         <TxFormCard
-          key={editingId ?? 'create'}
+          key={editingId ?? `create-${formKey}`}
           editingId={editingId}
           defaultValues={formDefaults}
           units={units}
@@ -548,7 +555,7 @@ export default function TransactionsPage() {
           accounts={accounts}
           user={user}
           isPengelola={isPengelola}
-          onSubmit={(v) => void submit(v)}
+          onSubmit={(v, again) => void submit(v, again)}
           onCancel={() => {
             setShowForm(false)
             setEditingId(null)

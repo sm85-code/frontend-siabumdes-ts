@@ -26,7 +26,7 @@ interface Props {
   accounts: Account[]
   user: User
   isPengelola: boolean
-  onSubmit: (values: TransactionFormValues) => void | Promise<void>
+  onSubmit: (values: TransactionFormValues, addAnother?: boolean) => void | Promise<void>
   onCancel: () => void
 }
 
@@ -262,6 +262,17 @@ export default function TxFormCard({
           <Button type="button" onClick={onCancel} variant="outline">
             Batal
           </Button>
+          {!editingId && (
+            <Button
+              data-testid="tx-save-another"
+              type="button"
+              variant="secondary"
+              disabled={isSubmitting}
+              onClick={() => void handleSubmit((v) => onSubmit(v, true))()}
+            >
+              Simpan &amp; Tambah Lagi
+            </Button>
+          )}
           <Button data-testid="tx-save" type="submit" disabled={isSubmitting}>
             {editingId ? 'Simpan Perubahan' : 'Simpan Transaksi'}
           </Button>
