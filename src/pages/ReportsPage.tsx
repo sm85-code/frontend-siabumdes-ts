@@ -4,6 +4,7 @@ import {
   Coins,
   FileSpreadsheet,
   FileText,
+  HandCoins,
   Lock,
   Scale,
   TrendingUp,
@@ -49,6 +50,7 @@ import { useUnitsQuery } from '@/hooks/useUnits'
 import { useAuth } from '@/lib/auth'
 import { notify } from '@/lib/feedback'
 import type { OrgProfile, PeriodValue } from '@/types'
+import BagiHasilTransferTab from '@/pages/reports/BagiHasilTransferTab'
 import ReportBody from '@/pages/reports/ReportBody'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -78,7 +80,7 @@ export default function ReportsPage() {
   })
   const start = period.startDate
   const end = period.endDate
-  const [tab, setTab] = useState<'laporan' | 'tutup-buku'>('laporan')
+  const [tab, setTab] = useState<'laporan' | 'tutup-buku' | 'transfer-bagi-hasil'>('laporan')
   const [active, setActive] = useState('laba-rugi')
   const [groupKey, setGroupKey] = useState('BUMDES')
   const unitsQ = useUnitsQuery(true)
@@ -283,7 +285,7 @@ export default function ReportsPage() {
           {isPengelola
             ? 'Anda hanya dapat mengakses laporan unit usaha yang Anda kelola.'
             : isAdmin
-              ? 'Dua tab: Laporan Keuangan (pilih kelompok BUMDES atau salah satu unit usaha) dan Tutup Buku.'
+              ? 'Tiga tab: Laporan Keuangan (pilih kelompok BUMDES atau salah satu unit usaha), Tutup Buku, dan Transfer Bagi Hasil.'
               : 'Laporan Keuangan — pilih kelompok BUMDES atau salah satu unit usaha.'}
         </p>
       </div>
@@ -307,8 +309,17 @@ export default function ReportsPage() {
           >
             <Lock className="size-4" /> Tutup Buku
           </Button>
+          <Button
+            data-testid="tab-transfer-bagi-hasil"
+            onClick={() => setTab('transfer-bagi-hasil')}
+            variant={tab === 'transfer-bagi-hasil' ? 'default' : 'outline'}
+          >
+            <HandCoins className="size-4" /> Transfer Bagi Hasil
+          </Button>
         </div>
       )}
+
+      {tab === 'transfer-bagi-hasil' && isAdmin && <BagiHasilTransferTab units={units} />}
 
       {tab === 'laporan' && (
         <Card>

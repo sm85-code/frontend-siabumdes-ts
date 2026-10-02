@@ -96,3 +96,33 @@ export async function lockPeriod(period: string, group: string) {
 export async function unlockPeriod(period: string, group: string) {
   await api.delete('/reports/lock-period', { params: { period, group } })
 }
+
+export interface BagiHasilTransferResult {
+  period: string
+  group: string
+  date: string
+  total: MoneyInput
+  items: { label: string; amount: MoneyInput }[]
+}
+
+export interface BagiHasilTransferRow {
+  period: string
+  group: string
+  date: string
+  total: MoneyInput
+  entries: number
+}
+
+export async function transferBagiHasil(period: string, group: string) {
+  const r = await api.post<BagiHasilTransferResult>('/reports/bagi-hasil-transfer', { period, group })
+  return r.data
+}
+
+export async function fetchBagiHasilTransfers(): Promise<BagiHasilTransferRow[]> {
+  const r = await api.get('/reports/bagi-hasil-transfers')
+  return r.data ?? []
+}
+
+export async function cancelBagiHasilTransfer(period: string, group: string) {
+  await api.delete('/reports/bagi-hasil-transfer', { params: { period, group } })
+}
