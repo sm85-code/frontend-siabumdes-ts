@@ -170,7 +170,11 @@ export default function DashboardPage() {
   const useBar = chartData.length <= 1
   const unitCount = data?.unit_summaries?.length ?? 0
   const profitableUnits = useMemo(
-    () => (data?.unit_summaries ?? []).filter((u) => parseMoney(u.laba) > 0),
+    // API sends money as strings; Recharts' Pie needs numeric values to draw slices.
+    () =>
+      (data?.unit_summaries ?? [])
+        .map((u) => ({ ...u, laba: parseMoney(u.laba) }))
+        .filter((u) => u.laba > 0),
     [data],
   )
 
