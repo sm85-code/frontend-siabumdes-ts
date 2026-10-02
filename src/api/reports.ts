@@ -1,4 +1,4 @@
-import api, { API } from '@/api/client'
+import api, { API, type MoneyInput } from '@/api/client'
 import type { DashboardData, LedgerData } from '@/types'
 
 export interface DashboardParams {
@@ -71,7 +71,7 @@ export async function fetchClosedPeriods(): Promise<
 }
 
 export async function closePeriod(period: string, group: string) {
-  const r = await api.post<{ entries: number; laba_bersih: number }>('/reports/close-period', {
+  const r = await api.post<{ entries: number; laba_bersih: MoneyInput }>('/reports/close-period', {
     period,
     group,
   })
