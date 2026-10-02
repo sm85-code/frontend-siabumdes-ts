@@ -585,11 +585,13 @@ export default function ReportsPage() {
                     <SelectContent>
                       <SelectItem value="ALL">Semua kelompok</SelectItem>
                       <SelectItem value="BUMDES">BUMDES</SelectItem>
-                      {units.map((u) => (
-                        <SelectItem key={u.code} value={u.code}>
-                          {u.code} - {u.name}
-                        </SelectItem>
-                      ))}
+                      {units
+                        .filter((u) => u.active !== false)
+                        .map((u) => (
+                          <SelectItem key={u.code} value={u.code}>
+                            {u.code} - {u.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
