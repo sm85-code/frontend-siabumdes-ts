@@ -16,7 +16,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { TypographyH3, TypographyP } from '@/components/ui/typography'
+import { TypographyH3 } from '@/components/ui/typography'
 
 const MONTH_LABELS = [
   'Jan',
@@ -240,23 +240,27 @@ export default function LandingPage() {
             </TypographyH3>
             <blockquote
               data-testid="narasi-komitmen"
-              className="mb-6 max-w-3xl text-justify"
-              style={{ color: 'var(--text-secondary)' }}
+              className="mb-6"
             >
-              <TypographyP className="mt-0">
+              <div
+                className="font-body text-sm leading-relaxed text-justify space-y-3"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+              <p>
                 SIA BUMDes Karya Raharja adalah wujud nyata komitmen BUMDes Karya Raharja Desa
                 Wonoharjo dalam menerapkan tata kelola keuangan yang transparan, akuntable, dan
                 profesional dengan berpedoman pada Kepmendesa PDTT No. 136 Tahun 2022.
-              </TypographyP>
-              <TypographyP>
+              </p>
+              <p>
                 Data yang ditampilkan di atas adalah data yang diperoleh secara <em>real-time</em>{' '}
                 dari hasil pencatatan transaksi aktivitas usaha BUMDes.
-              </TypographyP>
-              <TypographyP>
+              </p>
+              <p>
                 Kehadiran platform ini memastikan setiap rupiah pendapatan dioptimalkan untuk
                 meminimalkan beban, memaksimalkan laba bersih, dan memperbesar kontribusi PADes demi
                 pembangunan desa yang berkelanjutan.
-              </TypographyP>
+              </p>
+              </div>
             </blockquote>
             <Button asChild>
               <Link to="/login" data-testid="landing-login-bottom">
