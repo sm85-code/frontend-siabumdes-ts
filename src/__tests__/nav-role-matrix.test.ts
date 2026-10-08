@@ -75,3 +75,13 @@ describe('nav role matrix (from config)', () => {
     expect(filterNavForUser(null, [])).toEqual([])
   })
 })
+
+it('Imbal Hasil allows HQ roles and only the UU04 manager', () => {
+  for (const role of ['admin', 'direktur', 'bendahara'] as Role[]) {
+    expect(pathsFor(role)).toContain('/imbal-hasil')
+  }
+  for (const role of ['pengawas', 'penasihat'] as Role[]) expect(pathsFor(role)).not.toContain('/imbal-hasil')
+  expect(filterNavForUser({ role: 'pengelola', unit_usaha_id: 'u4' }, [], NAV, 'u4').map(n => n.to)).toContain('/imbal-hasil')
+  expect(filterNavForUser({ role: 'pengelola', unit_usaha_id: 'u3' }, [], NAV, 'u4').map(n => n.to)).not.toContain('/imbal-hasil')
+  expect(pathsFor('pengelola', 'u4')).not.toContain('/imbal-hasil')
+})

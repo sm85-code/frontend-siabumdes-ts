@@ -32,6 +32,7 @@ export interface NavItem {
   roles: Role[]
   /** Hide Inventory for pengelola unless their unit is perdagangan/manufaktur. */
   inventoryUnitOnly?: boolean
+  yieldUnitOnly?: boolean
 }
 
 /** Fixed mobile bottom-nav slot order (left→right). Lainnya is appended in BottomNav. */
@@ -51,11 +52,12 @@ export const NAV: NavItem[] = [
   { to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
   {
     to: '/inventory',
-    label: 'Inventory',
+    label: 'Manajemen Stok',
     icon: Package,
     roles: ROLES_INVENTORY,
     inventoryUnitOnly: true,
   },
+  { to: '/imbal-hasil', label: 'Imbal Hasil', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
   { to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
   { to: '/profil-bumdes', label: 'Profil BUMDES', icon: Building2, roles: ROLES_ORG_PROFILE },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
@@ -68,10 +70,12 @@ export function filterNavForUser(
   user: { role: Role; unit_usaha_id?: string | null } | null | undefined,
   inventoryUnitIds: string[] | null | undefined,
   items: NavItem[] = NAV,
+  yieldUnitId?: string,
 ): NavItem[] {
   if (!user) return []
   return items.filter((n) => {
     if (!can(user, ...n.roles)) return false
+    if (n.yieldUnitOnly && user.role === 'pengelola') return !!yieldUnitId && user.unit_usaha_id === yieldUnitId
     if (n.inventoryUnitOnly && user.role === 'pengelola') {
       return Boolean(inventoryUnitIds?.includes(user.unit_usaha_id ?? ''))
     }
