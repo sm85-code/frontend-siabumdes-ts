@@ -70,11 +70,13 @@ export default function TxTable({
   const unitOf = (id: string | null) => units.find((u) => u.id === id)
   const accName = (c: string) => accounts.find((a) => a.code === c)?.name || c
   const isPengelola = user?.role === 'pengelola'
-  const canEditRow = (tx: Transaction) => {
-    if (!canWrite || tx.reference?.startsWith('YIELD:')) return false
+  const canManageProofs = (tx: Transaction) => {
+    if (!canWrite) return false
     if (isPengelola) return tx.unit_usaha_id === user?.unit_usaha_id
     return true
   }
+
+  const canEditRow = (tx: Transaction) => canManageProofs(tx) && !tx.reference?.startsWith('YIELD:')
 
   const selectable = sorted.filter(tx => !tx.reference?.startsWith('YIELD:'))
   const toggleSel = (id: string) => {
@@ -97,7 +99,7 @@ export default function TxTable({
           Transaksi {activeGroup === 'BUMDES' ? 'BUMDes' : activeGroup} — {periodLabel}
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          {total} transaksi · halaman {page}/{pageCount}. Transaksi Imbal Hasil otomatis dikelola melalui menu Imbal Hasil.
+          {total} transaksi · halaman {page}/{pageCount}. Edit/hapus transaksi Imbal Hasil melalui menu Imbal Hasil. Bukti opsional dapat diunggah atau dihapus dengan tombol X di sini.
         </p>
       </CardHeader>
       <TableShell minWidth={720} data-testid="tx-table">
@@ -159,6 +161,7 @@ export default function TxTable({
               sorted.map((t) => {
                 const proofs = t.proofs || []
                 const editable = canEditRow(t)
+                const manageProofs = canManageProofs(t)
                 return (
                   <TableRow key={t.id}>
                     {canBulkDelete && (
@@ -185,7 +188,7 @@ export default function TxTable({
                     </TableCell>
                     <TableCell>
                       {proofs.length === 0 ? (
-                        editable ? (
+                        manageProofs ? (
                           <button
                             type="button"
                             data-testid={`upload-proof-${t.id}`}
@@ -211,14 +214,15 @@ export default function TxTable({
                               >
                                 <Link2 className="size-3.5" /> {p.file_name}
                               </a>
-                              {editable && (
+                              {manageProofs && (
                                 <button
                                   type="button"
                                   data-testid={`del-proof-${t.id}-${p.file_id}`}
                                   onClick={() =>
                                     onDeleteProof(t, p.file_id, p.file_name || p.file_id)
                                   }
-                                  title="Hapus bukti"
+                                  title="Hapus bukti dari Google Drive"
+                                  aria-label={`Hapus bukti ${p.file_name || p.file_id} dari Google Drive`}
                                   className="rounded p-1 hover:bg-red-50"
                                 >
                                   <X className="size-3 text-destructive" />
@@ -226,7 +230,7 @@ export default function TxTable({
                               )}
                             </div>
                           ))}
-                          {editable && proofs.length < 3 && (
+                          {manageProofs && proofs.length < 3 && (
                             <button
                               type="button"
                               data-testid={`add-proof-${t.id}`}
