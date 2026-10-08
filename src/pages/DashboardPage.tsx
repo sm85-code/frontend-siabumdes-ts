@@ -263,6 +263,7 @@ export default function DashboardPage() {
                 <PieChart>
                   <Pie
                     data={profitableUnits}
+                    isAnimationActive={false}
                     dataKey="laba"
                     nameKey="name"
                     cx="50%"
