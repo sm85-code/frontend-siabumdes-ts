@@ -60,6 +60,8 @@ export interface DashboardData {
   total_kewajiban: MoneyAmount
   total_ekuitas: MoneyAmount
   kas_bank: MoneyAmount
+  modal_desa?: MoneyAmount
+  bagi_hasil_bumdes?: { key: string; label: string; persen: number; amount: MoneyAmount }[]
 }
 
 export interface TransactionProof {
