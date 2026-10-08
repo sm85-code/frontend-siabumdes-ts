@@ -15,7 +15,7 @@ export async function fetchUnits(includeInactive = false): Promise<UnitUsaha[]> 
 export function buildUnitGroupTabs(units: UnitUsaha[]): UnitGroupTab[] {
   const sorted = [...units].sort((a, b) => (a.code || '').localeCompare(b.code || ''))
   return [
-    { key: 'BUMDES', label: 'BUMDES', unitId: null },
+    { key: 'BUMDES', label: 'BUMDes', unitId: null },
     ...sorted.map((u) => ({
       key: u.code,
       label: u.code,

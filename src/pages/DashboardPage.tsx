@@ -4,7 +4,6 @@ import {
   ChartPie,
   Coins,
   Lock,
-  Receipt,
   Scale,
   Store,
   TrendingDown,
@@ -57,12 +56,20 @@ const COLORS = [
   'var(--chart-6)',
 ]
 
+function margin(profit: import('@/api/client').MoneyInput, revenue: import('@/api/client').MoneyInput): number | null {
+  const total = parseMoney(revenue)
+  return total === 0 ? null : parseMoney(profit) / total * 100
+}
+function formatMargin(value: number | null): string {
+  return value == null ? '—' : `${value.toLocaleString('id-ID', { maximumFractionDigits: 2 })}%`
+}
+
 type KpiItem = {
   key: string
   label: string
   value: number | null
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>
-  isCount?: boolean
+  isPercent?: boolean
 }
 
 function DashboardKpiGrid({ items, desktopColumns = 4 }: { items: KpiItem[]; desktopColumns?: 3 | 4 }) {
@@ -76,7 +83,7 @@ function DashboardKpiGrid({ items, desktopColumns = 4 }: { items: KpiItem[]; des
           </div>
           <p className="text-xs font-semibold tracking-wider uppercase" style={{ color: 'var(--text-secondary)' }}>{k.label}</p>
           <p className="font-heading mt-1 text-lg font-bold tabular-nums [overflow-wrap:anywhere] sm:text-2xl">
-            {k.value == null ? '—' : k.isCount ? k.value : fmtRp(k.value)}
+            {k.value == null ? '—' : k.isPercent ? formatMargin(k.value) : fmtRp(k.value)}
           </p>
         </CardContent>
       </Card>
@@ -115,11 +122,7 @@ export default function DashboardPage() {
       { key: 'beban', label: 'Total Beban', value: parseMoney(data.total_beban), icon: TrendingDown },
       { key: 'laba', label: 'Laba Bersih', value: parseMoney(data.laba_bersih), icon: Coins },
       {
-        key: 'tx',
-        label: 'Jumlah Transaksi',
-        value: data.total_transactions,
-        icon: Receipt,
-        isCount: true,
+        key: 'margin-laba', label: 'Margin Laba Bersih', value: margin(data.laba_bersih, data.total_pendapatan), icon: ChartPie, isPercent: true,
       },
     ]
   }, [data])
@@ -147,7 +150,7 @@ export default function DashboardPage() {
     // API sends money as strings; Recharts' Pie needs numeric values to draw slices.
     () =>
       activeUnits
-        .map((u) => ({ ...u, laba: parseMoney(u.laba) }))
+        .map((u) => ({ ...u, laba: parseMoney(u.share_bumdes) }))
         .filter((u) => u.laba > 0)
         .sort((a, b) => b.laba - a.laba),
     [activeUnits],
@@ -237,13 +240,8 @@ export default function DashboardPage() {
         <DashboardKpiGrid items={kpis} />
       </section>
 
-      <section aria-labelledby="financial-position-title">
-        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Posisi Keuangan Unit Usaha' : 'Posisi Keuangan BUMDes'}</h2>
-        <DashboardKpiGrid items={posisiKpis} />
-      </section>
-
       <section aria-labelledby="profit-sharing-title">
-        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">{isPengelola ? 'Bagi Hasil Unit Usaha' : 'Proporsi Bagi Hasil BUMDes'}</h2>
+        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">{isPengelola ? 'Bagi Hasil Unit Usaha' : 'Bagi Hasil BUMDes'}</h2>
         <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
           Estimasi alokasi laba bersih {isPengelola ? 'unit usaha Anda' : 'BUMDes pusat'} untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
         </p>
@@ -252,12 +250,17 @@ export default function DashboardPage() {
         )}
       </section>
 
+      <section aria-labelledby="financial-position-title">
+        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Posisi Keuangan Unit Usaha' : 'Posisi Keuangan BUMDes'}</h2>
+        <DashboardKpiGrid items={posisiKpis} />
+      </section>
+
       {!isPengelola && <>
         <Card>
           <CardContent className="p-5 sm:p-6">
             <h3 className="font-heading mb-2 text-center text-lg font-semibold">Kontribusi Per Unit Usaha</h3>
             <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-              Berdasarkan laba bersih per unit (unit dengan laba positif).
+              Berdasarkan bagi hasil yang diterima BUMDes dari tiap unit, sesuai proporsi konfigurasi ({data.unit_share_persen?.bumdes ?? 70}%).
             </p>
             {profitableUnits.length > 0 ? (
               <div className="grid items-center gap-4 lg:grid-cols-2">
@@ -300,7 +303,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                Belum ada unit dengan laba positif pada periode ini.
+                Belum ada unit dengan bagi hasil positif pada periode ini.
               </p>
             )}
           </CardContent>
@@ -318,7 +321,7 @@ export default function DashboardPage() {
             Periode: {pLabel}
           </p>
         </div>
-        <TableShell minWidth={560}>
+        <TableShell minWidth={760}>
           <Table data-testid="unit-summary-table">
             <TableHeader>
               <TableRow>
@@ -326,6 +329,7 @@ export default function DashboardPage() {
                 <TableHead className="text-right">Pendapatan</TableHead>
                 <TableHead className="text-right">Beban</TableHead>
                 <TableHead className="text-right">Laba Bersih</TableHead>
+                <TableHead className="text-right">Margin Laba Bersih</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -337,6 +341,7 @@ export default function DashboardPage() {
                   <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">
                     {fmtRp(u.laba)}
                   </TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{formatMargin(margin(u.laba, u.pendapatan))}</TableCell>
                 </TableRow>
               ))}
               {unitCount > 0 && (
@@ -353,19 +358,20 @@ export default function DashboardPage() {
                   <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">
                     {fmtRp(activeUnits.reduce((s, u) => s + parseMoney(u.laba), 0))}
                   </TableCell>
+                  <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">{formatMargin(margin(activeUnits.reduce((s, u) => s + parseMoney(u.laba), 0), activeUnits.reduce((s, u) => s + parseMoney(u.pendapatan), 0)))}</TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
         </TableShell>
       </Card>
-      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={activeUnits} columns={[
-        ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
-        ['total_ekuitas', 'Total Ekuitas'], ['modal_bumdes', 'Modal BUMDes'],
-      ]} />
       <UnitFinancialTable title="Bagi Hasil Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['share_pengelola', `Pengelola (${data.unit_share_persen?.pengelola ?? 30}%)`],
         ['share_bumdes', `BUMDes (${data.unit_share_persen?.bumdes ?? 70}%)`], ['laba', 'Jumlah'],
+      ]} />
+      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={activeUnits} columns={[
+        ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
+        ['total_ekuitas', 'Total Ekuitas'], ['modal_bumdes', 'Modal BUMDes'],
       ]} />
       </>}
     </div>

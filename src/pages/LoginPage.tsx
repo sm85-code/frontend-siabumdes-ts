@@ -59,7 +59,7 @@ export default function LoginPage() {
         <div className="mb-6 text-center">
           <img
             src="/logo-transparent.png"
-            alt="Logo BUMDES Karya Raharja"
+            alt="Logo BUMDes Karya Raharja"
             data-testid="bumdes-logo"
             className="mx-auto mb-3 h-28 w-28 object-contain"
           />

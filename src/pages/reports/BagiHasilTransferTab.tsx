@@ -128,9 +128,9 @@ export default function BagiHasilTransferTab({ units }: Props) {
           <h3 className="font-heading font-semibold">Transfer Bagi Hasil</h3>
         </div>
         <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Melunasi saldo utang bagi hasil setelah periode ditutup buku. BUMDES: per triwulan
+          Melunasi saldo utang bagi hasil setelah periode ditutup buku. BUMDes: per triwulan
           (Maret, Juni, September, Desember) ke Pengurus, Penasihat, Pengawas, dan Dana Sosial. Unit
-          usaha: tiap bulan ke BUMDES dan Pengelola. Transaksi dicatat tanggal 1 bulan berikutnya.
+          usaha: tiap bulan ke BUMDes dan Pengelola. Transaksi dicatat tanggal 1 bulan berikutnya.
         </p>
         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-5">
           <div>
@@ -140,7 +140,7 @@ export default function BagiHasilTransferTab({ units }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="BUMDES">BUMDES</SelectItem>
+                <SelectItem value="BUMDES">BUMDes</SelectItem>
                 {units
                   .filter((u) => u.active !== false)
                   .map((u) => (

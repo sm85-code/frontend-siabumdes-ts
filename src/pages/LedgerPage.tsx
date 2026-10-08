@@ -139,7 +139,7 @@ export default function LedgerPage() {
 
   const groupTabs = useMemo(() => {
     const tabs = buildUnitGroupTabs(units).map((t) => {
-      if (t.key === 'BUMDES') return { key: 'BUMDES', label: 'BUMDES - Pusat' }
+      if (t.key === 'BUMDES') return { key: 'BUMDES', label: 'BUMDes - Pusat' }
       const u = units.find((unit) => unit.code === t.key)
       return { key: t.key, label: u ? `${u.code} - ${u.name}` : t.key }
     })

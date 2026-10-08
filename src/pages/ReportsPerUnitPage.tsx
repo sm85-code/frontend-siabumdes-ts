@@ -127,7 +127,7 @@ export default function ReportsPerUnitPage() {
                   <TableHead className="num">Beban</TableHead>
                   <TableHead className="num">Laba Bersih</TableHead>
                   <TableHead className="num">30% Pengelola</TableHead>
-                  <TableHead className="num">70% BUMDES</TableHead>
+                  <TableHead className="num">70% BUMDes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

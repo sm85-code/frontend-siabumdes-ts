@@ -30,7 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
   reopen_period: 'Buka kembali periode',
   lock_period: 'Kunci periode',
   unlock_period: 'Buka kunci periode',
-  update_org_profile: 'Ubah profil BUMDES',
+  update_org_profile: 'Ubah profil BUMDes',
   create_unit_usaha: 'Buat unit usaha',
   update_unit_usaha: 'Ubah unit usaha',
   create_account: 'Buat kode akun',

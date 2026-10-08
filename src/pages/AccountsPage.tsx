@@ -287,7 +287,7 @@ export default function COAPage() {
   };
 
   const groupTabs = useMemo(() => {
-    const tabs = [{ key: "BUMDES", label: "BUMDES", sub: "Pusat" }];
+    const tabs = [{ key: "BUMDES", label: "BUMDes", sub: "Pusat" }];
     units.forEach(u => tabs.push({ key: u.code, label: u.code, sub: u.name }));
     return tabs;
   }, [units]);
@@ -301,7 +301,7 @@ export default function COAPage() {
           <p className="label mb-1">Chart of Accounts</p>
           <h1 className="font-heading text-3xl font-bold page-h1">Kode Akun & Jenis Transaksi</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            Setiap kelompok (BUMDES & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.
+            Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.
           </p>
         </div>
       </div>
@@ -313,7 +313,7 @@ export default function COAPage() {
             <Select value={group} onValueChange={(v) => { setGroup(v); setFilter(""); }}>
               <SelectTrigger id="master-group-select" data-testid="master-group-select"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {groupTabs.map(g => <SelectItem key={g.key} value={g.key}>{g.key === "BUMDES" ? "BUMDES - Pusat" : `${g.label} - ${g.sub}`}</SelectItem>)}
+                {groupTabs.map(g => <SelectItem key={g.key} value={g.key}>{g.key === "BUMDES" ? "BUMDes - Pusat" : `${g.label} - ${g.sub}`}</SelectItem>)}
               </SelectContent>
             </Select>
           </Card>

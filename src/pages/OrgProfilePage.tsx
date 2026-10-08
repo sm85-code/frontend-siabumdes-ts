@@ -84,11 +84,11 @@ const SHARE_FIELDS_BUMDES: [ShareKey, string][] = [
   ['share_pengawas', 'Pengawas'],
   ['share_dana_sosial', 'Dana Sosial'],
   ['share_pades', 'PADes (ke Desa)'],
-  ['share_modal_bumdes', 'Penguatan Modal BUMDES'],
+  ['share_modal_bumdes', 'Penguatan Modal BUMDes'],
 ]
 const SHARE_FIELDS_UNIT: [ShareKey, string][] = [
   ['share_unit_pengelola', 'Pengelola Unit'],
-  ['share_unit_bumdes', 'BUMDES (Pusat)'],
+  ['share_unit_bumdes', 'BUMDes (Pusat)'],
 ]
 const TOTAL_TOLERANCE = 0.01
 
@@ -110,7 +110,7 @@ export default function OrgProfilePage() {
       const r = await api.get<OrgProfile>('/org-profile')
       setForm(mergeOrg(r.data))
     } catch (er: unknown) {
-      notify(getApiError(er, 'Gagal memuat profil BUMDES'))
+      notify(getApiError(er, 'Gagal memuat profil BUMDes'))
     } finally {
       setLoading(false)
     }
@@ -152,10 +152,10 @@ export default function OrgProfilePage() {
       const r = await api.put<OrgProfile>('/org-profile', payload)
       setForm(mergeOrg(r.data))
       notify(
-        'Profil BUMDES tersimpan. Kop surat export PDF/Excel/Word akan langsung memakai data ini.',
+        'Profil BUMDes tersimpan. Kop surat export PDF/Excel/Word akan langsung memakai data ini.',
       )
     } catch (er: unknown) {
-      notify(getApiError(er, 'Gagal menyimpan profil BUMDES'))
+      notify(getApiError(er, 'Gagal menyimpan profil BUMDes'))
     } finally {
       setSaving(false)
     }
@@ -176,7 +176,7 @@ export default function OrgProfilePage() {
       .post<OrgProfile>('/org-profile/logo', fd)
       .then((r) => {
         setForm(mergeOrg(r.data))
-        notify('Logo BUMDES berhasil diupload')
+        notify('Logo BUMDes berhasil diupload')
       })
       .catch((er: unknown) => notify(getApiError(er, 'Gagal upload logo')))
       .finally(() => setUploading(false))
@@ -193,7 +193,7 @@ export default function OrgProfilePage() {
     <div className="max-w-3xl space-y-6" data-testid="org-profile-page">
       <div>
         <p className="label mb-1">PENGATURAN</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold">Profil BUMDES</h1>
+        <h1 className="font-heading page-h1 text-2xl font-bold">Profil BUMDes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word
           (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.
@@ -208,7 +208,7 @@ export default function OrgProfilePage() {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
               {form.logo_url ? (
-                <img src={form.logo_url} alt="Logo BUMDES" className="h-full w-full object-contain" />
+                <img src={form.logo_url} alt="Logo BUMDes" className="h-full w-full object-contain" />
               ) : (
                 <span className="px-1 text-center text-xs text-muted-foreground">Belum ada logo</span>
               )}
@@ -246,7 +246,7 @@ export default function OrgProfilePage() {
       <form onSubmit={(e) => void save(e)} className="space-y-6">
         {!canWrite && (
           <p className="text-sm text-muted-foreground" data-testid="org-profile-readonly-banner">
-            Mode lihat saja — role Anda tidak dapat mengubah Profil BUMDES.
+            Mode lihat saja — role Anda tidak dapat mengubah Profil BUMDes.
           </p>
         )}
         <fieldset disabled={!canWrite} className="m-0 min-w-0 space-y-6 border-0 p-0">
@@ -257,7 +257,7 @@ export default function OrgProfilePage() {
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Label className="label">
-                  Nama BUMDES
+                  Nama BUMDes
                   <Input className="mt-1" value={form.org_name} onChange={set('org_name')} required />
                 </Label>
                 <Label className="label">
@@ -346,7 +346,7 @@ export default function OrgProfilePage() {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-semibold">BUMDES (Pusat)</span>
+                  <span className="text-sm font-semibold">BUMDes (Pusat)</span>
                   <span
                     className={`rounded-full px-2 py-0.5 font-mono text-xs ${bumdesValid ? '' : 'font-bold'}`}
                     style={{
@@ -489,7 +489,7 @@ export default function OrgProfilePage() {
               disabled={saving || !bumdesValid || !unitValid}
               data-testid="save-org-profile"
             >
-              {saving ? 'Menyimpan...' : 'Simpan Profil BUMDES'}
+              {saving ? 'Menyimpan...' : 'Simpan Profil BUMDes'}
             </Button>
           )}
         </fieldset>

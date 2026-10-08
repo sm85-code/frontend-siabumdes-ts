@@ -88,14 +88,14 @@ export default function LandingPage() {
         <div className="flex items-center gap-3">
           <img
             src="/logo-transparent.png"
-            alt="Logo BUMDES"
+            alt="Logo BUMDes"
             data-testid="landing-logo"
             className="h-11 w-11 object-contain"
           />
           <div className="leading-tight">
             <div className="font-heading text-[1.05rem] font-semibold tracking-tight">BUMDes Karya Raharja</div>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Desa Wonoharjo
+              Desa Wonoharjo - Kec. Pangandaran
             </div>
           </div>
         </div>

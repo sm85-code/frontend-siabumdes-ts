@@ -285,8 +285,8 @@ export default function ReportsPage() {
           {isPengelola
             ? 'Anda hanya dapat mengakses laporan unit usaha yang Anda kelola.'
             : isAdmin
-              ? 'Tiga tab: Laporan Keuangan (pilih kelompok BUMDES atau salah satu unit usaha), Tutup Buku, dan Transfer Bagi Hasil.'
-              : 'Laporan Keuangan — pilih kelompok BUMDES atau salah satu unit usaha.'}
+              ? 'Tiga tab: Laporan Keuangan (pilih kelompok BUMDes atau salah satu unit usaha), Tutup Buku, dan Transfer Bagi Hasil.'
+              : 'Laporan Keuangan — pilih kelompok BUMDes atau salah satu unit usaha.'}
         </p>
       </div>
 
@@ -343,7 +343,7 @@ export default function ReportsPage() {
                   <SelectContent>
                     {groupOptions.map((o) => (
                       <SelectItem key={o.code} value={o.code}>
-                        {o.code === 'BUMDES' ? 'BUMDES - Pusat' : `${o.code} - ${o.name}`}
+                        {o.code === 'BUMDES' ? 'BUMDes - Pusat' : `${o.code} - ${o.name}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -447,7 +447,7 @@ export default function ReportsPage() {
                     </b>
                   </li>
                   <li>
-                    BUMDES ({bagiHasil.share_unit_bumdes}%) ={' '}
+                    BUMDes ({bagiHasil.share_unit_bumdes}%) ={' '}
                     <b data-testid="share-bumdes">
                       {fmtRp(Math.round((labaBersih * Number(bagiHasil.share_unit_bumdes || 0)) / 100))}
                     </b>
@@ -462,13 +462,13 @@ export default function ReportsPage() {
                 style={{ background: 'var(--primary-light)', border: '1px solid var(--legacy-border)' }}
               >
                 <h4 className="font-heading mb-2 font-semibold" style={{ color: 'var(--primary-dark)' }}>
-                  Alokasi Bagi Hasil Usaha BUMDES:
+                  Alokasi Bagi Hasil Usaha BUMDes:
                 </h4>
                 <ol className="ml-5 list-decimal space-y-1 text-sm">
                   {(
                     [
                       ['PADes', bagiHasil.share_pades],
-                      ['Modal BUMDES', bagiHasil.share_modal_bumdes],
+                      ['Modal BUMDes', bagiHasil.share_modal_bumdes],
                       ['Penasihat', bagiHasil.share_penasihat],
                       ['Pengawas', bagiHasil.share_pengawas],
                       ['Pengurus', bagiHasil.share_pengurus],
@@ -495,7 +495,7 @@ export default function ReportsPage() {
               <h3 className="font-heading font-semibold">Tutup Buku</h3>
             </div>
             <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Generate jurnal penutup fisik untuk 1 grup 1 periode. BUMDES maupun unit usaha tutup
+              Generate jurnal penutup fisik untuk 1 grup 1 periode. BUMDes maupun unit usaha tutup
               buku <b>bulanan</b>.
             </p>
             <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-5">
@@ -506,7 +506,7 @@ export default function ReportsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="BUMDES">BUMDES</SelectItem>
+                    <SelectItem value="BUMDES">BUMDes</SelectItem>
                     {units
                       .filter((u) => u.active !== false)
                       .map((u) => (
@@ -597,7 +597,7 @@ export default function ReportsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="ALL">Semua kelompok</SelectItem>
-                      <SelectItem value="BUMDES">BUMDES</SelectItem>
+                      <SelectItem value="BUMDES">BUMDes</SelectItem>
                       {units
                         .filter((u) => u.active !== false)
                         .map((u) => (
