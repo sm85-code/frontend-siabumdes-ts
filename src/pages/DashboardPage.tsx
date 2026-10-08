@@ -172,6 +172,7 @@ export default function DashboardPage() {
     )
   }
 
+  const unitName = data.unit_summaries.find(unit => unit.id === user?.unit_usaha_id)?.name || 'Usaha'
   const jabatan = (user?.role && ROLE_LABELS[user.role]) || 'Pengguna'
   const pLabel = period.label
   const blocked = user?.blocked_periods ?? []
@@ -236,22 +237,19 @@ export default function DashboardPage() {
       </Card>
 
       <section aria-labelledby="activity-title">
-        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Aktivitas Unit Usaha' : 'Aktivitas Usaha BUMDes'}</h2>
+        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Aktivitas Usaha - Unit ${unitName}` : 'Aktivitas Usaha BUMDes'}</h2>
         <DashboardKpiGrid items={kpis} />
       </section>
 
       <section aria-labelledby="profit-sharing-title">
-        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">{isPengelola ? 'Bagi Hasil Unit Usaha' : 'Bagi Hasil BUMDes'}</h2>
-        <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-          Estimasi alokasi laba bersih {isPengelola ? 'unit usaha Anda' : 'BUMDes pusat'} untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
-        </p>
+        <h2 id="profit-sharing-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Bagi Hasil Usaha - Unit ${unitName}` : 'Bagi Hasil Usaha BUMDes'}</h2>
         {bagiHasilKpis.length > 0 ? <DashboardKpiGrid items={bagiHasilKpis} desktopColumns={3} /> : (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Data bagi hasil BUMDes pusat tidak tersedia pada tampilan ini.</p>
         )}
       </section>
 
       <section aria-labelledby="financial-position-title">
-        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Posisi Keuangan Unit Usaha' : 'Posisi Keuangan BUMDes'}</h2>
+        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Posisi Keuangan - Unit ${unitName}` : 'Posisi Keuangan BUMDes'}</h2>
         <DashboardKpiGrid items={posisiKpis} />
       </section>
 
@@ -315,7 +313,7 @@ export default function DashboardPage() {
             className="font-heading flex items-center gap-2 text-lg font-semibold"
             data-testid="unit-table-title"
           >
-            <Store className="size-5" style={{ color: INK }} /> Aktivitas Unit Usaha BUMDes
+            <Store className="size-5" style={{ color: INK }} /> Aktivitas Usaha - Unit Usaha BUMDes
           </h3>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
             Periode: {pLabel}
@@ -365,11 +363,11 @@ export default function DashboardPage() {
           </Table>
         </TableShell>
       </Card>
-      <UnitFinancialTable title="Bagi Hasil Unit Usaha BUMDes" rows={activeUnits} columns={[
+      <UnitFinancialTable title="Bagi Hasil Usaha - Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['share_pengelola', `Pengelola (${data.unit_share_persen?.pengelola ?? 30}%)`],
         ['share_bumdes', `BUMDes (${data.unit_share_persen?.bumdes ?? 70}%)`], ['laba', 'Jumlah'],
       ]} />
-      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={activeUnits} columns={[
+      <UnitFinancialTable title="Posisi Keuangan - Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
         ['total_ekuitas', 'Total Ekuitas'], ['modal_bumdes', 'Modal BUMDes'],
       ]} />
