@@ -29,6 +29,7 @@ const ReportsPerUnitPage = lazy(() => import('@/pages/ReportsPerUnitPage'))
 const TransactionsPage = lazy(() => import('@/pages/TransactionsPage'))
 const LedgerPage = lazy(() => import('@/pages/LedgerPage'))
 const AccountsPage = lazy(() => import('@/pages/AccountsPage'))
+const YieldPage = lazy(() => import('@/pages/YieldPage'))
 const InventoryPage = lazy(() => import('@/pages/InventoryPage'))
 const OrgProfilePage = lazy(() => import('@/pages/OrgProfilePage'))
 
@@ -177,6 +178,7 @@ export default function App() {
                   </Protected>
                 }
               />
+              <Route path="/imbal-hasil" element={<Protected roles={ROLES_INVENTORY}><LazyPage><YieldPage /></LazyPage></Protected>} />
               <Route
                 path="/inventory"
                 element={
