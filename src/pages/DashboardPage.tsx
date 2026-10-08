@@ -20,8 +20,6 @@ import TableShell from '@/components/TableShell'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart'
@@ -260,7 +258,8 @@ export default function DashboardPage() {
               Berdasarkan laba bersih per unit (unit dengan laba positif).
             </p>
             {profitableUnits.length > 0 ? (
-              <ChartContainer config={{}} className="aspect-auto w-full" style={{ height: 240 }}>
+              <div className="grid items-center gap-4 lg:grid-cols-2">
+              <ChartContainer config={{}} className="mx-auto aspect-square w-full max-w-[380px]">
                 <PieChart>
                   <Pie
                     data={profitableUnits}
@@ -268,8 +267,12 @@ export default function DashboardPage() {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    innerRadius={40}
+                    outerRadius="90%"
+                    innerRadius="58%"
+                    paddingAngle={2}
+                    cornerRadius={5}
+                    stroke="var(--card)"
+                    strokeWidth={2}
                   >
                     {profitableUnits.map((u, i) => (
                       <Cell key={u.id} fill={COLORS[i % COLORS.length]} />
@@ -278,9 +281,20 @@ export default function DashboardPage() {
                   <ChartTooltip
                     content={<ChartTooltipContent formatter={(v) => fmtRp(Number(v))} />}
                   />
-                  <ChartLegend content={<ChartLegendContent />} />
                 </PieChart>
               </ChartContainer>
+              <ul className="space-y-3 pb-2" aria-label="Kontribusi laba per unit usaha">
+                {profitableUnits.map((unit, i) => <li key={unit.id} className="flex items-start gap-3 text-sm">
+                  <span className="mt-1 size-3 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
+                  <div className="min-w-0 flex-1"><p className="font-medium">{unit.name}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{fmtRp(unit.laba)}</p>
+                  </div>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {(unit.laba / profitableUnits.reduce((sum, u) => sum + u.laba, 0) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%
+                  </span>
+                </li>)}
+              </ul>
+              </div>
             ) : (
               <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
                 Belum ada unit dengan laba positif pada periode ini.
@@ -325,7 +339,7 @@ export default function DashboardPage() {
               {unitCount > 0 && (
                 <TableRow data-testid="unit-total-row">
                   <TableCell className="font-bold">
-                    TOTAL {unitCount} UNIT USAHA
+                    TOTAL
                   </TableCell>
                   <TableCell className="text-right font-bold tabular-nums">
                     {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.pendapatan), 0))}
@@ -363,7 +377,7 @@ function UnitFinancialTable({ title, rows, columns }: {
   return <Card className="overflow-hidden p-0">
     <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
     <TableShell minWidth={640}><Table>
-      <TableHeader><TableRow><TableHead>Nama Unit Usaha</TableHead>
+      <TableHeader><TableRow><TableHead>Unit Usaha</TableHead>
         {columns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
       </TableRow></TableHeader>
       <TableBody>{rows.map(row => <TableRow key={row.id}>
@@ -371,7 +385,14 @@ function UnitFinancialTable({ title, rows, columns }: {
         {columns.map(([key]) => <TableCell key={key} className="text-right whitespace-nowrap tabular-nums">
           {row[key] == null ? '—' : fmtRp(row[key])}
         </TableCell>)}
-      </TableRow>)}</TableBody>
+      </TableRow>)}
+      {rows.length > 0 && <TableRow>
+        <TableCell className="font-bold">TOTAL</TableCell>
+        {columns.map(([key]) => <TableCell key={key} className="text-right whitespace-nowrap font-bold tabular-nums">
+          {rows.some(row => row[key] == null) ? '—' : fmtRp(rows.reduce((sum, row) => sum + parseMoney(row[key]), 0))}
+        </TableCell>)}
+      </TableRow>}
+      </TableBody>
     </Table></TableShell>
   </Card>
 }
