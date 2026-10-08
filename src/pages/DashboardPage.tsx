@@ -375,7 +375,7 @@ export default function DashboardPage() {
 function UnitFinancialTable({ title, rows, columns }: {
   title: string
   rows: import('@/types').UnitSummary[]
-  columns: [keyof import('@/types').UnitSummary, string][]
+  columns: [Exclude<keyof import('@/types').UnitSummary, 'id' | 'code' | 'name' | 'active'>, string][]
 }) {
   return <Card className="overflow-hidden p-0">
     <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
