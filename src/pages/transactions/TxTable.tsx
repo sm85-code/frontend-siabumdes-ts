@@ -71,11 +71,12 @@ export default function TxTable({
   const accName = (c: string) => accounts.find((a) => a.code === c)?.name || c
   const isPengelola = user?.role === 'pengelola'
   const canEditRow = (tx: Transaction) => {
-    if (!canWrite) return false
+    if (!canWrite || tx.reference?.startsWith('YIELD:')) return false
     if (isPengelola) return tx.unit_usaha_id === user?.unit_usaha_id
     return true
   }
 
+  const selectable = sorted.filter(tx => !tx.reference?.startsWith('YIELD:'))
   const toggleSel = (id: string) => {
     const n = new Set(selected)
     if (n.has(id)) n.delete(id)
@@ -93,10 +94,10 @@ export default function TxTable({
     <Card className="overflow-hidden p-0">
       <CardHeader className="space-y-0.5 border-b bg-primary/10 p-4">
         <CardTitle className="font-heading text-base font-semibold" data-testid="tx-table-title">
-          Transaksi {activeGroup} — {periodLabel}
+          Transaksi {activeGroup === 'BUMDES' ? 'BUMDes' : activeGroup} — {periodLabel}
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          {total} transaksi · halaman {page}/{pageCount}
+          {total} transaksi · halaman {page}/{pageCount}. Transaksi Imbal Hasil otomatis dikelola melalui menu Imbal Hasil.
         </p>
       </CardHeader>
       <TableShell minWidth={720} data-testid="tx-table">
@@ -107,9 +108,9 @@ export default function TxTable({
                 <TableHead style={{ width: 32 }}>
                   <Checkbox
                     data-testid="tx-select-all"
-                    checked={sorted.length > 0 && sorted.every((r) => selected.has(r.id))}
+                    checked={selectable.length > 0 && selectable.every((r) => selected.has(r.id))}
                     onCheckedChange={(checked) => {
-                      if (checked) setSelected(new Set(sorted.map((r) => r.id)))
+                      if (checked) setSelected(new Set(selectable.map((r) => r.id)))
                       else setSelected(new Set())
                     }}
                   />
@@ -164,6 +165,7 @@ export default function TxTable({
                       <TableCell>
                         <Checkbox
                           data-testid={`sel-tx-${t.id}`}
+                          disabled={t.reference?.startsWith('YIELD:')}
                           checked={selected.has(t.id)}
                           onCheckedChange={() => toggleSel(t.id)}
                         />
@@ -251,7 +253,7 @@ export default function TxTable({
                               <Pencil className="size-4" />
                             </Button>
                           )}
-                          {can(user, 'admin', 'direktur', 'bendahara') && (
+                          {!t.reference?.startsWith('YIELD:') && can(user, 'admin', 'direktur', 'bendahara') && (
                             <Button
                               data-testid={`del-tx-${t.id}`}
                               onClick={() => onDelete(t.id)}
