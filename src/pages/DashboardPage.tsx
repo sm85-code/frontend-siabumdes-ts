@@ -1,7 +1,6 @@
 import {
   Building2,
   Calendar,
-  ChartLine,
   ChartPie,
   Coins,
   Lock,
@@ -86,10 +85,28 @@ const yTickFormatter = (v: number) =>
 type KpiItem = {
   key: string
   label: string
-  value: number
+  value: number | null
   icon: ComponentType<{ className?: string; style?: React.CSSProperties }>
   isCount?: boolean
-  isPct?: boolean
+}
+
+function DashboardKpiGrid({ items, desktopColumns = 4 }: { items: KpiItem[]; desktopColumns?: 3 | 4 }) {
+  return <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${desktopColumns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+    {items.map((k) => {
+      const Icon = k.icon
+      return <Card key={k.key} className="min-w-0" data-testid={`kpi-${k.key}`}>
+        <CardContent className="p-3 sm:p-4">
+          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: 'var(--bg)', boxShadow: 'var(--shadow-inset)' }}>
+            <Icon className="size-4.5" style={{ color: INK }} />
+          </div>
+          <p className="text-xs font-semibold tracking-wider uppercase" style={{ color: 'var(--text-secondary)' }}>{k.label}</p>
+          <p className="font-heading mt-1 text-lg font-bold tabular-nums [overflow-wrap:anywhere] sm:text-2xl">
+            {k.value == null ? '—' : k.isCount ? k.value : fmtRp(k.value)}
+          </p>
+        </CardContent>
+      </Card>
+    })}
+  </div>
 }
 
 function defaultYearPeriod(): PeriodValue {
@@ -133,34 +150,20 @@ export default function DashboardPage() {
 
   const posisiKpis = useMemo<KpiItem[]>(() => {
     if (!data) return []
-    const pct = (num: number, denom: number) => (denom ? (num / denom) * 100 : 0)
     return [
       { key: 'total-aset', label: 'Total Aset', value: parseMoney(data.total_aset), icon: Building2 },
       { key: 'total-kewajiban', label: 'Total Kewajiban', value: parseMoney(data.total_kewajiban), icon: Scale },
       { key: 'total-ekuitas', label: 'Total Ekuitas', value: parseMoney(data.total_ekuitas), icon: Wallet },
-      {
-        key: 'margin-laba',
-        label: 'Margin Laba Bersih',
-        value: pct(parseMoney(data.laba_bersih), parseMoney(data.total_pendapatan)),
-        icon: ChartLine,
-        isPct: true,
-      },
-      {
-        key: 'rasio-kas',
-        label: 'Rasio Kas',
-        value: pct(parseMoney(data.kas_bank), parseMoney(data.total_kewajiban)),
-        icon: Coins,
-        isPct: true,
-      },
-      {
-        key: 'rasio-solvabilitas',
-        label: 'Rasio Solvabilitas',
-        value: pct(parseMoney(data.total_kewajiban), parseMoney(data.total_ekuitas)),
-        icon: ChartPie,
-        isPct: true,
-      },
+      { key: 'modal-desa', label: 'Modal Desa', value: data.modal_desa == null ? null : parseMoney(data.modal_desa), icon: Building2 },
     ]
   }, [data])
+
+  const bagiHasilKpis = useMemo<KpiItem[]>(() => (data?.bagi_hasil_bumdes ?? []).map((row) => ({
+    key: `bagi-hasil-${row.key}`,
+    label: `${row.label} (${row.persen}%)`,
+    value: parseMoney(row.amount),
+    icon: ChartPie,
+  })), [data])
 
   const chartData = useMemo(() => {
     if (!data?.monthly) return []
@@ -196,7 +199,6 @@ export default function DashboardPage() {
 
   const jabatan = (user?.role && ROLE_LABELS[user.role]) || 'Pengguna'
   const pLabel = period.label
-  const icoBox = { background: 'var(--bg)', boxShadow: 'var(--shadow-inset)' }
   const blocked = user?.blocked_periods ?? []
 
   return (
@@ -258,67 +260,25 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {kpis.map((k) => {
-          const Icon = k.icon
-          return (
-            <Card key={k.key} data-testid={`kpi-${k.key}`}>
-              <CardContent className="p-4">
-                <div
-                  className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl"
-                  style={icoBox}
-                >
-                  <Icon className="size-4.5" style={{ color: INK }} />
-                </div>
-                <p
-                  className="text-xs font-semibold tracking-wider uppercase"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  {k.label}
-                </p>
-                <p className="font-heading mt-1 text-xl font-bold tabular-nums sm:text-2xl">
-                  {k.isCount ? k.value : fmtRp(k.value)}
-                </p>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+      <section aria-labelledby="activity-title">
+        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">Aktivitas Usaha BUMDes</h2>
+        <DashboardKpiGrid items={kpis} />
+      </section>
 
-      <div>
-        <p
-          className="mb-3 text-xs font-semibold tracking-wider uppercase"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Rasio & Posisi Keuangan
+      <section aria-labelledby="financial-position-title">
+        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">Posisi Keuangan BUMDes</h2>
+        <DashboardKpiGrid items={posisiKpis} />
+      </section>
+
+      <section aria-labelledby="profit-sharing-title">
+        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">Proporsi Bagi Hasil BUMDes</h2>
+        <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Estimasi alokasi laba bersih BUMDes pusat untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
         </p>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {posisiKpis.map((k) => {
-            const Icon = k.icon
-            return (
-              <Card key={k.key} data-testid={`kpi-${k.key}`}>
-                <CardContent className="p-4">
-                  <div
-                    className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl"
-                    style={icoBox}
-                  >
-                    <Icon className="size-4.5" style={{ color: INK }} />
-                  </div>
-                  <p
-                    className="text-xs font-semibold tracking-wider uppercase"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {k.label}
-                  </p>
-                  <p className="font-heading mt-1 text-xl font-bold tabular-nums sm:text-2xl">
-                    {k.isPct ? `${k.value.toFixed(1)}%` : fmtRp(k.value)}
-                  </p>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </div>
+        {bagiHasilKpis.length > 0 ? <DashboardKpiGrid items={bagiHasilKpis} desktopColumns={3} /> : (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Data bagi hasil BUMDes pusat tidak tersedia pada tampilan ini.</p>
+        )}
+      </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
