@@ -657,3 +657,8 @@ h4,
     @apply font-sans;
   }
 }
+
+/* Native option menus need opaque colors in both light and dark appearance. */
+select { color-scheme: light; }
+.dark select { color-scheme: dark; }
+select option { background-color: var(--popover); color: var(--popover-foreground); }

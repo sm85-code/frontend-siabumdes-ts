@@ -59,7 +59,7 @@ export const NAV: NavItem[] = [
   },
   { to: '/imbal-hasil', label: 'Imbal Hasil', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
   { to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
-  { to: '/profil-bumdes', label: 'Profil BUMDES', icon: Building2, roles: ROLES_ORG_PROFILE },
+  { to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
   { to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
   { to: '/profile', label: 'Profil Saya', icon: UserCircle, roles: READ_MOST },

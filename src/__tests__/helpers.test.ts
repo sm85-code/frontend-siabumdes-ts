@@ -83,13 +83,13 @@ describe('buildUnitGroupTabs', () => {
 
   it('prefixes BUMDES and sorts by code (no hardcoded UU01–UU06)', () => {
     const tabs = buildUnitGroupTabs(units)
-    expect(tabs[0]).toEqual({ key: 'BUMDES', label: 'BUMDES', unitId: null })
+    expect(tabs[0]).toEqual({ key: 'BUMDES', label: 'BUMDes', unitId: null })
     expect(tabs.map((t) => t.key)).toEqual(['BUMDES', 'UU01', 'UU02'])
     expect(tabs[1].unitId).toBe('1')
   })
 
   it('works with empty unit list', () => {
-    expect(buildUnitGroupTabs([])).toEqual([{ key: 'BUMDES', label: 'BUMDES', unitId: null }])
+    expect(buildUnitGroupTabs([])).toEqual([{ key: 'BUMDES', label: 'BUMDes', unitId: null }])
   })
 })
 

@@ -110,7 +110,7 @@ export default function TransactionsPage() {
 
   const groupTabs = useMemo(() => {
     const tabs = buildUnitGroupTabs(units).map((t) => {
-      if (t.key === 'BUMDES') return { key: t.key, label: 'BUMDES - Pusat' }
+      if (t.key === 'BUMDES') return { key: t.key, label: 'BUMDes - Pusat' }
       const unit = units.find((u) => u.code === t.key)
       return { key: t.key, label: unit ? `${t.key} - ${unit.name}` : t.key }
     })
@@ -461,7 +461,7 @@ export default function TransactionsPage() {
                 data-testid="btn-download-template"
                 onClick={() =>
                   void downloadTxTemplate()
-                    .then((b) => triggerBlobDownload(b, 'Template-Transaksi-BUMDES.xlsx'))
+                    .then((b) => triggerBlobDownload(b, 'Template-Transaksi-BUMDes.xlsx'))
                     .catch(() => notify('Gagal download template'))
                 }
                 variant="outline"

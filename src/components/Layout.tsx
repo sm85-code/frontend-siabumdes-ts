@@ -67,7 +67,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             alt="Logo"
             className="h-8 w-8 flex-shrink-0 rounded-full object-cover"
           />
-          <span className="font-heading truncate text-sm font-semibold">BUMDES Karya Raharja</span>
+          <span className="font-heading truncate text-sm font-semibold">BUMDes Karya Raharja</span>
         </div>
       </div>
 
@@ -88,12 +88,12 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3 p-6">
             <img
               src="/logo-bumdes.webp"
-              alt="Logo BUMDES"
+              alt="Logo BUMDes"
               data-testid="sidebar-logo"
               className="h-11 w-11 rounded-full object-cover"
             />
             <div>
-              <div className="font-heading text-base leading-tight font-semibold">BUMDES</div>
+              <div className="font-heading text-base leading-tight font-semibold">BUMDes</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 Karya Raharja
               </div>

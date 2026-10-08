@@ -133,7 +133,7 @@ export default function TxFormCard({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {!isPengelola && <SelectItem value="__bumdes__">BUMDES - Pusat</SelectItem>}
+                    {!isPengelola && <SelectItem value="__bumdes__">BUMDes - Pusat</SelectItem>}
                     {units
                       .filter((u) => !isPengelola || u.id === user.unit_usaha_id)
                       .map((u) => (
