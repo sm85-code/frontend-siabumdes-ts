@@ -47,6 +47,12 @@ export interface UnitSummary {
   pendapatan: MoneyAmount
   beban: MoneyAmount
   laba: MoneyAmount
+  total_aset?: MoneyAmount
+  total_kewajiban?: MoneyAmount
+  total_ekuitas?: MoneyAmount
+  modal_bumdes?: MoneyAmount
+  share_pengelola?: MoneyAmount
+  share_bumdes?: MoneyAmount
 }
 
 export interface DashboardData {
@@ -60,6 +66,8 @@ export interface DashboardData {
   total_kewajiban: MoneyAmount
   total_ekuitas: MoneyAmount
   kas_bank: MoneyAmount
+  unit_share_persen?: { pengelola: number; bumdes: number }
+  bagi_hasil_unit?: { key: string; label: string; persen: number; amount: MoneyAmount }[]
   modal_desa?: MoneyAmount
   bagi_hasil_bumdes?: { key: string; label: string; persen: number; amount: MoneyAmount }[]
 }
