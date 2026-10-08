@@ -141,14 +141,16 @@ export default function DashboardPage() {
     icon: ChartPie,
   })), [data, isPengelola])
 
-  const unitCount = data?.unit_summaries?.length ?? 0
+  const activeUnits = useMemo(() => (data?.unit_summaries ?? []).filter(unit => unit.active !== false), [data])
+  const unitCount = activeUnits.length
   const profitableUnits = useMemo(
     // API sends money as strings; Recharts' Pie needs numeric values to draw slices.
     () =>
-      (data?.unit_summaries ?? [])
+      activeUnits
         .map((u) => ({ ...u, laba: parseMoney(u.laba) }))
-        .filter((u) => u.laba > 0),
-    [data],
+        .filter((u) => u.laba > 0)
+        .sort((a, b) => b.laba - a.laba),
+    [activeUnits],
   )
 
   if (isLoading && !data) {
@@ -242,7 +244,7 @@ export default function DashboardPage() {
 
       <section aria-labelledby="profit-sharing-title">
         <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">{isPengelola ? 'Bagi Hasil Unit Usaha' : 'Proporsi Bagi Hasil BUMDes'}</h2>
-        <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
           Estimasi alokasi laba bersih {isPengelola ? 'unit usaha Anda' : 'BUMDes pusat'} untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
         </p>
         {bagiHasilKpis.length > 0 ? <DashboardKpiGrid items={bagiHasilKpis} desktopColumns={3} /> : (
@@ -252,9 +254,9 @@ export default function DashboardPage() {
 
       {!isPengelola && <>
         <Card>
-          <CardContent className="pt-2">
-            <h3 className="font-heading mb-1 text-lg font-semibold">Kontribusi Per Unit Usaha</h3>
-            <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+          <CardContent className="p-5 sm:p-6">
+            <h3 className="font-heading mb-2 text-center text-lg font-semibold">Kontribusi Per Unit Usaha</h3>
+            <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
               Berdasarkan laba bersih per unit (unit dengan laba positif).
             </p>
             {profitableUnits.length > 0 ? (
@@ -327,12 +329,12 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.unit_summaries.map((u) => (
+              {activeUnits.map((u) => (
                 <TableRow key={u.id}>
                   <TableCell className="font-medium">{u.name}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtRp(u.pendapatan)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{fmtRp(u.beban)}</TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(u.pendapatan)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(u.beban)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">
                     {fmtRp(u.laba)}
                   </TableCell>
                 </TableRow>
@@ -342,14 +344,14 @@ export default function DashboardPage() {
                   <TableCell className="font-bold">
                     TOTAL
                   </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.pendapatan), 0))}
+                  <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">
+                    {fmtRp(activeUnits.reduce((s, u) => s + parseMoney(u.pendapatan), 0))}
                   </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.beban), 0))}
+                  <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">
+                    {fmtRp(activeUnits.reduce((s, u) => s + parseMoney(u.beban), 0))}
                   </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums">
-                    {fmtRp(data.unit_summaries.reduce((s, u) => s + parseMoney(u.laba), 0))}
+                  <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">
+                    {fmtRp(activeUnits.reduce((s, u) => s + parseMoney(u.laba), 0))}
                   </TableCell>
                 </TableRow>
               )}
@@ -357,11 +359,11 @@ export default function DashboardPage() {
           </Table>
         </TableShell>
       </Card>
-      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={data.unit_summaries} columns={[
+      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
         ['total_ekuitas', 'Total Ekuitas'], ['modal_bumdes', 'Modal BUMDes'],
       ]} />
-      <UnitFinancialTable title="Bagi Hasil Unit Usaha BUMDes" rows={data.unit_summaries} columns={[
+      <UnitFinancialTable title="Bagi Hasil Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['share_pengelola', `Pengelola (${data.unit_share_persen?.pengelola ?? 30}%)`],
         ['share_bumdes', `BUMDes (${data.unit_share_persen?.bumdes ?? 70}%)`], ['laba', 'Jumlah'],
       ]} />
@@ -373,7 +375,7 @@ export default function DashboardPage() {
 function UnitFinancialTable({ title, rows, columns }: {
   title: string
   rows: import('@/types').UnitSummary[]
-  columns: [keyof import('@/types').UnitSummary, string][]
+  columns: [Exclude<keyof import('@/types').UnitSummary, 'id' | 'code' | 'name' | 'active'>, string][]
 }) {
   return <Card className="overflow-hidden p-0">
     <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
