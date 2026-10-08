@@ -41,6 +41,7 @@ export interface DashboardMonthlyPoint {
 }
 
 export interface UnitSummary {
+  active?: boolean
   id: string
   code: string
   name: string
