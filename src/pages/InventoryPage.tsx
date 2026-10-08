@@ -1,6 +1,6 @@
 import { ArrowDown, ArrowUp, BarChart3, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
 import { useAuth, can } from "@/lib/auth";
 import type {
@@ -19,6 +19,7 @@ import type {
 import {
   KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE, UTANG_ACCOUNT_CODE,
 } from "@/lib/uu05InventoryCoa";
+import CommercialDocuments from "@/pages/inventory/CommercialDocuments";
 import InventorySummary from "@/pages/InventorySummary";
 import ProductFormCard from "@/pages/inventory/ProductFormCard";
 import StockInFormCard from "@/pages/inventory/StockInFormCard";
@@ -82,12 +83,14 @@ const TABS = [
   { id: "customer", label: "Customer", icon: Users },
   { id: "utang", label: "Utang", icon: Wallet },
   { id: "piutang", label: "Piutang", icon: HandCoins },
+  { id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins },
   { id: "laporan", label: "Laporan", icon: BarChart3 },
 ];
 
 export default function Inventory() {
   const { user } = useAuth();
-  const [tab, setTab] = useState("summary");
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.has("document") ? "documents" : "summary");
   const [meta, setMeta] = useState<InventoryMeta | null>(null);
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
@@ -497,6 +500,8 @@ export default function Inventory() {
           );
         })}
       </div>
+
+      {tab === "documents" && <CommercialDocuments />}
 
       {tab === "summary" && (
         <InventorySummary
