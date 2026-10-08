@@ -12,23 +12,11 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useMemo, useState, type ComponentType } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Cell, Pie, PieChart } from 'recharts'
 import { fmtRp, parseMoney } from '@/api/client'
 import PeriodFilter from '@/components/PeriodFilter'
 import Spinner from '@/components/Spinner'
 import TableShell from '@/components/TableShell'
-import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   ChartContainer,
@@ -36,7 +24,6 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from '@/components/ui/chart'
 import {
   Table,
@@ -51,7 +38,6 @@ import { useDashboardQuery } from '@/hooks/useDashboard'
 import { useAuth } from '@/lib/auth'
 import {
   MONTHS,
-  bucketize,
   chartConfigForPeriod,
 } from '@/lib/dashboardBucketing'
 import type { PeriodValue } from '@/types'
@@ -64,7 +50,6 @@ const TODAY_LABEL = new Date().toLocaleDateString('id-ID', {
 })
 
 const INK = 'var(--primary-dark)'
-const GRID_STROKE = 'var(--legacy-border, #E4E4E7)'
 const COLORS = [
   'var(--chart-1)',
   'var(--chart-2)',
@@ -73,14 +58,6 @@ const COLORS = [
   'var(--chart-5)',
   'var(--chart-6)',
 ]
-
-const TREND_CHART_CONFIG: ChartConfig = {
-  pendapatan: { label: 'Pendapatan', color: 'var(--chart-2)' },
-  beban: { label: 'Beban', color: 'var(--chart-1)' },
-}
-
-const yTickFormatter = (v: number) =>
-  v >= 1e6 ? `${(v / 1e6).toFixed(1)}Jt` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}rb` : String(v)
 
 type KpiItem = {
   key: string
@@ -122,6 +99,7 @@ function defaultYearPeriod(): PeriodValue {
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const isPengelola = user?.role === 'pengelola'
   const [period, setPeriod] = useState<PeriodValue>(defaultYearPeriod)
 
   const chartConfig = useMemo(() => chartConfigForPeriod(period), [period])
@@ -154,23 +132,17 @@ export default function DashboardPage() {
       { key: 'total-aset', label: 'Total Aset', value: parseMoney(data.total_aset), icon: Building2 },
       { key: 'total-kewajiban', label: 'Total Kewajiban', value: parseMoney(data.total_kewajiban), icon: Scale },
       { key: 'total-ekuitas', label: 'Total Ekuitas', value: parseMoney(data.total_ekuitas), icon: Wallet },
-      { key: 'modal-desa', label: 'Modal Desa', value: data.modal_desa == null ? null : parseMoney(data.modal_desa), icon: Building2 },
+      { key: 'modal-desa', label: isPengelola ? 'Modal BUMDes' : 'Modal Desa', value: data.modal_desa == null ? null : parseMoney(data.modal_desa), icon: Building2 },
     ]
-  }, [data])
+  }, [data, isPengelola])
 
-  const bagiHasilKpis = useMemo<KpiItem[]>(() => (data?.bagi_hasil_bumdes ?? []).map((row) => ({
+  const bagiHasilKpis = useMemo<KpiItem[]>(() => ((isPengelola ? data?.bagi_hasil_unit : data?.bagi_hasil_bumdes) ?? []).map((row) => ({
     key: `bagi-hasil-${row.key}`,
     label: `${row.label} (${row.persen}%)`,
     value: parseMoney(row.amount),
     icon: ChartPie,
-  })), [data])
+  })), [data, isPengelola])
 
-  const chartData = useMemo(() => {
-    if (!data?.monthly) return []
-    return bucketize(data.monthly, chartConfig.bucket)
-  }, [data, chartConfig.bucket])
-
-  const useBar = chartData.length <= 1
   const unitCount = data?.unit_summaries?.length ?? 0
   const profitableUnits = useMemo(
     // API sends money as strings; Recharts' Pie needs numeric values to draw slices.
@@ -261,101 +233,29 @@ export default function DashboardPage() {
       </Card>
 
       <section aria-labelledby="activity-title">
-        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">Aktivitas Usaha BUMDes</h2>
+        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Aktivitas Unit Usaha' : 'Aktivitas Usaha BUMDes'}</h2>
         <DashboardKpiGrid items={kpis} />
       </section>
 
       <section aria-labelledby="financial-position-title">
-        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">Posisi Keuangan BUMDes</h2>
+        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? 'Posisi Keuangan Unit Usaha' : 'Posisi Keuangan BUMDes'}</h2>
         <DashboardKpiGrid items={posisiKpis} />
       </section>
 
       <section aria-labelledby="profit-sharing-title">
-        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">Proporsi Bagi Hasil BUMDes</h2>
+        <h2 id="profit-sharing-title" className="font-heading mb-1 text-lg font-semibold">{isPengelola ? 'Bagi Hasil Unit Usaha' : 'Proporsi Bagi Hasil BUMDes'}</h2>
         <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-          Estimasi alokasi laba bersih BUMDes pusat untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
+          Estimasi alokasi laba bersih {isPengelola ? 'unit usaha Anda' : 'BUMDes pusat'} untuk {pLabel}, sesuai proporsi pada Profil BUMDes.
         </p>
         {bagiHasilKpis.length > 0 ? <DashboardKpiGrid items={bagiHasilKpis} desktopColumns={3} /> : (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Data bagi hasil BUMDes pusat tidak tersedia pada tampilan ini.</p>
         )}
       </section>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardContent className="pt-2">
-            <h3
-              className="font-heading mb-4 text-lg font-semibold"
-              data-testid="trend-title"
-            >
-              Pendapatan & Beban ({pLabel})
-            </h3>
-            {chartData.length > 0 ? (
-              <ChartContainer
-                config={TREND_CHART_CONFIG}
-                className="aspect-auto w-full"
-                style={{ height: 280 }}
-              >
-                {useBar ? (
-                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={yTickFormatter} />
-                    <ChartTooltip
-                      content={<ChartTooltipContent formatter={(v) => fmtRp(Number(v))} />}
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar
-                      dataKey="pendapatan"
-                      name="Pendapatan"
-                      fill="var(--color-pendapatan)"
-                      radius={[3, 3, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="beban"
-                      name="Beban"
-                      fill="var(--color-beban)"
-                      radius={[3, 3, 0, 0]}
-                    />
-                  </BarChart>
-                ) : (
-                  <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={GRID_STROKE} vertical={false} />
-                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} tickFormatter={yTickFormatter} />
-                    <ChartTooltip
-                      content={<ChartTooltipContent formatter={(v) => fmtRp(Number(v))} />}
-                    />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Line
-                      type="monotone"
-                      dataKey="pendapatan"
-                      name="Pendapatan"
-                      stroke="var(--color-pendapatan)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="beban"
-                      name="Beban"
-                      stroke="var(--color-beban)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                )}
-              </ChartContainer>
-            ) : (
-              <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                Belum ada transaksi pada periode ini.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
+      {!isPengelola && <>
         <Card>
           <CardContent className="pt-2">
-            <h3 className="font-heading mb-1 text-lg font-semibold">Kontribusi Per Unit</h3>
+            <h3 className="font-heading mb-1 text-lg font-semibold">Kontribusi Per Unit Usaha</h3>
             <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
               Berdasarkan laba bersih per unit (unit dengan laba positif).
             </p>
@@ -365,7 +265,7 @@ export default function DashboardPage() {
                   <Pie
                     data={profitableUnits}
                     dataKey="laba"
-                    nameKey="code"
+                    nameKey="name"
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
@@ -388,7 +288,6 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
       <Card className="overflow-hidden p-0">
         <div className="p-5">
@@ -396,7 +295,7 @@ export default function DashboardPage() {
             className="font-heading flex items-center gap-2 text-lg font-semibold"
             data-testid="unit-table-title"
           >
-            <Store className="size-5" style={{ color: INK }} /> Data Unit Usaha
+            <Store className="size-5" style={{ color: INK }} /> Aktivitas Unit Usaha BUMDes
           </h3>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
             Periode: {pLabel}
@@ -406,7 +305,6 @@ export default function DashboardPage() {
           <Table data-testid="unit-summary-table">
             <TableHeader>
               <TableRow>
-                <TableHead>Kode</TableHead>
                 <TableHead>Unit Usaha</TableHead>
                 <TableHead className="text-right">Pendapatan</TableHead>
                 <TableHead className="text-right">Beban</TableHead>
@@ -416,9 +314,6 @@ export default function DashboardPage() {
             <TableBody>
               {data.unit_summaries.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell>
-                    <Badge>{u.code}</Badge>
-                  </TableCell>
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmtRp(u.pendapatan)}</TableCell>
                   <TableCell className="text-right tabular-nums">{fmtRp(u.beban)}</TableCell>
@@ -429,7 +324,6 @@ export default function DashboardPage() {
               ))}
               {unitCount > 0 && (
                 <TableRow data-testid="unit-total-row">
-                  <TableCell />
                   <TableCell className="font-bold">
                     TOTAL {unitCount} UNIT USAHA
                   </TableCell>
@@ -448,6 +342,36 @@ export default function DashboardPage() {
           </Table>
         </TableShell>
       </Card>
+      <UnitFinancialTable title="Posisi Keuangan Unit Usaha BUMDes" rows={data.unit_summaries} columns={[
+        ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
+        ['total_ekuitas', 'Total Ekuitas'], ['modal_bumdes', 'Modal BUMDes'],
+      ]} />
+      <UnitFinancialTable title="Bagi Hasil Unit Usaha BUMDes" rows={data.unit_summaries} columns={[
+        ['share_pengelola', `Pengelola (${data.unit_share_persen?.pengelola ?? 30}%)`],
+        ['share_bumdes', `BUMDes (${data.unit_share_persen?.bumdes ?? 70}%)`], ['laba', 'Jumlah'],
+      ]} />
+      </>}
     </div>
   )
+}
+
+function UnitFinancialTable({ title, rows, columns }: {
+  title: string
+  rows: import('@/types').UnitSummary[]
+  columns: [keyof import('@/types').UnitSummary, string][]
+}) {
+  return <Card className="overflow-hidden p-0">
+    <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
+    <TableShell minWidth={640}><Table>
+      <TableHeader><TableRow><TableHead>Nama Unit Usaha</TableHead>
+        {columns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
+      </TableRow></TableHeader>
+      <TableBody>{rows.map(row => <TableRow key={row.id}>
+        <TableCell className="font-medium">{row.name}</TableCell>
+        {columns.map(([key]) => <TableCell key={key} className="text-right whitespace-nowrap tabular-nums">
+          {row[key] == null ? '—' : fmtRp(row[key])}
+        </TableCell>)}
+      </TableRow>)}</TableBody>
+    </Table></TableShell>
+  </Card>
 }
