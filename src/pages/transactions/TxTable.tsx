@@ -1,5 +1,7 @@
 import { Paperclip, Link2, Pencil, Receipt, Trash2, X } from 'lucide-react'
-import { fmtDate, fmtRp } from '@/api/client'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import api, { fmtDate, fmtRp } from '@/api/client'
 import { pageWindow, rangeLabel } from '@/lib/pagination'
 import Spinner from '@/components/Spinner'
 import TableShell from '@/components/TableShell'
@@ -66,6 +68,15 @@ export default function TxTable({
 }: Props) {
   const sortState = useSort(rows as unknown as Record<string, unknown>[], 'date', 'desc')
   const sorted = sortState.sorted as unknown as Transaction[]
+
+  const [inventoryLabels, setInventoryLabels] = useState<Record<string, {description:string; document_id:string|null; document_number:string|null}>>({})
+  const inventoryReferences = rows.filter(t => t.reference?.startsWith('stock-') || t.reference?.startsWith('purchase-pay:') || t.reference?.startsWith('sale-pay:')).map(t => t.reference).join('|')
+  useEffect(() => {
+    if(!inventoryReferences || (user?.role === 'pengelola' && !units.some(u => u.id === user.unit_usaha_id && u.code === 'UU05'))) { setInventoryLabels({}); return }
+    let current = true
+    api.post('/v1/uu05_inventory/documents/transaction-links', { references:inventoryReferences.split('|') }).then(r => { if(current) setInventoryLabels(r.data) }).catch(() => { if(current) setInventoryLabels({}) })
+    return () => { current = false }
+  },[inventoryReferences,user?.role,user?.unit_usaha_id,units])
 
   const unitOf = (id: string | null) => units.find((u) => u.id === id)
   const accName = (c: string) => accounts.find((a) => a.code === c)?.name || c
@@ -180,7 +191,10 @@ export default function TxTable({
                         <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>
                       </TableCell>
                     )}
-                    <TableCell className="max-w-xs truncate">{t.description}</TableCell>
+                    <TableCell className="min-w-56 max-w-sm whitespace-normal break-words">
+                      {inventoryLabels[t.reference]?.description || t.description}
+                      {inventoryLabels[t.reference]?.document_id && <Link className="mt-1 block text-xs text-primary underline" to={`/inventory?document=${inventoryLabels[t.reference].document_id}`}>{inventoryLabels[t.reference].document_number}</Link>}
+                    </TableCell>
                     <TableCell className="text-xs">{accName(t.debit_account_code)}</TableCell>
                     <TableCell className="text-xs">{accName(t.credit_account_code)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">
