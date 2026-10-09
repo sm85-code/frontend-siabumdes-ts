@@ -1,3 +1,4 @@
+import { automaticTransactionDescription } from '@/lib/automaticTransactionDescription'
 import { Paperclip, Link2, Pencil, Receipt, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -66,7 +67,8 @@ export default function TxTable({
   onUploadProof,
   onDeleteProof,
 }: Props) {
-  const sortState = useSort(rows as unknown as Record<string, unknown>[], 'date', 'desc')
+  const displayRows = rows.map(tx => ({ ...tx, description: automaticTransactionDescription(tx, units, accounts) }))
+  const sortState = useSort(displayRows as unknown as Record<string, unknown>[], 'date', 'desc')
   const sorted = sortState.sorted as unknown as Transaction[]
 
   const [inventoryLabels, setInventoryLabels] = useState<Record<string, {description:string; document_id:string|null; document_number:string|null}>>({})
