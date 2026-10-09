@@ -1,3 +1,4 @@
+import FormDialog from '@/components/FormDialog'
 import { Key, Lock, Pencil, Plus, Trash2 } from "lucide-react"
 import { ROLE_LABELS } from "@/config/roles"
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -55,6 +56,7 @@ const EMPTY_CREATE: CreateUserFormValues = {
 export default function UsersPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const [formError, setFormError] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [units, setUnits] = useState<UnitUsaha[]>([]);
   const [show, setShow] = useState(false);
@@ -91,6 +93,7 @@ export default function UsersPage() {
   useEffect(() => { fetchClosedPeriods().then(setClosed).catch(() => {}); }, []);
 
   const onCreateUser = async (values: CreateUserFormValues) => {
+    setFormError('');
     try {
       await api.post("/auth/register", {
         ...values,
@@ -101,11 +104,12 @@ export default function UsersPage() {
       void load();
       notifySuccess("Pengguna berhasil ditambahkan.");
     } catch (er: unknown) {
-      notifyError(getApiError(er, "Gagal"));
+      setFormError(getApiError(er, "Gagal"));
     }
   };
 
   const openEdit = (u: User) => {
+    setFormError('');
     setEditingUser(u);
     setEditForm({
       name: u.name,
@@ -119,6 +123,7 @@ export default function UsersPage() {
   const saveEdit = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setFormError('');
     try {
       await api.put(`/users/${editingUser.id}`, {
         ...editForm,
@@ -128,7 +133,7 @@ export default function UsersPage() {
       void load();
       notifySuccess("Pengguna berhasil diperbarui.");
     } catch (er: unknown) {
-      notifyError(getApiError(er, "Gagal memperbarui pengguna"));
+      setFormError(getApiError(er, "Gagal memperbarui pengguna"));
     }
   };
 
@@ -147,13 +152,14 @@ export default function UsersPage() {
     e.preventDefault();
     if (!showResetFor) return;
     if (newPw.length < 6) { notify("Password minimal 6 karakter"); return; }
+    setFormError('');
     try {
       await api.post(`/users/${showResetFor}/reset-password`, { new_password: newPw });
       setShowResetFor(null); setNewPw("");
       void load();
       notifySuccess("Password berhasil direset.");
     } catch (er: unknown) {
-      notifyError(getApiError(er, "Gagal reset"));
+      setFormError(getApiError(er, "Gagal reset"));
     }
   };
 
@@ -228,7 +234,7 @@ export default function UsersPage() {
       )}
       <Button
         data-testid={`btn-reset-${u.id}`}
-        onClick={() => setShowResetFor(u.id)}
+        onClick={() => { setFormError(''); setShowResetFor(u.id); }}
         variant="ghost"
         size="icon"
         className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
@@ -262,176 +268,182 @@ export default function UsersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button data-testid="btn-new-user" onClick={() => { createForm.reset(EMPTY_CREATE); setShow(true); }}>
+          <Button data-testid="btn-new-user" onClick={() => { setFormError(''); createForm.reset(EMPTY_CREATE); setShow(true); }}>
             <Plus  className="size-4" /> Tambah Pengguna
           </Button>
         </div>
       </div>
 
       {show && (
-        <Card className="fade-in">
-          <CardHeader>
-            <CardTitle className="font-heading text-lg">Tambah Pengguna Baru</CardTitle>
-          </CardHeader>
-          <form onSubmit={(e) => void createForm.handleSubmit(onCreateUser)(e)}>
-            <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Nama Lengkap</Label>
-                <Input aria-invalid={Boolean(createForm.formState.errors.name)} {...createForm.register("name")} />
-                {createForm.formState.errors.name && (
-                  <p className="text-xs text-destructive">{createForm.formState.errors.name.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Username</Label>
-                <Input aria-invalid={Boolean(createForm.formState.errors.username)} {...createForm.register("username")} />
-                {createForm.formState.errors.username && (
-                  <p className="text-xs text-destructive">{createForm.formState.errors.username.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input type="email" aria-invalid={Boolean(createForm.formState.errors.email)} {...createForm.register("email")} />
-                {createForm.formState.errors.email && (
-                  <p className="text-xs text-destructive">{createForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Password</Label>
-                <Input type="text" placeholder="min. 6 karakter" aria-invalid={Boolean(createForm.formState.errors.password)} {...createForm.register("password")} />
-                {createForm.formState.errors.password && (
-                  <p className="text-xs text-destructive">{createForm.formState.errors.password.message}</p>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Controller
-                  control={createForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger data-testid="select-role">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-              {createRole === "pengelola" && (
+        <FormDialog title={'Tambah Pengguna'} onClose={() => { setShow(false); createForm.reset(EMPTY_CREATE); setFormError(''); }} error={formError}>{({ cancel, run }) => <>
+          <Card className="fade-in">
+            <CardHeader>
+              <CardTitle className="font-heading text-lg">Tambah Pengguna Baru</CardTitle>
+            </CardHeader>
+            <form onSubmit={e => void run(() => createForm.handleSubmit(onCreateUser)(e))}>
+              <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Unit Usaha</Label>
+                  <Label>Nama Lengkap</Label>
+                  <Input aria-invalid={Boolean(createForm.formState.errors.name)} {...createForm.register("name")} />
+                  {createForm.formState.errors.name && (
+                    <p className="text-xs text-destructive">{createForm.formState.errors.name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Username</Label>
+                  <Input aria-invalid={Boolean(createForm.formState.errors.username)} {...createForm.register("username")} />
+                  {createForm.formState.errors.username && (
+                    <p className="text-xs text-destructive">{createForm.formState.errors.username.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input type="email" aria-invalid={Boolean(createForm.formState.errors.email)} {...createForm.register("email")} />
+                  {createForm.formState.errors.email && (
+                    <p className="text-xs text-destructive">{createForm.formState.errors.email.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Password</Label>
+                  <Input type="text" placeholder="min. 6 karakter" aria-invalid={Boolean(createForm.formState.errors.password)} {...createForm.register("password")} />
+                  {createForm.formState.errors.password && (
+                    <p className="text-xs text-destructive">{createForm.formState.errors.password.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Role</Label>
                   <Controller
                     control={createForm.control}
-                    name="unit_usaha_id"
+                    name="role"
                     render={({ field }) => (
-                      <Select value={field.value || undefined} onValueChange={field.onChange}>
-                        <SelectTrigger data-testid="select-unit-usaha">
-                          <SelectValue placeholder="— pilih unit —" />
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger data-testid="select-role">
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
+                          {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     )}
                   />
-                  {createForm.formState.errors.unit_usaha_id && (
-                    <p className="text-xs text-destructive">{createForm.formState.errors.unit_usaha_id.message}</p>
-                  )}
                 </div>
-              )}
-            </CardContent>
-            <CardFooter className="sm:col-span-2 justify-end gap-2">
-              <Button type="button" onClick={() => { setShow(false); createForm.reset(EMPTY_CREATE); }} variant="outline">Batal</Button>
-              <Button type="submit" data-testid="btn-save-user" disabled={createForm.formState.isSubmitting}>Simpan</Button>
-            </CardFooter>
-          </form>
-        </Card>
+                {createRole === "pengelola" && (
+                  <div className="space-y-1.5">
+                    <Label>Unit Usaha</Label>
+                    <Controller
+                      control={createForm.control}
+                      name="unit_usaha_id"
+                      render={({ field }) => (
+                        <Select value={field.value || undefined} onValueChange={field.onChange}>
+                          <SelectTrigger data-testid="select-unit-usaha">
+                            <SelectValue placeholder="— pilih unit —" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {createForm.formState.errors.unit_usaha_id && (
+                      <p className="text-xs text-destructive">{createForm.formState.errors.unit_usaha_id.message}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="sm:col-span-2 justify-end gap-2">
+                <Button type="button" onClick={cancel} variant="outline">Batal</Button>
+                <Button type="submit" data-testid="btn-save-user" disabled={createForm.formState.isSubmitting}>Simpan</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </>}</FormDialog>
       )}
 
       {editingUser && (
-        <Card className="fade-in" data-testid="edit-user-form">
-          <CardHeader>
-            <CardTitle className="font-heading text-lg">Edit Pengguna: {editingUser.name}</CardTitle>
-          </CardHeader>
-          <form onSubmit={saveEdit}>
-            <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Nama Lengkap</Label>
-                <Input required value={editForm.name}
-                       onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Username</Label>
-                <Input required value={editForm.username}
-                       onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input type="email" required value={editForm.email}
-                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select required value={editForm.role}
-                        onValueChange={(v) => setEditForm({ ...editForm, role: v as Role })}>
-                  <SelectTrigger data-testid="edit-select-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {editForm.role === "pengelola" && (
+        <FormDialog title={'Ubah Pengguna'} onClose={() => { setEditingUser(null); setFormError(''); }} error={formError}>{({ cancel, run }) => <>
+          <Card className="fade-in" data-testid="edit-user-form">
+            <CardHeader>
+              <CardTitle className="font-heading text-lg">Edit Pengguna: {editingUser.name}</CardTitle>
+            </CardHeader>
+            <form onSubmit={e => { e.preventDefault(); void run(() => saveEdit(e)); }}>
+              <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Unit Usaha</Label>
-                  <Select required value={editForm.unit_usaha_id}
-                          onValueChange={(v) => setEditForm({ ...editForm, unit_usaha_id: v })}>
-                    <SelectTrigger data-testid="edit-select-unit-usaha">
-                      <SelectValue placeholder="— pilih unit —" />
+                  <Label>Nama Lengkap</Label>
+                  <Input required value={editForm.name}
+                         onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Username</Label>
+                  <Input required value={editForm.username}
+                         onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input type="email" required value={editForm.email}
+                         onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Role</Label>
+                  <Select required value={editForm.role}
+                          onValueChange={(v) => setEditForm({ ...editForm, role: v as Role })}>
+                    <SelectTrigger data-testid="edit-select-role">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
+                      {ROLE_OPTIONS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
-              )}
-            </CardContent>
-            <CardFooter className="justify-end gap-2">
-              <Button type="button" onClick={() => setEditingUser(null)} variant="outline">Batal</Button>
-              <Button type="submit" data-testid="btn-save-edit">Simpan Perubahan</Button>
-            </CardFooter>
-          </form>
-        </Card>
+                {editForm.role === "pengelola" && (
+                  <div className="space-y-1.5">
+                    <Label>Unit Usaha</Label>
+                    <Select required value={editForm.unit_usaha_id}
+                            onValueChange={(v) => setEditForm({ ...editForm, unit_usaha_id: v })}>
+                      <SelectTrigger data-testid="edit-select-unit-usaha">
+                        <SelectValue placeholder="— pilih unit —" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {units.map(u => <SelectItem key={u.id} value={u.id}>{u.code} - {u.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="justify-end gap-2">
+                <Button type="button" onClick={cancel} variant="outline">Batal</Button>
+                <Button type="submit" data-testid="btn-save-edit">Simpan Perubahan</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </>}</FormDialog>
       )}
 
       {showResetFor && (
-        <Card className="fade-in" data-testid="reset-pw-form">
-          <CardHeader>
-            <CardTitle className="font-heading text-lg flex items-center gap-2">
-              <Key className="text-primary"  /> Reset Password
-            </CardTitle>
-          </CardHeader>
-          <form onSubmit={resetPw}>
-            <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2 space-y-1.5">
-                <Label>Password Sementara</Label>
-                <Input data-testid="reset-pw-input" type="password" required minLength={8} maxLength={72}
-                       value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="min. 8 karakter" />
-                <p className="text-xs mt-2 text-muted-foreground">
-                  Pengguna wajib mengganti password ini setelah login berikutnya.
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter className="justify-end gap-2">
-              <Button type="button" onClick={() => { setShowResetFor(null); setNewPw(""); }} variant="outline">Batal</Button>
-              <Button type="submit" data-testid="btn-confirm-reset">Reset &amp; Simpan</Button>
-            </CardFooter>
-          </form>
-        </Card>
+        <FormDialog title={'Reset Password'} onClose={() => { setShowResetFor(null); setNewPw(""); setFormError(''); }} error={formError} compact>{({ cancel, run }) => <>
+          <Card className="fade-in" data-testid="reset-pw-form">
+            <CardHeader>
+              <CardTitle className="font-heading text-lg flex items-center gap-2">
+                <Key className="text-primary"  /> Reset Password
+              </CardTitle>
+            </CardHeader>
+            <form onSubmit={e => { e.preventDefault(); void run(() => resetPw(e)); }}>
+              <CardContent className="pt-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2 space-y-1.5">
+                  <Label>Password Sementara</Label>
+                  <Input data-testid="reset-pw-input" type="password" required minLength={8} maxLength={72}
+                         value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="min. 8 karakter" />
+                  <p className="text-xs mt-2 text-muted-foreground">
+                    Pengguna wajib mengganti password ini setelah login berikutnya.
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter className="justify-end gap-2">
+                <Button type="button" onClick={cancel} variant="outline">Batal</Button>
+                <Button type="submit" data-testid="btn-confirm-reset">Reset &amp; Simpan</Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </>}</FormDialog>
       )}
 
       {showLockFor && (() => {

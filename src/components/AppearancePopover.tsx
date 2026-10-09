@@ -20,34 +20,29 @@ const selectClass =
 
 export default function AppearancePopover({
   triggerClassName,
+  iconOnly = false,
   align = 'start',
 }: {
+  iconOnly?: boolean
   triggerClassName?: string
   align?: 'start' | 'center' | 'end'
 }) {
-  const {
-    font,
-    setFont,
-    colorTheme,
-    setColorTheme,
-    baseColor,
-    setBaseColor,
-    wallpaper,
-    setWallpaper,
-    mode,
-    setMode,
-  } = useTheme()
+  const { font, setFont, colorTheme, setColorTheme, baseColor, setBaseColor, wallpaper, setWallpaper, mode, setMode } =
+    useTheme()
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           data-testid="appearance-trigger"
+          aria-label="Tampilan"
+          title="Tampilan"
           variant="outline"
-          size="sm"
+          size={iconOnly ? 'icon' : 'sm'}
           className={triggerClassName ?? 'gap-2'}
         >
-          <Palette className="size-4" /> Tampilan
+          <Palette className="size-4" aria-hidden="true" />
+          {!iconOnly && 'Tampilan'}
         </Button>
       </PopoverTrigger>
       <PopoverContent align={align} className="w-64 space-y-3" data-testid="appearance-popover">
@@ -63,7 +58,11 @@ export default function AppearancePopover({
             onChange={(e) => setColorTheme(e.target.value as ColorTheme)}
           >
             {THEMES.map((t) => (
-              <option style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }} key={t.id} value={t.id}>
+              <option
+                style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }}
+                key={t.id}
+                value={t.id}
+              >
                 {t.label}
               </option>
             ))}
@@ -81,7 +80,11 @@ export default function AppearancePopover({
             onChange={(e) => setBaseColor(e.target.value as BaseColor)}
           >
             {BASE_COLORS.map((b) => (
-              <option style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }} key={b.id} value={b.id}>
+              <option
+                style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }}
+                key={b.id}
+                value={b.id}
+              >
                 {b.label}
               </option>
             ))}
@@ -99,7 +102,11 @@ export default function AppearancePopover({
             onChange={(e) => setWallpaper(e.target.value as WallpaperId)}
           >
             {WALLPAPERS.map((w) => (
-              <option style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }} key={w.id} value={w.id}>
+              <option
+                style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }}
+                key={w.id}
+                value={w.id}
+              >
                 {w.label}
               </option>
             ))}
@@ -117,7 +124,11 @@ export default function AppearancePopover({
             onChange={(e) => setMode(e.target.value as Mode)}
           >
             {MODES.map((m) => (
-              <option style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }} key={m.id} value={m.id}>
+              <option
+                style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }}
+                key={m.id}
+                value={m.id}
+              >
                 {m.label}
               </option>
             ))}
@@ -135,7 +146,11 @@ export default function AppearancePopover({
             onChange={(e) => setFont(e.target.value as FontId)}
           >
             {FONTS.map((f) => (
-              <option style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }} key={f.id} value={f.id}>
+              <option
+                style={{ backgroundColor: 'var(--popover)', color: 'var(--popover-foreground)' }}
+                key={f.id}
+                value={f.id}
+              >
                 {f.label}
               </option>
             ))}

@@ -4,18 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  emptyTransactionForm,
-  transactionFormSchema,
-  type TransactionFormValues,
-} from '@/schemas/transactions'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { emptyTransactionForm, transactionFormSchema, type TransactionFormValues } from '@/schemas/transactions'
 import type { Account, TransactionType, UnitUsaha, User } from '@/types'
 
 interface Props {
@@ -63,15 +53,11 @@ export default function TxFormCard({
       const unitCode = units.find((u) => u.id === unitUsahaId)?.code
       list = unitCode ? types.filter((t) => (t.group || 'BUMDES') === unitCode) : []
     }
-    return [...list].sort((a, b) =>
-      (a.name || '').localeCompare(b.name || '', 'id', { sensitivity: 'base' }),
-    )
+    return [...list].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'id', { sensitivity: 'base' }))
   })()
 
   const filteredAccounts = (() => {
-    const grp = unitUsahaId
-      ? units.find((u) => u.id === unitUsahaId)?.code || 'BUMDES'
-      : 'BUMDES'
+    const grp = unitUsahaId ? units.find((u) => u.id === unitUsahaId)?.code || 'BUMDES' : 'BUMDES'
     return accounts.filter((a) => (a.group || 'BUMDES') === grp)
   })()
 
@@ -101,9 +87,7 @@ export default function TxFormCard({
   return (
     <Card className="fade-in">
       <CardHeader>
-        <CardTitle className="font-heading text-lg">
-          {editingId ? 'Edit Transaksi' : 'Transaksi Baru'}
-        </CardTitle>
+        <CardTitle className="font-heading text-lg">{editingId ? 'Edit Transaksi' : 'Transaksi Baru'}</CardTitle>
       </CardHeader>
       <form onSubmit={(e) => void handleSubmit((v) => onSubmit(v))(e)}>
         <CardContent className="grid grid-cols-1 gap-4 pt-0 sm:grid-cols-2">
@@ -160,10 +144,7 @@ export default function TxFormCard({
               control={control}
               name="transaction_type"
               render={({ field }) => (
-                <Select
-                  value={field.value || undefined}
-                  onValueChange={onTypeChange}
-                >
+                <Select value={field.value || undefined} onValueChange={onTypeChange}>
                   <SelectTrigger data-testid="tx-type" aria-invalid={Boolean(errors.transaction_type)}>
                     <SelectValue placeholder="— pilih jenis —" />
                   </SelectTrigger>
@@ -181,26 +162,27 @@ export default function TxFormCard({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tx-amount">Nominal (Rp)</Label>
-            <Input
-              id="tx-amount"
-              data-testid="tx-amount"
-              type="number"
-              min="0"
-              step="1"
-              placeholder="100000"
-              aria-invalid={Boolean(errors.amount)}
-              {...register('amount')}
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field }) => (
+                <Input
+                  id="tx-amount"
+                  data-testid="tx-amount"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="100000"
+                  aria-invalid={Boolean(errors.amount)}
+                  {...field}
+                />
+              )}
             />
             {err(errors.amount?.message)}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tx-ref">Nomor Referensi (opsional)</Label>
-            <Input
-              id="tx-ref"
-              data-testid="tx-ref"
-              placeholder="mis. nota-001"
-              {...register('reference')}
-            />
+            <Input id="tx-ref" data-testid="tx-ref" placeholder="mis. nota-001" {...register('reference')} />
           </div>
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="tx-desc">Keterangan</Label>

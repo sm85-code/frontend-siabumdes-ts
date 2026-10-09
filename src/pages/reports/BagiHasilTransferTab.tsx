@@ -155,6 +155,7 @@ export default function BagiHasilTransferTab({ units }: Props) {
             <label className="label">Tahun</label>
             <Input
               type="number"
+              groupDigits={false}
               data-testid="bh-year-input"
               min={2000}
               max={2100}

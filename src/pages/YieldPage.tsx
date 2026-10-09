@@ -1,3 +1,4 @@
+import FormDialog from '@/components/FormDialog'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import YieldPaymentDialog, { PAYMENT_MONTHS } from './YieldPaymentDialog'
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 
 export type YieldPartner = { id: string; name: string; capital: string; yield_amount: string; payments?: Record<string, string>; payment_dates?: Record<string, string | null> }
@@ -45,6 +46,7 @@ export default function YieldPage() {
   const [name, setName] = useState('')
   const [capital, setCapital] = useState('')
   const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState('')
   const paymentTotal = (row: Partner) => {
     const values = Object.values(row.payments ?? {})
     return values.length ? values.reduce((sum, value) => sum + parseMoney(value), 0) : null
@@ -57,6 +59,11 @@ export default function YieldPage() {
       : parseMoney(row[sort.key as 'capital' | 'yield_amount'])
     return (value(a) - value(b)) * (sort.desc ? -1 : 1)
   }).map((row, index) => ({ ...row, no: index + 1 })), [data, sort])
+  const totals = useMemo(() => {
+    const items = data?.items ?? [];
+    const months = MONTHS.map((_, index) => items.reduce((sum, row) => sum + parseMoney(row.payments?.[String(index + 1)] ?? '0'), 0));
+    return { capital: items.reduce((sum, row) => sum + parseMoney(row.capital), 0), yield: items.reduce((sum, row) => sum + parseMoney(row.yield_amount), 0), months, payments: months.reduce((sum, value) => sum + value, 0) };
+  }, [data]);
   const sortable = (key: SortKey, text: string, colSpan?: number, rowSpan?: number) => <TableHead
     colSpan={colSpan} rowSpan={rowSpan} aria-sort={sort.key === key ? sort.desc ? 'descending' : 'ascending' : 'none'}>
     <button type="button" className="inline-flex items-center gap-1 whitespace-nowrap" onClick={() => setSort({ key, desc: sort.key === key ? !sort.desc : false })}>
@@ -64,12 +71,12 @@ export default function YieldPage() {
     </button>
   </TableHead>
   const startEdit = (partner: Partner | null) => {
-    setEditing(partner); setName(partner?.name ?? ''); setCapital(partner?.capital ?? ''); setOpen(true)
+    setFormError(''); setEditing(partner); setName(partner?.name ?? ''); setCapital(partner?.capital ?? ''); setOpen(true)
   }
   const save = async (event: FormEvent) => {
     event.preventDefault()
     if (saving) return
-    setSaving(true)
+    setFormError(''); setSaving(true)
     try {
       const payload = { name: name.trim(), capital }
       if (editing) await api.put(`/imbal-hasil/mitra/${editing.id}`, payload)
@@ -77,7 +84,7 @@ export default function YieldPage() {
       setOpen(false)
       await queryClient.invalidateQueries({ queryKey })
       notify('Data mitra berhasil disimpan')
-    } catch (e) { notify(getApiError(e)) } finally { setSaving(false) }
+    } catch (e) { setFormError(getApiError(e)) } finally { setSaving(false) }
   }
   const remove = async (partner: Partner) => {
     if (!await confirm({ title: 'Hapus mitra?', description: `Hapus ${partner.name}? Jika ada pembayaran, hapus pembayaran melalui rekap terlebih dahulu.`, confirmLabel: 'Hapus', destructive: true })) return
@@ -94,7 +101,7 @@ export default function YieldPage() {
   return <div className="min-w-0 space-y-5">
     <h1 className="font-heading text-3xl font-bold">Imbal Hasil</h1>
     <p className="text-sm text-muted-foreground">Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal; pembayaran bulanan dicatat per tahun melalui tombol pensil di rekap. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui rekap ini.</p>
-    <div className="flex items-center gap-3"><Label htmlFor="yield-year">Tahun</Label><Input id="yield-year" type="number" min="1900" max="9999" className="w-28" value={yearDraft} onChange={e => setYearDraft(e.target.value)} onBlur={() => { const value = Number(yearDraft); if (Number.isInteger(value) && value >= 1900 && value <= 9999) setYear(value); else { notify('Masukkan tahun antara 1900 dan 9999'); setYearDraft(String(year)) } }} /></div>
+    <div className="flex items-center gap-3"><Label htmlFor="yield-year">Tahun</Label><Input id="yield-year" groupDigits={false} type="number" min="1900" max="9999" className="w-28" value={yearDraft} onChange={e => setYearDraft(e.target.value)} onBlur={() => { const value = Number(yearDraft); if (Number.isInteger(value) && value >= 1900 && value <= 9999) setYear(value); else { notify('Masukkan tahun antara 1900 dan 9999'); setYearDraft(String(year)) } }} /></div>
     {error ? <div role="alert" className="space-y-2"><p>{getApiError(error)}</p><Button onClick={() => void refetch()}>Coba lagi</Button></div> : isLoading ? <Spinner label="Memuat mitra..." /> : <>
     {data?.unit_active === false && <p role="status">Unit nonaktif. Data dapat dilihat, tetapi tidak dapat diubah.</p>}
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Imbal Hasil">
@@ -115,6 +122,7 @@ export default function YieldPage() {
             <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(row.capital)}</TableCell><TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(row.yield_amount)}</TableCell>
             <TableCell><div className="flex gap-2"><Button variant="outline" disabled={!writable} onClick={() => startEdit(row)}><Pencil className="size-4" />Ubah</Button><Button variant="outline" disabled={!writable} onClick={() => void remove(row)}><Trash2 className="size-4" />Hapus</Button></div></TableCell>
           </TableRow>)}{!rows.length && <TableRow><TableCell colSpan={5} className="py-8 text-center">Belum ada mitra. Gunakan Tambah Mitra untuk mulai.</TableCell></TableRow>}</TableBody>
+          <tfoot className="border-t bg-muted/50 font-semibold"><TableRow><TableCell colSpan={2}>TOTAL</TableCell><TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(totals.capital)}</TableCell><TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(totals.yield)}</TableCell><TableCell /></TableRow></tfoot>
         </Table></TableShell></Card>
       </section>
       <section hidden={tab !== 'recap'} role="tabpanel" id="yield-panel-recap" aria-labelledby="yield-tab-recap" className="min-w-0 space-y-3">
@@ -123,17 +131,18 @@ export default function YieldPage() {
           <TableHeader><TableRow><TableHead rowSpan={2}>No.</TableHead>{sortable('name', 'Nama Mitra', undefined, 2)}<TableHead rowSpan={2}>Aksi</TableHead><TableHead colSpan={12} className="text-center">Pembayaran Imbal Hasil (3%)</TableHead>{sortable('total', 'Jumlah', undefined, 2)}</TableRow>
           <TableRow>{MONTHS.map((month, i) => <TableHead key={month} aria-sort={sort.key === `month-${i}` ? sort.desc ? 'descending' : 'ascending' : 'none'}><button type="button" className="inline-flex items-center gap-1" onClick={() => setSort({ key: `month-${i}`, desc: sort.key === `month-${i}` ? !sort.desc : false })}>{month}<ArrowUpDown className="size-3" /></button></TableHead>)}</TableRow></TableHeader>
           <TableBody>{rows.map(row => <TableRow key={row.id}><TableCell>{row.no}</TableCell><TableCell>{row.name}</TableCell><TableCell><Button variant="outline" size="icon" aria-label={`Input pembayaran ${row.name}`} disabled={!writable} onClick={() => setPaymentPartner(row)}><Pencil className="size-4" /></Button></TableCell>{MONTHS.map((month, i) => <TableCell key={month} className="text-right whitespace-nowrap tabular-nums">{row.payments?.[String(i + 1)] == null ? '—' : fmtRp(row.payments[String(i + 1)])}</TableCell>)}<TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">{paymentTotal(row) == null ? '—' : fmtRp(paymentTotal(row))}</TableCell></TableRow>)}{!rows.length && <TableRow><TableCell colSpan={16} className="py-8 text-center">Belum ada mitra. Tambahkan melalui tab Data Mitra Usaha.</TableCell></TableRow>}</TableBody>
+          <tfoot className="border-t bg-muted/50 font-semibold"><TableRow><TableCell colSpan={3}>TOTAL</TableCell>{totals.months.map((value, index) => <TableCell key={index} className="text-right whitespace-nowrap tabular-nums">{fmtRp(value)}</TableCell>)}<TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(totals.payments)}</TableCell></TableRow></tfoot>
         </Table></TableShell></Card>
       </section>
     </>}
     {paymentPartner && <YieldPaymentDialog partner={paymentPartner} year={year} onClose={() => setPaymentPartner(null)} onSaved={async () => { await queryClient.invalidateQueries({ queryKey }) }} />}
-    <Dialog open={open} onOpenChange={value => { if (!saving) setOpen(value) }}><DialogContent><DialogHeader><DialogTitle>{editing ? 'Ubah Mitra' : 'Tambah Mitra'}</DialogTitle></DialogHeader>
-      <form onSubmit={save} className="space-y-4">
+    {open && <FormDialog compact title={editing ? 'Ubah Mitra' : 'Tambah Mitra'} error={formError} onClose={() => setOpen(false)}>{({ cancel, run }) => <>
+      <form onSubmit={e => { e.preventDefault(); void run(() => save(e)); }} className="space-y-4">
         <div className="space-y-2"><Label htmlFor="yield-name">Nama Mitra</Label><Input id="yield-name" required maxLength={255} value={name} onChange={e => setName(e.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="yield-capital">Jumlah Penyertaan Modal (Rp)</Label><Input id="yield-capital" type="number" inputMode="decimal" required min="0.01" max="9999999999999999.99" step="0.01" value={capital} onChange={e => setCapital(e.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="yield-amount">Imbal Hasil (3%) — otomatis</Label><Input id="yield-amount" readOnly value={fmtRp(parseMoney(capital) * 0.03)} /></div>
-        <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={() => setOpen(false)}>Batal</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? 'Menyimpan...' : 'Simpan'}</Button></DialogFooter>
+        <DialogFooter><Button type="button" variant="outline" disabled={saving} onClick={cancel}>Batal</Button><Button type="submit" disabled={saving || !name.trim()}>{saving ? 'Menyimpan...' : 'Simpan'}</Button></DialogFooter>
       </form>
-    </DialogContent></Dialog>
+    </>}</FormDialog>}
   </div>
 }

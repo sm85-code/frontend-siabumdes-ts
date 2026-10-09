@@ -1,3 +1,4 @@
+import FormDialog from '@/components/FormDialog'
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -353,122 +354,124 @@ export default function COAPage() {
       </div>
 
       {showAcc && canAdd && (
-        <Card className="fade-in">
-        <CardContent className="pt-6">
-          <h3 className="font-heading text-lg font-semibold mb-4">
-            {editAccCode
-              ? `Edit Kode Akun (${editAccCode}) — ${groupLabel}`
-              : `Kode Akun Baru — ${groupLabel}`}
-          </h3>
-          <form onSubmit={(e) => void accForm.handleSubmit(submitAcc)(e)} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Kode Akun</label>
-              <Input data-testid="acc-code" {...accForm.register("code")} />
-              {accForm.formState.errors.code && (
-                <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.code.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="label">Nama Akun</label>
-              <Input data-testid="acc-name" {...accForm.register("name")} />
-              {accForm.formState.errors.name && (
-                <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.name.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="label">Kategori</label>
-              <Select
-                value={Object.keys(CAT_LABELS).includes(watchedCategory) ? watchedCategory : "__custom__"}
-                onValueChange={(v) => {
-                  if (v === "__custom__") {
-                    accForm.setValue("category", "");
-                    accForm.setValue("subcategory", "");
-                  } else {
-                    onCatChange(v);
-                  }
-                }}
-              >
-                <SelectTrigger data-testid="acc-category"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  <SelectItem value="__custom__">+ Kategori Baru (custom)</SelectItem>
-                </SelectContent>
-              </Select>
-              {!Object.keys(CAT_LABELS).includes(watchedCategory) && (
-                <Input
-                  data-testid="acc-category-custom"
-                  className="mt-2"
-                  placeholder="Ketik nama kategori baru..."
-                  value={watchedCategory}
-                  onChange={(e) => accForm.setValue("category", e.target.value.toLowerCase())}
-                />
-              )}
-            </div>
-            <div>
-              <label className="label">Sub-Kategori</label>
-              <Select
-                value={
-                  ((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).includes(watchedSubcategory)
-                    ? watchedSubcategory
-                    : watchedSubcategory ? "__custom__" : "__none__"
-                }
-                onValueChange={(v) => {
-                  if (v === "__custom__" || v === "__none__") accForm.setValue("subcategory", "");
-                  else accForm.setValue("subcategory", v);
-                }}
-              >
-                <SelectTrigger data-testid="acc-subcategory"><SelectValue placeholder="— pilih —" /></SelectTrigger>
-                <SelectContent>
-                  {((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).map((s) => (
-                    <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
-                  ))}
-                  <SelectItem value="__custom__">+ Sub-Kategori Baru (custom)</SelectItem>
-                </SelectContent>
-              </Select>
-              {(!(SUBCATEGORIES[watchedCategory as AccCategory]) ||
-                !(SUBCATEGORIES[watchedCategory as AccCategory] as readonly string[]).includes(watchedSubcategory)) && (
-                <Input
-                  data-testid="acc-subcategory-custom"
-                  className="mt-2"
-                  placeholder="Ketik nama sub-kategori baru..."
-                  value={watchedSubcategory}
-                  onChange={(e) =>
-                    accForm.setValue(
-                      "subcategory",
-                      e.target.value.toLowerCase().replace(/\s+/g, "_"),
-                    )
-                  }
-                />
-              )}
-            </div>
-            <div>
-              <label className="label">Saldo Normal</label>
-              <Controller
-                control={accForm.control}
-                name="normal_balance"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger data-testid="acc-normal-balance"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="debit">Debit</SelectItem>
-                      <SelectItem value="kredit">Kredit</SelectItem>
-                    </SelectContent>
-                  </Select>
+        <FormDialog title={editAccCode ? 'Ubah Kode Akun' : 'Tambah Kode Akun'} onClose={() => setShowAcc(false)}>{({ cancel, run }) => <>
+          <Card className="fade-in">
+          <CardContent className="pt-6">
+            <h3 className="font-heading text-lg font-semibold mb-4">
+              {editAccCode
+                ? `Edit Kode Akun (${editAccCode}) — ${groupLabel}`
+                : `Kode Akun Baru — ${groupLabel}`}
+            </h3>
+            <form onSubmit={e => void run(() => accForm.handleSubmit(submitAcc)(e))} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Kode Akun</label>
+                <Input data-testid="acc-code" {...accForm.register("code")} />
+                {accForm.formState.errors.code && (
+                  <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.code.message}</p>
                 )}
-              />
-            </div>
-            <p className="sm:col-span-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              Akun ini akan disimpan pada kelompok <b>{group}</b>.
-            </p>
-            {accErr && <div className="sm:col-span-2 text-sm p-3 rounded-lg"
-                            style={{ background: "var(--status-error-bg)", color: "var(--status-error)", border: "1px solid var(--status-error-border)" }}>{accErr}</div>}
-            <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowAcc(false)}>Batal</Button>
-              <Button data-testid="acc-save">Simpan</Button>
-            </div>
-          </form>
-        </CardContent>
-        </Card>
+              </div>
+              <div>
+                <label className="label">Nama Akun</label>
+                <Input data-testid="acc-name" {...accForm.register("name")} />
+                {accForm.formState.errors.name && (
+                  <p className="mt-1 text-xs text-destructive">{accForm.formState.errors.name.message}</p>
+                )}
+              </div>
+              <div>
+                <label className="label">Kategori</label>
+                <Select
+                  value={Object.keys(CAT_LABELS).includes(watchedCategory) ? watchedCategory : "__custom__"}
+                  onValueChange={(v) => {
+                    if (v === "__custom__") {
+                      accForm.setValue("category", "");
+                      accForm.setValue("subcategory", "");
+                    } else {
+                      onCatChange(v);
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="acc-category"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(CAT_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    <SelectItem value="__custom__">+ Kategori Baru (custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!Object.keys(CAT_LABELS).includes(watchedCategory) && (
+                  <Input
+                    data-testid="acc-category-custom"
+                    className="mt-2"
+                    placeholder="Ketik nama kategori baru..."
+                    value={watchedCategory}
+                    onChange={(e) => accForm.setValue("category", e.target.value.toLowerCase())}
+                  />
+                )}
+              </div>
+              <div>
+                <label className="label">Sub-Kategori</label>
+                <Select
+                  value={
+                    ((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).includes(watchedSubcategory)
+                      ? watchedSubcategory
+                      : watchedSubcategory ? "__custom__" : "__none__"
+                  }
+                  onValueChange={(v) => {
+                    if (v === "__custom__" || v === "__none__") accForm.setValue("subcategory", "");
+                    else accForm.setValue("subcategory", v);
+                  }}
+                >
+                  <SelectTrigger data-testid="acc-subcategory"><SelectValue placeholder="— pilih —" /></SelectTrigger>
+                  <SelectContent>
+                    {((SUBCATEGORIES[watchedCategory as AccCategory] || []) as readonly string[]).map((s) => (
+                      <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">+ Sub-Kategori Baru (custom)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(!(SUBCATEGORIES[watchedCategory as AccCategory]) ||
+                  !(SUBCATEGORIES[watchedCategory as AccCategory] as readonly string[]).includes(watchedSubcategory)) && (
+                  <Input
+                    data-testid="acc-subcategory-custom"
+                    className="mt-2"
+                    placeholder="Ketik nama sub-kategori baru..."
+                    value={watchedSubcategory}
+                    onChange={(e) =>
+                      accForm.setValue(
+                        "subcategory",
+                        e.target.value.toLowerCase().replace(/\s+/g, "_"),
+                      )
+                    }
+                  />
+                )}
+              </div>
+              <div>
+                <label className="label">Saldo Normal</label>
+                <Controller
+                  control={accForm.control}
+                  name="normal_balance"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger data-testid="acc-normal-balance"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="debit">Debit</SelectItem>
+                        <SelectItem value="kredit">Kredit</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <p className="sm:col-span-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                Akun ini akan disimpan pada kelompok <b>{group}</b>.
+              </p>
+              {accErr && <div className="sm:col-span-2 text-sm p-3 rounded-lg"
+                              style={{ background: "var(--status-error-bg)", color: "var(--status-error)", border: "1px solid var(--status-error-border)" }}>{accErr}</div>}
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={cancel}>Batal</Button>
+                <Button data-testid="acc-save">Simpan</Button>
+              </div>
+            </form>
+          </CardContent>
+          </Card>
+        </>}</FormDialog>
       )}
 
       <div className="flex gap-2 flex-wrap">
@@ -580,49 +583,51 @@ export default function COAPage() {
       </div>
 
       {showTT && isAdmin && (
-        <Card className="fade-in">
-        <CardContent className="pt-6">
-          <h3 className="font-heading text-lg font-semibold mb-4">
-            {editTTCode
-              ? `Edit Jenis Transaksi (${editTTCode}) — ${groupLabel}`
-              : `Jenis Transaksi Baru — ${groupLabel}`}
-          </h3>
-          <form onSubmit={submitTT} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label className="label">Kode</label>
-              <Input data-testid="tt-code" required
-                     placeholder="mis. penjualan_kios"
-                     value={ttForm.code} onChange={(e) => setTtForm({ ...ttForm, code: e.target.value })} /></div>
-            <div><label className="label">Nama Transaksi</label>
-              <Input data-testid="tt-name" required
-                     value={ttForm.name} onChange={(e) => setTtForm({ ...ttForm, name: e.target.value })} /></div>
-            <div><label className="label">Akun Debit (default)</label>
-              <Select required value={ttForm.debit || "__none__"} onValueChange={(v) => setTtForm({ ...ttForm, debit: v === "__none__" ? "" : v })}>
-                <SelectTrigger data-testid="tt-debit"><SelectValue placeholder={`— pilih akun ${group} —`} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— pilih akun {group} —</SelectItem>
-                  {groupAccounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} - {a.name}</SelectItem>)}
-                </SelectContent>
-              </Select></div>
-            <div><label className="label">Akun Kredit (default)</label>
-              <Select required value={ttForm.credit || "__none__"} onValueChange={(v) => setTtForm({ ...ttForm, credit: v === "__none__" ? "" : v })}>
-                <SelectTrigger data-testid="tt-credit"><SelectValue placeholder={`— pilih akun ${group} —`} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">— pilih akun {group} —</SelectItem>
-                  {groupAccounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} - {a.name}</SelectItem>)}
-                </SelectContent>
-              </Select></div>
-            <p className="sm:col-span-2 text-xs" style={{ color: "var(--text-muted)" }}>
-              Jenis transaksi ini akan disimpan pada kelompok <b>{group}</b>.
-            </p>
-            {ttErr && <div className="sm:col-span-2 text-sm p-3 rounded-lg"
-                           style={{ background: "var(--status-error-bg)", color: "var(--status-error)" }}>{ttErr}</div>}
-            <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowTT(false)}>Batal</Button>
-              <Button data-testid="tt-save">Simpan</Button>
-            </div>
-          </form>
-        </CardContent>
-        </Card>
+        <FormDialog title={editTTCode ? 'Ubah Jenis Transaksi' : 'Tambah Jenis Transaksi'} onClose={() => setShowTT(false)}>{({ cancel, run }) => <>
+          <Card className="fade-in">
+          <CardContent className="pt-6">
+            <h3 className="font-heading text-lg font-semibold mb-4">
+              {editTTCode
+                ? `Edit Jenis Transaksi (${editTTCode}) — ${groupLabel}`
+                : `Jenis Transaksi Baru — ${groupLabel}`}
+            </h3>
+            <form onSubmit={e => { e.preventDefault(); void run(() => submitTT(e)); }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label className="label">Kode</label>
+                <Input data-testid="tt-code" required
+                       placeholder="mis. penjualan_kios"
+                       value={ttForm.code} onChange={(e) => setTtForm({ ...ttForm, code: e.target.value })} /></div>
+              <div><label className="label">Nama Transaksi</label>
+                <Input data-testid="tt-name" required
+                       value={ttForm.name} onChange={(e) => setTtForm({ ...ttForm, name: e.target.value })} /></div>
+              <div><label className="label">Akun Debit (default)</label>
+                <Select required value={ttForm.debit || "__none__"} onValueChange={(v) => setTtForm({ ...ttForm, debit: v === "__none__" ? "" : v })}>
+                  <SelectTrigger data-testid="tt-debit"><SelectValue placeholder={`— pilih akun ${group} —`} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— pilih akun {group} —</SelectItem>
+                    {groupAccounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} - {a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select></div>
+              <div><label className="label">Akun Kredit (default)</label>
+                <Select required value={ttForm.credit || "__none__"} onValueChange={(v) => setTtForm({ ...ttForm, credit: v === "__none__" ? "" : v })}>
+                  <SelectTrigger data-testid="tt-credit"><SelectValue placeholder={`— pilih akun ${group} —`} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— pilih akun {group} —</SelectItem>
+                    {groupAccounts.map(a => <SelectItem key={a.code} value={a.code}>{a.code} - {a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select></div>
+              <p className="sm:col-span-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                Jenis transaksi ini akan disimpan pada kelompok <b>{group}</b>.
+              </p>
+              {ttErr && <div className="sm:col-span-2 text-sm p-3 rounded-lg"
+                             style={{ background: "var(--status-error-bg)", color: "var(--status-error)" }}>{ttErr}</div>}
+              <div className="sm:col-span-2 flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={cancel}>Batal</Button>
+                <Button data-testid="tt-save">Simpan</Button>
+              </div>
+            </form>
+          </CardContent>
+          </Card>
+        </>}</FormDialog>
       )}
 
       <Card className="p-0 overflow-hidden">

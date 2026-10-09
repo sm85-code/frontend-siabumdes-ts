@@ -1,9 +1,16 @@
+import NumericInput from './numeric-input'
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
+function Input({
+  className,
+  type,
+  groupDigits = true,
+  ...props
+}: React.ComponentProps<'input'> & { groupDigits?: boolean }) {
+  const Comp = type === 'number' && groupDigits ? NumericInput : 'input'
   return (
-    <input
+    <Comp
       type={type}
       data-slot="input"
       className={cn(
