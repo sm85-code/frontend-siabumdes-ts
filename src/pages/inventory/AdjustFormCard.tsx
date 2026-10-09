@@ -10,11 +10,7 @@ import {
   PENYESUAIAN_NILAI_PERSEDIAAN_ACCOUNT_CODE,
   PERSEDIAAN_ACCOUNT_CODE,
 } from '@/lib/uu05InventoryCoa'
-import {
-  adjustFormSchema,
-  emptyAdjustForm,
-  type AdjustFormValues,
-} from '@/schemas/inventory'
+import { adjustFormSchema, emptyAdjustForm, type AdjustFormValues } from '@/schemas/inventory'
 import type { InventoryProduct } from '@/types'
 
 interface Props {
@@ -58,7 +54,7 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
 
   return (
     <form
-      onSubmit={(e) => void handleSubmit(submit)(e)}
+      onSubmit={(e) => void handleSubmit(submit)(e).catch(() => {})}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
       <div>
@@ -67,10 +63,7 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
           control={control}
           name="product_id"
           render={({ field }) => (
-            <Select
-              value={field.value || '__none__'}
-              onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}
-            >
+            <Select value={field.value || '__none__'} onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}>
               <SelectTrigger aria-invalid={Boolean(errors.product_id)}>
                 <SelectValue placeholder="— pilih —" />
               </SelectTrigger>
@@ -103,12 +96,12 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
         <label className="label" htmlFor="adj-delta">
           Delta qty (+/-)
         </label>
-        <Input
-          id="adj-delta"
-          type="number"
-          step="1"
-          aria-invalid={Boolean(errors.quantity_delta)}
-          {...register('quantity_delta')}
+        <Controller
+          control={control}
+          name="quantity_delta"
+          render={({ field }) => (
+            <Input id="adj-delta" type="number" step="1" aria-invalid={Boolean(errors.quantity_delta)} {...field} />
+          )}
         />
         {fieldErr(errors.quantity_delta?.message)}
       </div>
@@ -144,12 +137,7 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
                 disabled
                 id="adj-loss-debit-1"
               />
-              <CoaSelect
-                value={PERSEDIAAN_ACCOUNT_CODE}
-                onChange={() => {}}
-                disabled
-                id="adj-loss-credit-1"
-              />
+              <CoaSelect value={PERSEDIAAN_ACCOUNT_CODE} onChange={() => {}} disabled id="adj-loss-credit-1" />
             </div>
           </div>
           <div>
@@ -177,9 +165,7 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
             <Controller
               control={control}
               name="debit_account_code"
-              render={({ field }) => (
-                <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-              )}
+              render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
             />
             {fieldErr(errors.debit_account_code?.message)}
           </div>
@@ -188,9 +174,7 @@ export default function AdjustFormCard({ products, onSubmit }: Props) {
             <Controller
               control={control}
               name="credit_account_code"
-              render={({ field }) => (
-                <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-              )}
+              render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
             />
             {fieldErr(errors.credit_account_code?.message)}
           </div>

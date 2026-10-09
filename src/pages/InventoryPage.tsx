@@ -1,3 +1,4 @@
+import FormDialog from '@/components/FormDialog'
 import { ArrowDown, ArrowUp, BarChart3, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
@@ -106,6 +107,10 @@ export default function Inventory() {
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
+  const [payment, setPayment] = useState<{ kind: "purchase" | "sale"; id: string; outstanding: number } | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentDate, setPaymentDate] = useState(today());
+  const [operation, setOperation] = useState<"stock-in" | "stock-out" | "adjust" | "vendor" | "customer" | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productDefaults, setProductDefaults] = useState<ProductFormValues>(emptyProductForm());
@@ -207,6 +212,7 @@ export default function Inventory() {
   const openCreateProduct = () => {
     setEditingId(null);
     setProductDefaults(emptyProductForm());
+    setError("");
     setShowForm(true);
   };
 
@@ -221,6 +227,7 @@ export default function Inventory() {
       sell_price: String(Number(p.sell_price || 0)),
       opening_qty: "0",
     });
+    setError("");
     setShowForm(true);
   };
 
@@ -348,6 +355,7 @@ export default function Inventory() {
   };
 
   const closeVendorForm = () => {
+    setOperation(null);
     setVendorEditingId(null);
     setVendorDefaults(emptyPartnerFormValues());
   };
@@ -381,6 +389,7 @@ export default function Inventory() {
   };
 
   const closeCustomerForm = () => {
+    setOperation(null);
     setCustomerEditingId(null);
     setCustomerDefaults(emptyPartnerFormValues());
   };
@@ -413,50 +422,39 @@ export default function Inventory() {
     }
   };
 
-  const payPurchase = async (purchase: InventoryPurchase) => {
-    const amountStr = window.prompt(
-      `Jumlah pelunasan utang (sisa ${fmtRp(Number(purchase.outstanding))}):`,
-      String(purchase.outstanding ?? ""),
-    );
-    if (!amountStr) return;
-    try {
-      await api.post(`${BASE}/purchases/pay`, {
-        purchase_id: purchase.id,
-        amount: Number(amountStr),
-        paid_date: today(),
-        debit_account_code: UTANG_ACCOUNT_CODE,
-        credit_account_code: KAS_ACCOUNT_CODE,
-        unit_usaha_id: meta?.unit_usaha_id,
-      });
-      await loadTrade();
-    } catch (err) {
-      setError(formatApiError(err, "Gagal mencatat pelunasan"));
-    }
+  const payPurchase = (purchase: InventoryPurchase) => {
+    setError(""); setPayment({ kind: "purchase", id: purchase.id, outstanding: Number(purchase.outstanding) });
+    setPaymentAmount(String(purchase.outstanding)); setPaymentDate(today());
   };
-
-  const paySale = async (sale: InventorySale) => {
-    const amountStr = window.prompt(
-      `Jumlah pelunasan piutang (sisa ${fmtRp(Number(sale.outstanding))}):`,
-      String(sale.outstanding ?? ""),
-    );
-    if (!amountStr) return;
-    try {
-      await api.post(`${BASE}/sales/pay`, {
-        sale_id: sale.id,
-        amount: Number(amountStr),
-        paid_date: today(),
-        debit_account_code: KAS_ACCOUNT_CODE,
-        credit_account_code: PIUTANG_ACCOUNT_CODE,
-        unit_usaha_id: meta?.unit_usaha_id,
-      });
-      await loadTrade();
-    } catch (err) {
-      setError(formatApiError(err, "Gagal mencatat pelunasan"));
+  const paySale = (sale: InventorySale) => {
+    setError(""); setPayment({ kind: "sale", id: sale.id, outstanding: Number(sale.outstanding) });
+    setPaymentAmount(String(sale.outstanding)); setPaymentDate(today());
+  };
+  const submitPayment = async () => {
+    if (!payment) return;
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > payment.outstanding) {
+      setError("Nominal harus lebih dari Rp 0 dan tidak melebihi sisa tagihan."); return;
     }
+    await api.post(`${BASE}/${payment.kind === "purchase" ? "purchases" : "sales"}/pay`, {
+      [payment.kind === "purchase" ? "purchase_id" : "sale_id"]: payment.id,
+      amount, paid_date: paymentDate,
+      debit_account_code: payment.kind === "purchase" ? UTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE,
+      credit_account_code: payment.kind === "purchase" ? KAS_ACCOUNT_CODE : PIUTANG_ACCOUNT_CODE,
+      unit_usaha_id: meta?.unit_usaha_id,
+    });
+    setPayment(null); await loadTrade();
   };
 
   return (
     <div className="space-y-6 fade-in" data-testid="inventory-page">
+      {payment && <FormDialog compact title={payment.kind === "purchase" ? "Pembayaran Utang" : "Penerimaan Piutang"} error={error} onClose={() => setPayment(null)}>{({ cancel, run }) => <form className="space-y-4" onSubmit={e => { e.preventDefault(); void run(submitPayment).catch(() => {}); }}>
+        <p>Sisa tagihan: {fmtRp(payment.outstanding)}</p>
+        <div><label className="label" htmlFor="payment-amount">Nominal (Rp)</label><Input id="payment-amount" type="number" inputMode="decimal" min="0.01" max={payment.outstanding} step="0.01" required value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} /></div>
+        <div><label className="label" htmlFor="payment-date">Tanggal Pembayaran</label><Input id="payment-date" type="date" required value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
+        <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={cancel}>Batal</Button><Button type="submit">Simpan</Button></div>
+      </form>}</FormDialog>}
+
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">{meta?.unit_code ? `Unit Usaha ${meta.unit_code}` : "Unit Usaha"}</p>
@@ -532,13 +530,15 @@ export default function Inventory() {
           </Card>
 
           {showForm && canWrite && (
-            <ProductFormCard
-              editingId={editingId}
-              defaultValues={productDefaults}
-              categories={categories}
-              onSubmit={submitProduct}
-              onCancel={closeProductForm}
-            />
+            <FormDialog title={editingId ? 'Ubah Produk' : 'Tambah Produk'} onClose={closeProductForm} error={error}>{({ cancel, run }) => <>
+              <ProductFormCard
+                editingId={editingId}
+                defaultValues={productDefaults}
+                categories={categories}
+                onSubmit={v => run(() => submitProduct(v))}
+                onCancel={cancel}
+              />
+            </>}</FormDialog>
           )}
 
           <Card className="p-0 overflow-hidden">
@@ -590,13 +590,11 @@ export default function Inventory() {
           <CardContent className="pt-6">
             <p className="label mb-2">Penerimaan barang (Stock In / Pembelian)</p>
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</p>
-            {canWrite ? (
-              <StockInFormCard
-                products={products}
-                vendors={activeVendors}
-                onSubmit={submitStockIn}
-              />
-            ) : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-in"); } }>Input Penerimaan Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite && operation === "stock-in" && <FormDialog title="Penerimaan Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
+              <StockInFormCard products={products} vendors={activeVendors} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
+              <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
+            </>}</FormDialog>}
           </CardContent>
           </Card>
           <MovementTable rows={movements.filter((m) => m.direction === "in" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
@@ -611,14 +609,11 @@ export default function Inventory() {
             <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
               Centang pemakaian internal untuk beban tanpa jurnal penjualan; tanpa centang = stock out penjualan (HPP + pendapatan, tunai/piutang).
             </p>
-            {canWrite ? (
-              <StockOutFormCard
-                products={products}
-                customers={activeCustomers}
-                onSubmit={submitStockOut}
-                onClientError={setError}
-              />
-            ) : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-out"); } }>Input Pengeluaran Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite && operation === "stock-out" && <FormDialog title="Pengeluaran Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
+              <StockOutFormCard products={products} customers={activeCustomers} onClientError={setError} onSubmit={v => run(async () => { await submitStockOut(v); setOperation(null); })} />
+              <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
+            </>}</FormDialog>}
           </CardContent>
           </Card>
           <MovementTable rows={movements.filter((m) => m.direction === "out" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
@@ -634,9 +629,11 @@ export default function Inventory() {
               Pengurangan stok (delta negatif) menghasilkan 2 transaksi: pengurangan fisik nilai persediaan, lalu pengakuan beban kerugian.
               Penambahan stok (delta positif) tetap 1 jurnal dengan akun kredit/offset pilihan Anda.
             </p>
-            {canWrite ? (
-              <AdjustFormCard products={products} onSubmit={submitAdjust} />
-            ) : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite ? <Button onClick={() => { setError(""); setOperation("adjust"); } }>Input Penyesuaian Stok</Button> : <p className="text-sm">Role Anda read-only.</p>}
+            {canWrite && operation === "adjust" && <FormDialog title="Penyesuaian Stok" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
+              <AdjustFormCard products={products} onSubmit={v => run(async () => { await submitAdjust(v); setOperation(null); })} />
+              <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
+            </>}</FormDialog>}
           </CardContent>
           </Card>
 
@@ -682,14 +679,17 @@ export default function Inventory() {
 
       {tab === "vendor" && (
         <div className="space-y-4">
-          {canWrite && (
-            <PartnerFormCard
-              kind="vendor"
-              editingId={vendorEditingId}
-              defaultValues={vendorDefaults}
-              onSubmit={submitVendor}
-              onCancel={closeVendorForm}
-            />
+          {canWrite && <Button onClick={() => { setError(""); setOperation("vendor"); } }>Tambah Pemasok</Button>}
+          {canWrite && operation === "vendor" && (
+            <FormDialog title={vendorEditingId ? 'Ubah Pemasok' : 'Tambah Pemasok'} onClose={closeVendorForm} error={error}>{({ cancel, run }) => <>
+              <PartnerFormCard
+                kind="vendor"
+                editingId={vendorEditingId}
+                defaultValues={vendorDefaults}
+                onSubmit={v => run(() => submitVendor(v))}
+                onCancel={cancel}
+              />
+            </>}</FormDialog>
           )}
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
@@ -706,7 +706,7 @@ export default function Inventory() {
                       <TableCell><Badge variant={v.is_active ? "default" : "outline"}>{v.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setVendorEditingId(v.id); setVendorDefaults({ name: v.name, contact: v.contact || "", address: v.address || "" }); }}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("vendor"); setVendorEditingId(v.id); setVendorDefaults({ name: v.name, contact: v.contact || "", address: v.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleVendorActive(v)}>{v.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}
@@ -721,14 +721,17 @@ export default function Inventory() {
 
       {tab === "customer" && (
         <div className="space-y-4">
-          {canWrite && (
-            <PartnerFormCard
-              kind="customer"
-              editingId={customerEditingId}
-              defaultValues={customerDefaults}
-              onSubmit={submitCustomer}
-              onCancel={closeCustomerForm}
-            />
+          {canWrite && <Button onClick={() => { setError(""); setOperation("customer"); } }>Tambah Pelanggan</Button>}
+          {canWrite && operation === "customer" && (
+            <FormDialog title={customerEditingId ? 'Ubah Pelanggan' : 'Tambah Pelanggan'} onClose={closeCustomerForm} error={error}>{({ cancel, run }) => <>
+              <PartnerFormCard
+                kind="customer"
+                editingId={customerEditingId}
+                defaultValues={customerDefaults}
+                onSubmit={v => run(() => submitCustomer(v))}
+                onCancel={cancel}
+              />
+            </>}</FormDialog>
           )}
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
@@ -745,7 +748,7 @@ export default function Inventory() {
                       <TableCell><Badge variant={c.is_active ? "default" : "outline"}>{c.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setCustomerEditingId(c.id); setCustomerDefaults({ name: c.name, contact: c.contact || "", address: c.address || "" }); }}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("customer"); setCustomerEditingId(c.id); setCustomerDefaults({ name: c.name, contact: c.contact || "", address: c.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleCustomerActive(c)}>{c.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}

@@ -1,3 +1,4 @@
+import FormDialog from '@/components/FormDialog'
 import {
   Download,
   FileSpreadsheet,
@@ -94,6 +95,7 @@ export default function TransactionsPage() {
   const types = typesQ.data ?? []
   const accounts = accountsQ.data ?? []
 
+  const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
@@ -209,6 +211,7 @@ export default function TransactionsPage() {
     }
     if (isPengelola) initialUnit = user?.unit_usaha_id || ''
     setFormDefaults({ ...emptyTxForm(), unit_usaha_id: initialUnit })
+    setFormError('')
     setShowForm(true)
   }
 
@@ -224,10 +227,12 @@ export default function TransactionsPage() {
       credit_account_code: tx.credit_account_code || '',
       reference: tx.reference || '',
     })
+    setFormError('')
     setShowForm(true)
   }
 
   const submit = async (values: TransactionFormValues, addAnother = false) => {
+    setFormError('')
     try {
       const body = {
         date: values.date,
@@ -253,7 +258,7 @@ export default function TransactionsPage() {
       invalidate()
       notifySuccess(editingId ? 'Transaksi berhasil diperbarui.' : 'Transaksi berhasil disimpan.')
     } catch (er) {
-      notifyError(getApiError(er, 'Gagal menyimpan'))
+      setFormError(getApiError(er, 'Gagal menyimpan'))
     }
   }
 
@@ -546,21 +551,20 @@ export default function TransactionsPage() {
       )}
 
       {showForm && canWrite && user && (
-        <TxFormCard
-          key={editingId ?? `create-${formKey}`}
-          editingId={editingId}
-          defaultValues={formDefaults}
-          units={units}
-          types={types}
-          accounts={accounts}
-          user={user}
-          isPengelola={isPengelola}
-          onSubmit={(v, again) => void submit(v, again)}
-          onCancel={() => {
-            setShowForm(false)
-            setEditingId(null)
-          }}
-        />
+        <FormDialog key={editingId ?? `create-${formKey}`} title={editingId ? 'Ubah Transaksi' : 'Tambah Transaksi'} onClose={() => { setShowForm(false); setEditingId(null); setFormError('') }} error={formError}>{({ cancel, run }) => <>
+          <TxFormCard
+            key={editingId ?? `create-${formKey}`}
+            editingId={editingId}
+            defaultValues={formDefaults}
+            units={units}
+            types={types}
+            accounts={accounts}
+            user={user}
+            isPengelola={isPengelola}
+            onSubmit={(v, again) => run(() => submit(v, again))}
+            onCancel={cancel}
+          />
+        </>}</FormDialog>
       )}
 
       <Card data-testid="tx-filters">

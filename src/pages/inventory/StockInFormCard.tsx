@@ -4,11 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CoaSelect, KAS_ACCOUNT_CODE, UTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
-import {
-  emptyStockInForm,
-  stockInFormSchema,
-  type StockInFormValues,
-} from '@/schemas/inventory'
+import { emptyStockInForm, stockInFormSchema, type StockInFormValues } from '@/schemas/inventory'
 import type { InventoryPartner, InventoryProduct } from '@/types'
 
 interface Props {
@@ -52,7 +48,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
 
   return (
     <form
-      onSubmit={(e) => void handleSubmit(submit)(e)}
+      onSubmit={(e) => void handleSubmit(submit)(e).catch(() => {})}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
       <div>
@@ -94,10 +90,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
           control={control}
           name="vendor_id"
           render={({ field }) => (
-            <Select
-              value={field.value || '__none__'}
-              onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}
-            >
+            <Select value={field.value || '__none__'} onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}>
               <SelectTrigger aria-invalid={Boolean(errors.vendor_id)}>
                 <SelectValue placeholder="— pilih mitra pemasok —" />
               </SelectTrigger>
@@ -123,12 +116,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         <label className="label" htmlFor="si-date">
           Tanggal
         </label>
-        <Input
-          id="si-date"
-          type="date"
-          aria-invalid={Boolean(errors.movement_date)}
-          {...register('movement_date')}
-        />
+        <Input id="si-date" type="date" aria-invalid={Boolean(errors.movement_date)} {...register('movement_date')} />
         {fieldErr(errors.movement_date?.message)}
       </div>
       <div>
@@ -141,13 +129,12 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         <label className="label" htmlFor="si-qty">
           Qty masuk
         </label>
-        <Input
-          id="si-qty"
-          type="number"
-          min="1"
-          step="1"
-          aria-invalid={Boolean(errors.quantity)}
-          {...register('quantity')}
+        <Controller
+          control={control}
+          name="quantity"
+          render={({ field }) => (
+            <Input id="si-qty" type="number" min="1" step="1" aria-invalid={Boolean(errors.quantity)} {...field} />
+          )}
         />
         {fieldErr(errors.quantity?.message)}
       </div>
@@ -155,13 +142,12 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         <label className="label" htmlFor="si-cost">
           HPP / unit (Rp)
         </label>
-        <Input
-          id="si-cost"
-          type="number"
-          min="0"
-          step="1"
-          aria-invalid={Boolean(errors.unit_cost)}
-          {...register('unit_cost')}
+        <Controller
+          control={control}
+          name="unit_cost"
+          render={({ field }) => (
+            <Input id="si-cost" type="number" min="0" step="1" aria-invalid={Boolean(errors.unit_cost)} {...field} />
+          )}
         />
         {fieldErr(errors.unit_cost?.message)}
       </div>
@@ -175,11 +161,9 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
               value={field.value}
               onValueChange={(method) => {
                 field.onChange(method)
-                setValue(
-                  'credit_account_code',
-                  method === 'credit' ? UTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE,
-                  { shouldValidate: true },
-                )
+                setValue('credit_account_code', method === 'credit' ? UTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE, {
+                  shouldValidate: true,
+                })
               }}
             >
               <SelectTrigger>
@@ -199,12 +183,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
           <label className="label" htmlFor="si-due">
             Jatuh tempo
           </label>
-          <Input
-            id="si-due"
-            type="date"
-            aria-invalid={Boolean(errors.due_date)}
-            {...register('due_date')}
-          />
+          <Input id="si-due" type="date" aria-invalid={Boolean(errors.due_date)} {...register('due_date')} />
           {fieldErr(errors.due_date?.message)}
         </div>
       )}
@@ -213,22 +192,16 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         <Controller
           control={control}
           name="debit_account_code"
-          render={({ field }) => (
-            <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-          )}
+          render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
         />
         {fieldErr(errors.debit_account_code?.message)}
       </div>
       <div>
-        <label className="label">
-          Akun kredit ({paymentMethod === 'credit' ? 'Utang Usaha' : 'Kas/Bank'})
-        </label>
+        <label className="label">Akun kredit ({paymentMethod === 'credit' ? 'Utang Usaha' : 'Kas/Bank'})</label>
         <Controller
           control={control}
           name="credit_account_code"
-          render={({ field }) => (
-            <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-          )}
+          render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
         />
         {fieldErr(errors.credit_account_code?.message)}
       </div>

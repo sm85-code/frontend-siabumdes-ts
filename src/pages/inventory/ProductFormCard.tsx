@@ -5,11 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import {
-  emptyProductForm,
-  productFormSchema,
-  type ProductFormValues,
-} from '@/schemas/inventory'
+import { emptyProductForm, productFormSchema, type ProductFormValues } from '@/schemas/inventory'
 import type { InventoryCategory } from '@/types'
 
 interface Props {
@@ -28,13 +24,7 @@ function fieldErr(msg?: string) {
   ) : null
 }
 
-export default function ProductFormCard({
-  editingId,
-  defaultValues,
-  categories,
-  onSubmit,
-  onCancel,
-}: Props) {
+export default function ProductFormCard({ editingId, defaultValues, categories, onSubmit, onCancel }: Props) {
   const {
     register,
     control,
@@ -62,12 +52,7 @@ export default function ProductFormCard({
             <label className="label" htmlFor="inv-sku">
               SKU
             </label>
-            <Input
-              id="inv-sku"
-              disabled={!!editingId}
-              aria-invalid={Boolean(errors.sku)}
-              {...register('sku')}
-            />
+            <Input id="inv-sku" disabled={!!editingId} aria-invalid={Boolean(errors.sku)} {...register('sku')} />
             {fieldErr(errors.sku?.message)}
           </div>
           <div>
@@ -107,24 +92,26 @@ export default function ProductFormCard({
             <label className="label" htmlFor="inv-uom">
               Satuan
             </label>
-            <Input
-              id="inv-uom"
-              aria-invalid={Boolean(errors.unit_of_measure)}
-              {...register('unit_of_measure')}
-            />
+            <Input id="inv-uom" aria-invalid={Boolean(errors.unit_of_measure)} {...register('unit_of_measure')} />
             {fieldErr(errors.unit_of_measure?.message)}
           </div>
           <div>
             <label className="label" htmlFor="inv-cost">
               Harga pokok (Rp)
             </label>
-            <Input
-              id="inv-cost"
-              type="number"
-              min="0"
-              step="1"
-              aria-invalid={Boolean(errors.cost_price)}
-              {...register('cost_price')}
+            <Controller
+              control={control}
+              name="cost_price"
+              render={({ field }) => (
+                <Input
+                  id="inv-cost"
+                  type="number"
+                  min="0"
+                  step="1"
+                  aria-invalid={Boolean(errors.cost_price)}
+                  {...field}
+                />
+              )}
             />
             {fieldErr(errors.cost_price?.message)}
           </div>
@@ -132,13 +119,19 @@ export default function ProductFormCard({
             <label className="label" htmlFor="inv-sell">
               Harga jual (Rp)
             </label>
-            <Input
-              id="inv-sell"
-              type="number"
-              min="0"
-              step="1"
-              aria-invalid={Boolean(errors.sell_price)}
-              {...register('sell_price')}
+            <Controller
+              control={control}
+              name="sell_price"
+              render={({ field }) => (
+                <Input
+                  id="inv-sell"
+                  type="number"
+                  min="0"
+                  step="1"
+                  aria-invalid={Boolean(errors.sell_price)}
+                  {...field}
+                />
+              )}
             />
             {fieldErr(errors.sell_price?.message)}
           </div>
@@ -147,13 +140,19 @@ export default function ProductFormCard({
               <label className="label" htmlFor="inv-opening">
                 Qty awal
               </label>
-              <Input
-                id="inv-opening"
-                type="number"
-                min="0"
-                step="1"
-                aria-invalid={Boolean(errors.opening_qty)}
-                {...register('opening_qty')}
+              <Controller
+                control={control}
+                name="opening_qty"
+                render={({ field }) => (
+                  <Input
+                    id="inv-opening"
+                    type="number"
+                    min="0"
+                    step="1"
+                    aria-invalid={Boolean(errors.opening_qty)}
+                    {...field}
+                  />
+                )}
               />
               {fieldErr(errors.opening_qty?.message)}
             </div>

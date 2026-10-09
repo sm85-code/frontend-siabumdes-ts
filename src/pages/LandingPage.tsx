@@ -84,23 +84,23 @@ export default function LandingPage() {
   return (
     <div className="auth-bg min-h-screen" data-testid="landing-page">
       <WallpaperLayer />
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 pt-6">
-        <div className="flex items-center gap-3">
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 pt-6">
+        <div className="flex min-w-0 items-center gap-3">
           <img
             src="/logo-transparent.png"
             alt="Logo BUMDes"
             data-testid="landing-logo"
-            className="h-11 w-11 object-contain"
+            className="h-11 w-11 shrink-0 object-contain"
           />
-          <div className="leading-tight">
+          <div className="min-w-0 leading-tight">
             <div className="font-heading text-[1.05rem] font-semibold tracking-tight">BUMDes Karya Raharja</div>
             <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               Desa Wonoharjo - Kec. Pangandaran
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <AppearancePopover triggerClassName="text-sm gap-2" align="end" />
+        <div className="flex shrink-0 items-center gap-2">
+          <AppearancePopover iconOnly triggerClassName="shrink-0" align="end" />
           <Button asChild variant="outline" className="text-sm">
             <Link to="/login" data-testid="landing-login-top">
               Masuk <ArrowRight size={14} />

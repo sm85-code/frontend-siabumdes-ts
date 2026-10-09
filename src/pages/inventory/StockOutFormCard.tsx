@@ -5,11 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { fmtRp } from '@/api/client'
-import {
-  CoaSelect,
-  KAS_ACCOUNT_CODE,
-  PIUTANG_ACCOUNT_CODE,
-} from '@/lib/uu05InventoryCoa'
+import { CoaSelect, KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
 import {
   emptyStockOutForm,
   stockOutFormSchema,
@@ -67,9 +63,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
   const submit = async (values: StockOutFormValues) => {
     const product = products.find((p) => p.id === values.product_id)
     if (product && Number(values.quantity) > Number(product.qty_on_hand)) {
-      onClientError(
-        `Qty keluar (${values.quantity}) melebihi stok tersedia (${product.qty_on_hand}).`,
-      )
+      onClientError(`Qty keluar (${values.quantity}) melebihi stok tersedia (${product.qty_on_hand}).`)
       return
     }
     await onSubmit(values)
@@ -78,7 +72,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
 
   return (
     <form
-      onSubmit={(e) => void handleSubmit(submit)(e)}
+      onSubmit={(e) => void handleSubmit(submit)(e).catch(() => {})}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
       <label
@@ -174,25 +168,19 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <label className="label" htmlFor="so-date">
           Tanggal
         </label>
-        <Input
-          id="so-date"
-          type="date"
-          aria-invalid={Boolean(errors.movement_date)}
-          {...register('movement_date')}
-        />
+        <Input id="so-date" type="date" aria-invalid={Boolean(errors.movement_date)} {...register('movement_date')} />
         {fieldErr(errors.movement_date?.message)}
       </div>
       <div>
         <label className="label" htmlFor="so-qty">
           Qty keluar
         </label>
-        <Input
-          id="so-qty"
-          type="number"
-          min="1"
-          step="1"
-          aria-invalid={Boolean(errors.quantity)}
-          {...register('quantity')}
+        <Controller
+          control={control}
+          name="quantity"
+          render={({ field }) => (
+            <Input id="so-qty" type="number" min="1" step="1" aria-invalid={Boolean(errors.quantity)} {...field} />
+          )}
         />
         {fieldErr(errors.quantity?.message)}
       </div>
@@ -201,11 +189,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
           <label className="label" htmlFor="so-note">
             Catatan (opsional)
           </label>
-          <Input
-            id="so-note"
-            placeholder="mis. dipakai untuk operasional kantor"
-            {...register('note')}
-          />
+          <Input id="so-note" placeholder="mis. dipakai untuk operasional kantor" {...register('note')} />
         </div>
       ) : (
         <>
@@ -219,13 +203,19 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
             <label className="label" htmlFor="so-sell">
               Harga jual / unit (Rp)
             </label>
-            <Input
-              id="so-sell"
-              type="number"
-              min="0"
-              step="1"
-              aria-invalid={Boolean(errors.sell_price)}
-              {...register('sell_price')}
+            <Controller
+              control={control}
+              name="sell_price"
+              render={({ field }) => (
+                <Input
+                  id="so-sell"
+                  type="number"
+                  min="0"
+                  step="1"
+                  aria-invalid={Boolean(errors.sell_price)}
+                  {...field}
+                />
+              )}
             />
             {fieldErr(errors.sell_price?.message)}
           </div>
@@ -263,12 +253,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
               <label className="label" htmlFor="so-due">
                 Jatuh tempo
               </label>
-              <Input
-                id="so-due"
-                type="date"
-                aria-invalid={Boolean(errors.due_date)}
-                {...register('due_date')}
-              />
+              <Input id="so-due" type="date" aria-invalid={Boolean(errors.due_date)} {...register('due_date')} />
               {fieldErr(errors.due_date?.message)}
             </div>
           )}
@@ -279,9 +264,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <Controller
           control={control}
           name="debit_account_code"
-          render={({ field }) => (
-            <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-          )}
+          render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
         />
         {fieldErr(errors.debit_account_code?.message)}
       </div>
@@ -290,9 +273,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <Controller
           control={control}
           name="credit_account_code"
-          render={({ field }) => (
-            <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-          )}
+          render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
         />
         {fieldErr(errors.credit_account_code?.message)}
       </div>
@@ -305,9 +286,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
             <Controller
               control={control}
               name="revenue_debit_account_code"
-              render={({ field }) => (
-                <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-              )}
+              render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
             />
             {fieldErr(errors.revenue_debit_account_code?.message)}
           </div>
@@ -316,9 +295,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
             <Controller
               control={control}
               name="revenue_credit_account_code"
-              render={({ field }) => (
-                <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />
-              )}
+              render={({ field }) => <CoaSelect value={field.value} onChange={(e) => field.onChange(e.target.value)} />}
             />
             {fieldErr(errors.revenue_credit_account_code?.message)}
           </div>
