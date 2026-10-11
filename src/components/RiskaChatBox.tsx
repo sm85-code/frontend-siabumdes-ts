@@ -34,6 +34,11 @@ const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
+  return user ? <RiskaSessionChat key={`${user.id}:${user.role}:${user.unit_usaha_id || ''}`} /> : null
+}
+
+function RiskaSessionChat() {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const messageInput = useRef<HTMLInputElement>(null)
@@ -76,46 +81,69 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
-  const [unitId, setUnitId] = useState('')
+  const [unitLoadError, setUnitLoadError] = useState(false)
+  const [unitId, setUnitId] = useState(user?.role === 'pengelola' ? user.unit_usaha_id || '' : '')
   const [message, setMessage] = useState('')
   const [entries, setEntries] = useState<Entry[]>([])
   const [busy, setBusy] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [pendingDraft, setPendingDraft] = useState<string | null>(null)
   useEffect(() => {
-    setEnabled(false)
-    setOpen(false)
-    setFinishPrompt(false)
-    assignmentSession.current = null
-    setMessage('')
-    setEntries([])
-    setPendingDraft(null)
-    setConversationId(null)
-    setBusy(false)
     let live = true
-    let initial = true
+    let loading = false
+    let unitsLoadedAt = 0
+    let visibilityRequest: AbortController | null = null
     async function load() {
+      if (!live || loading || document.visibilityState === 'hidden') return
+      loading = true
+      const controller = new AbortController()
+      visibilityRequest = controller
       try {
-        const { data } = await api.get<{ enabled: boolean; session_id: string | null }>('/riska/availability')
-        if (!live || !data.enabled) { if (live) { activeRequest.current?.abort(); activeRequest.current = null; setBusy(false); setOpen(false); setEnabled(false) }; return }
+        const { data } = await api.get<{ enabled: boolean; session_id: string | null }>('/riska/availability', { signal: controller.signal })
+        if (!live) return
+        if (!data.enabled) {
+          activeRequest.current?.abort(); activeRequest.current = null
+          setBusy(false); setOpen(false); setEnabled(false)
+          return
+        }
         if (assignmentSession.current !== data.session_id) {
           activeRequest.current?.abort(); activeRequest.current = null
           assignmentSession.current = data.session_id
+          unitsLoadedAt = 0
           setBusy(false); setEntries([]); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
         }
-        const result = await api.get<Unit[]>('/riska/units')
-        if (live) {
-          if (initial) { setEntries([]); setPendingDraft(null); initial = false }
-          setUnits(result.data)
-          setUnitId(previous => user?.role === 'pengelola' ? result.data[0]?.id || '' : result.data.some(u => u.id === previous) ? previous : '')
-          setEnabled(true)
+        // Permission decides visibility. Unit metadata is supplementary, not an access gate.
+        setEnabled(true)
+        if (Date.now() - unitsLoadedAt >= 30_000) {
+          try {
+            const result = await api.get<Unit[]>('/riska/units', { signal: controller.signal })
+            if (!live) return
+            unitsLoadedAt = Date.now()
+            setUnitLoadError(false)
+            setUnits(result.data)
+            setUnitId(previous => user?.role === 'pengelola' ? user.unit_usaha_id || '' : result.data.some(u => u.id === previous) ? previous : '')
+          } catch (error) {
+            if (!live || controller.signal.aborted) return
+            const status = (error as { response?: { status?: number } }).response?.status
+            if (status === 401 || status === 403) { setEnabled(false); setOpen(false) }
+            else setUnitLoadError(true)
+          }
         }
-      } catch { if (live) setEnabled(false) }
+      } catch { if (live && !controller.signal.aborted) setEnabled(false) }
+      finally { loading = false; if (visibilityRequest === controller) visibilityRequest = null }
     }
+    function refreshWhenVisible() { if (document.visibilityState === 'visible') void load() }
     void load()
-    const timer = window.setInterval(() => void load(), 30_000)
-    return () => { live = false; window.clearInterval(timer); activeRequest.current?.abort(); activeRequest.current = null }
-  }, [user?.id, user?.role])
+    const timer = window.setInterval(() => void load(), 5_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      live = false; window.clearInterval(timer)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      visibilityRequest?.abort(); activeRequest.current?.abort(); activeRequest.current = null
+    }
+  }, [user?.id, user?.role, user?.unit_usaha_id])
   useEffect(() => {
     if (!open || !enabled || !window.matchMedia('(max-width: 767px)').matches) return
     const previous = document.body.style.overflow
@@ -221,10 +249,12 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         <p>Ketik “stok” atau “mitra” untuk melihat daftar. Format lama dengan tanda = tetap bisa dipakai.</p>
         <p>Admin dapat menugaskan “aktifkan dirimu di pengelola 4” atau “nonaktifkan Riska untuk [username]”, kemudian mengonfirmasi. Admin juga dapat bertanya “laba rugi unit UU05 dan unit UU06 September 2026”, atau menjalankan “kunci periode bulan ini”. Periksa entitas, periode, nominal, serta pasangan jurnal sebelum menekan Ya, Eksekusi.</p>
       </details>
+      {unitLoadError && <p role="status" className="shrink-0 text-xs text-amber-700">Daftar entitas belum berhasil dimuat. Riska akan mencoba lagi; izin Anda tetap diperiksa oleh sistem.</p>}
       <label className="my-2 shrink-0 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
           onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
+          {user?.role === 'pengelola' && !units.some(u => u.id === unitId) && <option value={unitId}>Unit usaha Anda</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       </label>
