@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import api from '@/api/client'
 import { useAuth } from '@/lib/auth'
 
@@ -36,11 +37,17 @@ export default function RiskaChatBox() {
     const timer = window.setInterval(() => void load(), 30_000)
     return () => { live = false; window.clearInterval(timer) }
   }, [user?.id, user?.role])
+  useEffect(() => {
+    if (!open || !enabled || !window.matchMedia('(max-width: 639px)').matches) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [open, enabled])
   if (!enabled) return null
-  async function send() {
-    if (!message.trim() || busy) return
-    const text = message.trim()
-    setMessage('')
+  async function sendMessage(shortcut?: string) {
+    const text = (shortcut ?? message).trim()
+    if (!text || busy || pendingDraft) return
+    if (!shortcut) setMessage('')
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
@@ -68,11 +75,16 @@ export default function RiskaChatBox() {
       setEntries(old => [...old, { role: 'riska', message: response?.data?.detail || 'Eksekusi belum terkonfirmasi. Periksa halaman transaksi sebelum mencoba lagi.' }])
     } finally { setBusy(false) }
   }
-  return <aside className="fixed bottom-20 right-4 z-50 max-w-[calc(100vw-2rem)] sm:bottom-4" aria-label="Asisten Riska">
-    {open && <section className="mb-2 flex w-96 max-w-full flex-col rounded-xl border bg-background p-3 shadow-xl">
-      <h2 className="font-semibold">💻 Riska (SIABUMDES)</h2>
+  return createPortal(<aside className={open
+    ? 'fixed inset-0 z-50 h-dvh w-full bg-white sm:inset-auto sm:bottom-4 sm:right-4 sm:h-auto sm:w-96 sm:bg-transparent'
+    : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label="Asisten Riska">
+    {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 sm:h-[min(40rem,calc(100dvh-2rem))] sm:rounded-xl sm:border sm:bg-background sm:text-foreground sm:shadow-xl">
+      <header className="flex shrink-0 items-center justify-between gap-2 pb-2">
+        <h2 className="font-semibold">💻 Riska (SIABUMDES)</h2>
+        <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-semibold" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
+      </header>
       <p className="text-xs text-muted-foreground">Saldo kas dan laba rugi bulan berjalan. Pembukuan per entitas.</p>
-      {user?.role === 'pengelola' && <details className="text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
+      {user?.role === 'pengelola' && <details className="max-h-32 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
         <p>Untuk melihat keuangan, boleh bertanya dengan beberapa cara:</p>
         <p>cek saldo kas</p>
         <p>berapa total pendapatan bulan ini?</p>
@@ -89,14 +101,14 @@ export default function RiskaChatBox() {
         <p>rusak produk=SKU qty=1 tanggal=2026-10-11</p>
         <p>qty berarti jumlah barang. harga berarti harga satu barang. Periksa draf sebelum memilih “Ya, Eksekusi Sekarang”; jika belum benar, pilih “Batal”.</p>
       </details>}
-      <label className="my-2 text-sm">Entitas
+      <label className="my-2 shrink-0 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
           onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       </label>
-      <div className="max-h-80 space-y-2 overflow-auto" role="log" aria-live="polite">
+      <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" role="log" aria-live="polite">
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
           {entry.role === 'riska' && <strong className="block">💻 Riska (SIABUMDES)</strong>}
           <p>{entry.message}</p>
@@ -116,14 +128,23 @@ export default function RiskaChatBox() {
           </table></div>}
         </div>)}
       </div>
-      <form className="mt-3 flex gap-2" onSubmit={e => { e.preventDefault(); void send() }}>
-        <input aria-label="Pesan untuk Riska" className="min-w-0 flex-1 rounded border bg-background p-2" maxLength={1000}
+      <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto pb-2" aria-label="Pintasan Riska">
+        {[
+          { label: '📊 Cek Laba Rugi', command: 'cek laba rugi' },
+          { label: '💰 Cek Saldo Kas', command: 'cek saldo kas' },
+          { label: '🏢 Performa Unit Usaha', command: 'performa' },
+        ].map(shortcut => <button type="button" key={shortcut.command}
+          className="min-h-11 shrink-0 whitespace-nowrap rounded-full border bg-gray-100 px-3 text-sm text-gray-900 disabled:opacity-40"
+          disabled={busy || !!pendingDraft} onClick={() => void sendMessage(shortcut.command)}>{shortcut.label}</button>)}
+      </div>
+      <form className="flex shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]" onSubmit={e => { e.preventDefault(); void sendMessage() }}>
+        <input aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" maxLength={1000}
           value={message} onChange={e => setMessage(e.target.value)} disabled={busy || !!pendingDraft} />
         <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !!pendingDraft || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
       </form>
     </section>}
-    <button className="float-right rounded-full bg-blue-600 px-4 py-3 text-white shadow-lg" aria-expanded={open} onClick={() => setOpen(!open)}>
-      {open ? 'Tutup Riska' : '💻 Riska'}
-    </button>
-  </aside>
+    {!open && <button className="float-right rounded-full bg-blue-600 px-4 py-3 text-white shadow-lg" aria-expanded={open} onClick={() => setOpen(!open)}>
+      💻 Riska
+    </button>}
+  </aside>, document.body)
 }
