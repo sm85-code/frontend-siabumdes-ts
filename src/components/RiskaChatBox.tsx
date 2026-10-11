@@ -7,6 +7,8 @@ type Reply = { message: string; rows?: Record<string, string | number>[]; money_
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string }
 
+const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
+
 export default function RiskaChatBox() {
   const { user } = useAuth()
   const [enabled, setEnabled] = useState(false)
@@ -77,10 +79,10 @@ export default function RiskaChatBox() {
   }
   return createPortal(<aside className={open
     ? 'fixed inset-0 z-50 h-dvh w-full bg-white sm:inset-auto sm:bottom-4 sm:right-4 sm:h-auto sm:w-96 sm:bg-transparent'
-    : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label="Asisten Riska">
+    : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label={RISKA_NAME}>
     {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 sm:h-[min(40rem,calc(100dvh-2rem))] sm:rounded-xl sm:border sm:bg-background sm:text-foreground sm:shadow-xl">
       <header className="flex shrink-0 items-center justify-between gap-2 pb-2">
-        <h2 className="font-semibold">💻 Riska (SIABUMDES)</h2>
+        <h2 className="font-semibold">{RISKA_NAME}</h2>
         <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-semibold" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
       </header>
       <p className="text-xs text-muted-foreground">Saldo kas dan laba rugi bulan berjalan. Pembukuan per entitas.</p>
@@ -109,8 +111,12 @@ export default function RiskaChatBox() {
         </select>
       </label>
       <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" role="log" aria-live="polite">
+        <div className="mr-4 rounded-lg bg-gray-100 p-2 text-sm text-gray-900">
+          <strong className="block">{RISKA_NAME}</strong>
+          <p>Salam hangat dari Pak Saepul! Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya siap membantu melihat keuangan dan mencatat transaksi sesuai izin unit Anda.</p>
+        </div>
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
-          {entry.role === 'riska' && <strong className="block">💻 Riska (SIABUMDES)</strong>}
+          {entry.role === 'riska' && <strong className="block">{RISKA_NAME}</strong>}
           <p>{entry.message}</p>
           {entry.preview?.details && <p>{Object.entries(entry.preview.details).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>}
           {entry.preview && <p>{entry.preview.unit} · {entry.preview.operation} · {entry.preview.item} · {entry.preview.tanggal}</p>}
@@ -144,7 +150,7 @@ export default function RiskaChatBox() {
       </form>
     </section>}
     {!open && <button className="float-right rounded-full bg-blue-600 px-4 py-3 text-white shadow-lg" aria-expanded={open} onClick={() => setOpen(!open)}>
-      💻 Riska
+      {RISKA_NAME}
     </button>}
   </aside>, document.body)
 }
