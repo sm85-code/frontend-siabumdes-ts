@@ -6,7 +6,7 @@ import api from '@/api/client'
 import RiskaTypedReply from '@/components/RiskaTypedReply'
 import { useAuth } from '@/lib/auth'
 
-type Reply = { message: string; choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
+type Reply = { message: string; ai?: { model: string; provider: string };  choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string; business_type?: string }
 
@@ -55,6 +55,7 @@ function RiskaSessionChat() {
   const userName = user?.name?.trim() || user?.username?.trim() || 'Pengguna'
   const isRiska = /\briska\b/i.test(userName) || /^riska$/i.test(user?.username?.trim() || '')
   const greetingName = isRiska ? 'Riska' : userName
+  const roleLabel = ({ pengelola: 'Pengelola Unit Usaha', bendahara: 'Bendahara', direktur: 'Direktur', pengawas: 'Pengawas', penasihat: 'Penasihat' } as Record<string, string>)[user?.role || ''] || 'pengguna SIABUMDES'
   const reportOptions = `• 📊 Total pendapatan dan laba rugi bulan berjalan
 • 💰 Posisi saldo kas operasional dan bank pada entitas terpilih
 • 🏢 Performa dan profitabilitas unit yang dipilih sesuai izin akses`
@@ -70,14 +71,14 @@ Berikut adalah data yang bisa saya tampilkan untuk Anda sekarang:
 Logika laporan keuangan atau instruksi data mana yang ingin Anda jalankan hari ini?`
     : isRiska
       ? `Halo, Kak Riska! Selamat datang di SIABUMDES. 👩‍💼✨
-Wah, nama kita sama ya! Saya Riska versi Asisten Keuangan digital yang didesain oleh Pak Saepul untuk membantu mempermudah pekerjaan Kakak dalam memantau keuangan dan mencatat transaksi sesuai izin akses yang ada.
+Wah, nama kita sama ya! Saya Riska versi Asisten Keuangan digital yang didesain oleh Pa Saepul untuk membantu mempermudah pekerjaan Kakak sebagai ${roleLabel}, sesuai izin akses yang ada.
 
 Beberapa hal cepat yang bisa saya bantu periksa hari ini:
 ${reportOptions}
 
 Ada data keuangan yang ingin Kak Riska tampilkan sekarang?`
       : `Halo, Kak ${greetingName}! Selamat datang di SIABUMDES. 👩‍💼😊
-Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya didesain langsung oleh Pak Saepul untuk stand-by di sini guna membantu mempermudah pekerjaan Kakak dalam memantau keuangan dan mencatat transaksi sesuai izin akses yang ada.
+Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya didesain langsung oleh Pa Saepul untuk mendampingi dan membantu mempermudah pekerjaan Kakak sebagai ${roleLabel}. Saya siap membantu memeriksa laporan dan menyiapkan pencatatan sesuai izin Kakak.
 
 Beberapa hal cepat yang bisa saya bantu periksa hari ini:
 ${reportOptions}
@@ -91,6 +92,9 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [unitLoadError, setUnitLoadError] = useState(false)
   const [unitId, setUnitId] = useState(user?.role === 'pengelola' ? user.unit_usaha_id || '' : '')
   const [message, setMessage] = useState('')
+  const [aiModels, setAiModels] = useState<Record<string, { available: boolean; model: string }>>({})
+  const [aiMode, setAiMode] = useState<'auto' | 'internal' | 'sol' | 'sonnet'>('auto')
+  const [showCommands, setShowCommands] = useState(false)
   const [entries, setEntries] = useState<Entry[]>([])
   const [busy, setBusy] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -106,7 +110,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       const controller = new AbortController()
       visibilityRequest = controller
       try {
-        const { data } = await api.get<{ enabled: boolean; session_id: string | null }>('/riska/availability', { signal: controller.signal })
+        const { data } = await api.get<{ enabled: boolean; session_id: string | null; ai_models?: Record<string, { available: boolean; model: string }> }>('/riska/availability', { signal: controller.signal })
         if (!live) return
         if (!data.enabled) {
           activeRequest.current?.abort(); activeRequest.current = null
@@ -120,6 +124,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           setBusy(false); setEntries([]); setCompletedReplies(new Set()); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
         }
         // Permission decides visibility. Unit metadata is supplementary, not an access gate.
+        setAiModels(data.ai_models || {})
         setEnabled(true)
         if (Date.now() - unitsLoadedAt >= 30_000) {
           try {
@@ -185,7 +190,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, session_id: assignmentSession.current }, { signal: controller.signal })
+      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, session_id: assignmentSession.current, ai_mode: aiMode }, { signal: controller.signal })
       if (controller.signal.aborted) return
       if (data.session_ended) { setOpen(false); setEnabled(false); return }
       setConversationId(data.conversation_id || null)
@@ -197,7 +202,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
       if (status === 409) setConversationId(null)
       if (status === 403 && typeof detail === 'string' && /Penugasan|tidak aktif/.test(detail)) setEnabled(false)
-      setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Permintaan tidak dapat diproses. Periksa format, akses, COA, dan stok.' }])
+      setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Maaf, saya belum berhasil memproses permintaan ini. Boleh coba lagi? Jika masih terkendala, kita periksa data dan izin aksesnya bersama.' }])
     } finally {
       if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
     }
@@ -243,14 +248,14 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     }
   }
   return createPortal(<aside className={open
-    ? 'fixed inset-0 z-50 bg-white md:inset-auto md:bottom-4 md:right-4 md:w-96 md:bg-transparent'
+    ? 'fixed inset-0 z-50 bg-white md:inset-auto md:bottom-4 md:right-4 md:w-[min(36rem,calc(100vw-2rem))] md:bg-transparent'
     : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label={RISKA_NAME}>
-    {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 md:h-[min(40rem,calc(100dvh-2rem))] md:rounded-xl md:border md:bg-background md:text-foreground md:shadow-xl">
-      <header className="flex shrink-0 items-center justify-between gap-2 pb-2">
-        <h2 className="font-semibold">{RISKA_NAME}</h2>
+    {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 md:h-[min(40rem,calc(100dvh-2rem))] md:rounded-2xl md:border md:bg-background md:text-foreground md:shadow-2xl">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b pb-3">
+        <div><h2 className="font-semibold">{RISKA_NAME}</h2><p className="mt-1 text-xs text-muted-foreground">Teman kerja keuangan Anda · sesuai hak akses</p></div>
         <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-semibold" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
       </header>
-      <p className="text-xs text-muted-foreground">Laporan dan transaksi sesuai hak akses. Pembukuan tetap per entitas.</p>
+      <div className="mt-3 flex shrink-0 items-center justify-between gap-2"><label className="text-xs text-muted-foreground">Bantuan <select aria-label="Mode bantuan Riska" className="ml-2 rounded-lg border bg-background p-2 text-foreground" value={aiMode} onChange={e => setAiMode(e.target.value as typeof aiMode)} disabled={busy || !!pendingDraft || !!conversationId}><option value="auto">Otomatis · internal dulu</option><option value="internal">Internal · tanpa token AI</option><option value="sol" disabled={!aiModels.sol?.available}>Sol · {aiModels.sol?.model || 'belum tersedia'}</option><option value="sonnet" disabled={!aiModels.sonnet?.available}>Sonnet · {aiModels.sonnet?.model || 'belum tersedia'}</option></select></label><button type="button" className="min-h-11 rounded-lg border px-3 text-xs" onClick={() => setShowCommands(v => !v)}>{showCommands ? 'Tutup menu' : 'Menu bantuan'}</button></div>
       <details className="max-h-28 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
         <p>Admin dapat meminta lihat/tambah/ubah/hapus transaksi, akun, pengguna, unit, produk, mitra, atau pembayaran imbal hasil. Contoh: “ubah produk Daster Arab Jumbo”. Riska menanyakan bagian dan nilai baru satu per satu. “Hapus unit” berarti menonaktifkan dengan tetap menjaga riwayat. Stok awal produk baru adalah nol; gunakan barang masuk untuk mencatat stok dan jurnalnya.</p>
         <p>Pilih entitas, lalu tulis seperti berbicara. Riska akan menanyakan data yang belum lengkap, tanpa menebak harga atau tanggal.</p>
@@ -269,12 +274,12 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         </select>
       </label>
       <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" ref={chatLog} role="log" aria-live="polite" aria-busy={busy}>
-        <div className="mr-4 rounded-lg bg-gray-100 p-2 text-sm text-gray-900">
+        <div className="mb-3 rounded-2xl border bg-slate-50 p-4 text-sm leading-relaxed text-slate-800">
           <strong className="block">{RISKA_NAME}</strong>
           <p className="whitespace-pre-line">{welcomeMessage}</p>
         </div>
-        {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
-          {entry.role === 'riska' && <strong className="block">{RISKA_NAME}</strong>}
+        {entries.map((entry, i) => <div key={i} className={`text-sm ${entry.role === 'user' ? 'ml-12 rounded-2xl bg-blue-600 px-4 py-3 text-white' : 'mr-2 rounded-2xl border bg-slate-50 px-4 py-3 leading-relaxed text-slate-800'}`}>
+          {entry.role === 'riska' && <strong className="mb-2 block text-xs text-slate-500">{RISKA_NAME}{entry.ai ? ` · ${entry.ai.model}` : ' · Internal'}</strong>}
           {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p>{isAdmin ? 'Berikut data yang Anda minta. ✨' : `Berikut datanya ya, Kak ${greetingName}. 😊`}</p>}
           {entry.role === 'user' ? <p className="whitespace-pre-wrap">{entry.message}</p> : <RiskaTypedReply
             message={entry.message} animate={!completedReplies.has(entry)} onProgress={followTyping}
@@ -299,12 +304,12 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
               {(['amount', 'saldo', ...(entry.money_columns || [])].includes(k) && Number.isFinite(Number(v))) ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(v)) : String(v)}
             </td>)}</tr>)}</tbody>
           </table></div>}
-          {entry.rows !== undefined && !entry.draft_id && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
+          {entry.rows !== undefined && !entry.draft_id && !/ada hal lain/i.test(entry.message) && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
           </RiskaTypedReply>}
         </div>)}
-        {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Riska sedang memproses...</p>}
+        {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Sebentar ya, Riska sedang memeriksa permintaan Anda…</p>}
       </div>
-      {!pendingDraft && !conversationId && <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto landscape:max-h-16 md:max-h-36" aria-label="Command List Riska">
+      {showCommands && !pendingDraft && !conversationId && <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto landscape:max-h-16 md:max-h-36" aria-label="Command List Riska">
         {(['read', 'admin', 'manage', 'local'] as const).map(category => {
           const commands = visibleCommands.filter(command => command.category === category)
           if (!commands.length) return null
@@ -332,7 +337,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         </div> : <button type="button" className="min-h-11 rounded border px-3" disabled={busy} onClick={() => setFinishPrompt(true)}>Akhiri sesi bantuan</button>}
       </div>}
       <form className="flex shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]" onSubmit={e => { e.preventDefault(); void sendMessage() }}>
-        <input ref={messageInput} aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" placeholder={conversationId ? "Jawab pertanyaan Riska…" : "Tulis perintah atau pertanyaan…"} maxLength={1000}
+        <input ref={messageInput} aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" placeholder={conversationId ? "Silakan jawab, saya bantu melengkapi…" : "Ceritakan pekerjaan yang ingin dibantu…"} maxLength={1000}
           value={message} onChange={e => setMessage(e.target.value)} disabled={busy || !!pendingDraft} />
         <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !!pendingDraft || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
       </form>

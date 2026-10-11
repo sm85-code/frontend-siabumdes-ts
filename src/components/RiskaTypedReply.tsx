@@ -44,7 +44,7 @@ export default function RiskaTypedReply({ message, animate, onProgress, onComple
 
   return <div aria-busy={!complete}>
     <p className="whitespace-pre-wrap" aria-hidden="true">
-      {characters.slice(0, visible).join('')}
+      {characters.slice(0, visible).join('').split(/(\*\*[^*]+\*\*)/g).map((part, index) => part.startsWith('**') && part.endsWith('**') ? <strong key={index}>{part.slice(2, -2)}</strong> : part)}
       {!complete && <span className="ml-0.5 inline-block animate-pulse" aria-hidden="true">▍</span>}
     </p>
     <p className="sr-only">{message}</p>
