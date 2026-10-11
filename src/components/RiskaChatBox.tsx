@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '@/api/client'
 import { useAuth } from '@/lib/auth'
 
-type Reply = { message: string; rows?: Record<string, string | number>[] }
+type Reply = { message: string; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string }
 
@@ -15,16 +15,17 @@ export default function RiskaChatBox() {
   const [message, setMessage] = useState('')
   const [entries, setEntries] = useState<Entry[]>([])
   const [busy, setBusy] = useState(false)
+  const [pendingDraft, setPendingDraft] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    setEnabled(false)
-    setEntries([])
+    let initial = true
     async function load() {
       try {
         const { data } = await api.get<{ enabled: boolean }>('/riska/availability')
         if (!live || !data.enabled) { if (live) setEnabled(false); return }
         const result = await api.get<Unit[]>('/riska/units')
         if (live) {
+          if (initial) { setEntries([]); setPendingDraft(null); initial = false }
           setUnits(result.data)
           setUnitId(previous => user?.role === 'pengelola' ? result.data[0]?.id || '' : result.data.some(u => u.id === previous) ? previous : '')
           setEnabled(true)
@@ -43,21 +44,44 @@ export default function RiskaChatBox() {
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null })
-      setEntries(old => [...old, { role: 'riska', ...data }])
+      const { data } = await api.post<Reply>(/^(imbal|masuk|keluar|rusak)\s/i.test(text) ? '/riska/drafts' : '/riska/chat', { message: text, unit_usaha_id: unitId || null })
+      if (data.draft_id) setPendingDraft(data.draft_id)
+      setEntries(old => [...old, { role: 'riska', ...data, rows: data.preview?.rows || data.rows }])
     } catch (error) {
       const status = (error as { response?: { status?: number } }).response?.status
       if (status === 403) setEnabled(false)
-      setEntries(old => [...old, { role: 'riska', message: 'Permintaan tidak dapat diproses. Periksa akses dan coba lagi.' }])
+      const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Permintaan tidak dapat diproses. Periksa format, akses, COA, dan stok.' }])
+    } finally { setBusy(false) }
+  }
+  async function confirm(draftId: string, execute: boolean) {
+    if (busy || pendingDraft !== draftId) return
+    setBusy(true)
+    try {
+      const { data } = execute ? await api.post<Reply>(`/riska/drafts/${draftId}/execute`) : await api.delete<Reply>(`/riska/drafts/${draftId}`)
+      setPendingDraft(null)
+      setEntries(old => [...old, { role: 'riska', ...data }])
+    } catch (error) {
+      const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
+      if (response?.status === 403) setEnabled(false)
+      if (response?.status === 409) setPendingDraft(null)
+      setEntries(old => [...old, { role: 'riska', message: response?.data?.detail || 'Eksekusi belum terkonfirmasi. Periksa halaman transaksi sebelum mencoba lagi.' }])
     } finally { setBusy(false) }
   }
   return <aside className="fixed bottom-20 right-4 z-50 max-w-[calc(100vw-2rem)] sm:bottom-4" aria-label="Asisten Riska">
     {open && <section className="mb-2 flex w-96 max-w-full flex-col rounded-xl border bg-background p-3 shadow-xl">
       <h2 className="font-semibold">💻 Riska (SIABUMDES)</h2>
       <p className="text-xs text-muted-foreground">Saldo kas dan laba rugi bulan berjalan. Pembukuan per entitas.</p>
+      {user?.role === 'pengelola' && <details className="text-xs"><summary>Format input operasional</summary>
+        <p>Stock in/out memakai pembayaran tunai. Lihat “mitra” atau “stok” untuk ID/SKU. Gunakan tanggal YYYY-MM-DD dan nominal tanpa pemisah ribuan.</p>
+        <p>imbal mitra=ID tanggal=2026-10-11 bulan=10 tahun=2026 nominal=100</p>
+        <p>masuk produk=SKU qty=1 harga=100 pemasok=ID tanggal=2026-10-11</p>
+        <p>keluar produk=SKU qty=1 harga=150 customer=ID tanggal=2026-10-11</p>
+        <p>rusak produk=SKU qty=1 tanggal=2026-10-11</p>
+      </details>}
       <label className="my-2 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
-          onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || user?.role === 'pengelola'}>
+          onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
@@ -66,18 +90,26 @@ export default function RiskaChatBox() {
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
           {entry.role === 'riska' && <strong className="block">💻 Riska (SIABUMDES)</strong>}
           <p>{entry.message}</p>
+          {entry.preview?.details && <p>{Object.entries(entry.preview.details).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>}
+          {entry.preview && <p>{entry.preview.unit} · {entry.preview.operation} · {entry.preview.item} · {entry.preview.tanggal}</p>}
+          {entry.valuation && <p className="font-bold">Valuasi: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(entry.valuation))}</p>}
+          {entry.parties && Object.entries(entry.parties).map(([kind, parties]) => <details key={kind}><summary>{kind}</summary>{parties.map(p => <p key={p.id}>{p.name}: {p.id}</p>)}</details>)}
+          {entry.draft_id && <div className="mt-2 flex flex-wrap gap-2">
+            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded bg-blue-600 p-2 text-white disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, true)}>Ya, Eksekusi Sekarang</button>
+            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded border p-2 disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, false)}>Batal</button>
+          </div>}
           {!!entry.rows?.length && <div className="overflow-auto"><table className="mt-2 w-full border-collapse">
             <thead><tr>{Object.keys(entry.rows[0]).map(k => <th className="border p-1 text-left" key={k}>{k}</th>)}</tr></thead>
-            <tbody>{entry.rows.map((row, j) => <tr key={j}>{Object.entries(row).map(([k, v]) => <td className="border p-1" key={k}>
-              {['amount', 'saldo'].includes(k) ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(v)) : String(v)}
+            <tbody>{entry.rows.map((row, j) => <tr key={j} className={row.Status === 'Kritis' ? 'bg-red-100 font-semibold text-red-800' : ''}>{Object.entries(row).map(([k, v]) => <td className="border p-1" key={k}>
+              {(['amount', 'saldo', ...(entry.money_columns || [])].includes(k) && Number.isFinite(Number(v))) ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(v)) : String(v)}
             </td>)}</tr>)}</tbody>
           </table></div>}
         </div>)}
       </div>
       <form className="mt-3 flex gap-2" onSubmit={e => { e.preventDefault(); void send() }}>
         <input aria-label="Pesan untuk Riska" className="min-w-0 flex-1 rounded border bg-background p-2" maxLength={1000}
-          value={message} onChange={e => setMessage(e.target.value)} disabled={busy} />
-        <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
+          value={message} onChange={e => setMessage(e.target.value)} disabled={busy || !!pendingDraft} />
+        <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !!pendingDraft || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
       </form>
     </section>}
     <button className="float-right rounded-full bg-blue-600 px-4 py-3 text-white shadow-lg" aria-expanded={open} onClick={() => setOpen(!open)}>

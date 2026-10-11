@@ -39,6 +39,7 @@ export interface NavItem {
 export const BOTTOM_NAV_PATHS = ['/dashboard', '/ledger', '/reports', '/transactions'] as const
 
 export const NAV: NavItem[] = [
+  { to: "/riska-permissions", label: "Izin Riska", icon: Users, roles: ["admin"] },
   { to: '/dashboard', label: 'Dashboard', icon: Home, roles: READ_MOST },
   { to: '/accounts', label: 'Kode Akun (COA)', icon: Library, roles: ROLES_COA },
   { to: '/transactions', label: 'Transaksi', icon: Receipt, roles: READ_MOST },
