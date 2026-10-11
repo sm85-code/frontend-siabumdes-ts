@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { createPortal } from 'react-dom'
 import api from '@/api/client'
 import { useAuth } from '@/lib/auth'
@@ -11,6 +12,9 @@ const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const activeRequest = useRef<AbortController | null>(null)
+  const chatLog = useRef<HTMLDivElement>(null)
   const isAdmin = user?.role === 'admin'
   const userName = user?.name?.trim() || user?.username?.trim() || 'Pengguna'
   const isRiska = /\briska\b/i.test(userName) || /^riska$/i.test(user?.username?.trim() || '')
@@ -52,6 +56,11 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [busy, setBusy] = useState(false)
   const [pendingDraft, setPendingDraft] = useState<string | null>(null)
   useEffect(() => {
+    setEnabled(false)
+    setMessage('')
+    setEntries([])
+    setPendingDraft(null)
+    setBusy(false)
     let live = true
     let initial = true
     async function load() {
@@ -69,7 +78,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     }
     void load()
     const timer = window.setInterval(() => void load(), 30_000)
-    return () => { live = false; window.clearInterval(timer) }
+    return () => { live = false; window.clearInterval(timer); activeRequest.current?.abort(); activeRequest.current = null }
   }, [user?.id, user?.role])
   useEffect(() => {
     if (!open || !enabled || !window.matchMedia('(max-width: 767px)').matches) return
@@ -77,37 +86,57 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
   }, [open, enabled])
+  useEffect(() => {
+    chatLog.current?.scrollTo({ top: chatLog.current.scrollHeight })
+  }, [entries, busy, open])
   if (!enabled) return null
   async function sendMessage(shortcut?: string) {
     const text = (shortcut ?? message).trim()
-    if (!text || busy || pendingDraft) return
+    if (!text || busy || pendingDraft || activeRequest.current) return
+    const controller = new AbortController()
+    activeRequest.current = controller
     if (!shortcut) setMessage('')
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>(/^(imbal|masuk|keluar|rusak)\s/i.test(text) ? '/riska/drafts' : '/riska/chat', { message: text, unit_usaha_id: unitId || null })
+      const { data } = await api.post<Reply>(/^(imbal|masuk|keluar|rusak)\s/i.test(text) ? '/riska/drafts' : '/riska/chat', { message: text, unit_usaha_id: unitId || null, user_role: user?.role }, { signal: controller.signal })
+      if (controller.signal.aborted) return
       if (data.draft_id) setPendingDraft(data.draft_id)
       setEntries(old => [...old, { role: 'riska', ...data, rows: data.preview?.rows || data.rows }])
     } catch (error) {
+      if (controller.signal.aborted) return
       const status = (error as { response?: { status?: number } }).response?.status
       if (status === 403) setEnabled(false)
       const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
       setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Permintaan tidak dapat diproses. Periksa format, akses, COA, dan stok.' }])
-    } finally { setBusy(false) }
+    } finally {
+      if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
+    }
   }
   async function confirm(draftId: string, execute: boolean) {
-    if (busy || pendingDraft !== draftId) return
+    if (busy || pendingDraft !== draftId || activeRequest.current) return
+    const controller = new AbortController()
+    activeRequest.current = controller
     setBusy(true)
     try {
-      const { data } = execute ? await api.post<Reply>(`/riska/drafts/${draftId}/execute`) : await api.delete<Reply>(`/riska/drafts/${draftId}`)
+      const { data } = execute ? await api.post<Reply>(`/riska/drafts/${draftId}/execute`, undefined, { signal: controller.signal }) : await api.delete<Reply>(`/riska/drafts/${draftId}`, { signal: controller.signal })
+      if (execute) {
+        void queryClient.invalidateQueries({ queryKey: ['reports'] })
+        void queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        void queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      }
+      if (controller.signal.aborted) return
       setPendingDraft(null)
       setEntries(old => [...old, { role: 'riska', ...data }])
     } catch (error) {
+      if (controller.signal.aborted) return
       const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
       if (response?.status === 403) setEnabled(false)
       if (response?.status === 409) setPendingDraft(null)
       setEntries(old => [...old, { role: 'riska', message: response?.data?.detail || 'Eksekusi belum terkonfirmasi. Periksa halaman transaksi sebelum mencoba lagi.' }])
-    } finally { setBusy(false) }
+    } finally {
+      if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
+    }
   }
   return createPortal(<aside className={open
     ? 'fixed inset-0 z-50 bg-white md:inset-auto md:bottom-4 md:right-4 md:w-96 md:bg-transparent'
@@ -142,7 +171,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       </label>
-      <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" role="log" aria-live="polite">
+      <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" ref={chatLog} role="log" aria-live="polite" aria-busy={busy}>
         <div className="mr-4 rounded-lg bg-gray-100 p-2 text-sm text-gray-900">
           <strong className="block">{RISKA_NAME}</strong>
           <p className="whitespace-pre-line">{welcomeMessage}</p>
@@ -167,6 +196,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           </table></div>}
           {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
         </div>)}
+        {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Riska sedang memproses...</p>}
       </div>
       <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto pb-2" aria-label="Pintasan Riska">
         {[
