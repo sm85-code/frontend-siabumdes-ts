@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import AppearancePopover from '@/components/AppearancePopover'
 import BottomNav from '@/components/BottomNav'
+import RiskaChatBox from '@/components/RiskaChatBox'
 import WallpaperLayer from '@/components/WallpaperLayer'
 import { Button } from '@/components/ui/button'
 import { NAV, BOTTOM_NAV_PATHS, filterNavForUser } from '@/config/nav'
@@ -157,6 +158,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="fade-in mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
 
+      <RiskaChatBox />
       <BottomNav items={bottomItems} onOpenMore={() => setOpen(true)} moreActive={moreActive} />
     </div>
   )

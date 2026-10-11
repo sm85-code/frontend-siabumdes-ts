@@ -2,23 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/client'
 import { Switch } from '@/components/ui/switch'
 
-type Permission = { unit_usaha_id: string; code: string; name: string; active: boolean; is_allowed: boolean }
-const key = ['riska-permissions']
+type Assignment = { user_id: string; name: string; username: string; role: string; unit: string; active: boolean; unit_active: boolean; is_allowed: boolean }
+const key = ['riska-assignments']
 
 export default function RiskaPermissionsPage() {
   const client = useQueryClient()
-  const { data, isPending, error } = useQuery({ queryKey: key, queryFn: async () => (await api.get<Permission[]>('/v1/admin/riska-permissions')).data })
-  const mutation = useMutation({ mutationFn: async (body: { unit_usaha_id: string; is_allowed: boolean }) => api.patch('/v1/admin/riska-permissions', body),
+  const { data, isPending, error } = useQuery({ queryKey: key, queryFn: async () => (await api.get<Assignment[]>('/v1/admin/riska-assignments')).data })
+  const mutation = useMutation({ mutationFn: async (body: { user_id: string; is_allowed: boolean }) => api.patch('/v1/admin/riska-assignments', body),
     onSuccess: () => client.invalidateQueries({ queryKey: key }) })
   return <section className="space-y-4">
-    <h1 className="text-2xl font-bold">Izin Asisten Riska</h1>
-    <p>Izin berlaku untuk seluruh pengelola pada unit. Unit nonaktif tetap tidak dapat memakai Riska.</p>
+    <h1 className="text-2xl font-bold">Penugasan Asisten Riska</h1>
+    <p>Pilih pengguna yang membutuhkan bantuan. Riska hanya memakai hak akses pengguna tersebut. Setelah pengguna mengakhiri sesi, Riska menghilang sampai ditugaskan kembali.</p>
     {(error || mutation.error) && <p role="alert">Perubahan tidak berhasil. Periksa koneksi dan hak akses.</p>}
-    {isPending && <p>Memuat izin…</p>}
-    {data?.map(row => <div key={row.unit_usaha_id} className="flex items-center justify-between rounded border p-4">
-      <span>{row.code} — {row.name}{!row.active && ' (Nonaktif)'}</span>
-      <Switch aria-label={`Izin Riska ${row.name}`} checked={row.is_allowed} disabled={mutation.isPending}
-        onCheckedChange={is_allowed => mutation.mutate({ unit_usaha_id: row.unit_usaha_id, is_allowed })} />
+    {isPending && <p>Memuat penugasan…</p>}
+    {data?.map(row => <div key={row.user_id} className="flex items-center justify-between gap-3 rounded border p-4">
+      <div className="min-w-0"><p className="font-semibold break-words">{row.name}</p>
+        <p className="break-words text-sm">{row.username} · {row.role} · {row.unit}</p>
+        {(!row.active || !row.unit_active) && <p className="text-sm text-red-700">Pengguna atau unit nonaktif</p>}
+      </div>
+      <Switch aria-label={`Bantuan Riska ${row.name}`} checked={row.is_allowed} disabled={mutation.isPending || (!row.is_allowed && (!row.active || !row.unit_active))}
+        onCheckedChange={is_allowed => mutation.mutate({ user_id: row.user_id, is_allowed })} />
     </div>)}
   </section>
 }
