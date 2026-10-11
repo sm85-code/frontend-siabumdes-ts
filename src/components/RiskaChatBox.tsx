@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import api from '@/api/client'
+import RiskaTypedReply from '@/components/RiskaTypedReply'
 import { useAuth } from '@/lib/auth'
 
-type Reply = { message: string; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
+type Reply = { message: string; choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string; business_type?: string }
 
 type Command = {
-  id: string; label: string; category: 'read' | 'admin' | 'local'
+  id: string; label: string; category: 'read' | 'admin' | 'manage' | 'local'
   message?: string; path?: string; template?: string; unitCodes?: string[]; businessTypes?: string[]
 }
 const COMMANDS: Command[] = [
@@ -21,7 +22,8 @@ const COMMANDS: Command[] = [
   { id: 'close', label: '📕 Tutup Buku', category: 'admin', message: 'tutup buku bulan ini' },
   { id: 'lock', label: '🔒 Kunci Periode', category: 'admin', message: 'kunci periode bulan ini' },
   { id: 'transfer', label: '💸 Transfer Bagi Hasil', category: 'admin', message: 'transfer bagi hasil bulan ini' },
-  { id: 'transaction', label: '➕ Buka Form Transaksi', category: 'admin', path: '/transactions' },
+  { id: 'transaction', label: '➕ Input Transaksi', category: 'admin', message: 'tambah transaksi' },
+  ...(['transaksi', 'akun', 'pengguna', 'unit', 'produk', 'mitra', 'pembayaran'] as const).flatMap(resource => (['lihat', 'tambah', 'ubah', 'hapus'] as const).map(action => ({ id: `${action}-${resource}`, label: `${action === 'lihat' ? '📋' : action === 'tambah' ? '➕' : action === 'ubah' ? '✏️' : '🗑️'} ${action[0].toUpperCase() + action.slice(1)} ${resource}`, category: 'manage' as const, message: `${action} ${resource}` }))),
   { id: 'journal', label: '📖 Buka Buku Besar', category: 'admin', path: '/ledger' },
   { id: 'permissions', label: '🔐 Penugasan Pengguna', category: 'admin', path: '/riska-permissions' },
   { id: 'yield', label: '🤝 Input Imbal Hasil', category: 'local', unitCodes: ['UU04'], message: 'catat setoran imbal hasil' },
@@ -38,12 +40,17 @@ export default function RiskaChatBox() {
 }
 
 function RiskaSessionChat() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const messageInput = useRef<HTMLInputElement>(null)
   const activeRequest = useRef<AbortController | null>(null)
   const chatLog = useRef<HTMLDivElement>(null)
+  const [completedReplies, setCompletedReplies] = useState(() => new Set<Entry>())
+  const followTyping = useCallback(() => {
+    const log = chatLog.current
+    if (log && log.scrollHeight - log.scrollTop - log.clientHeight < 100) log.scrollTo({ top: log.scrollHeight })
+  }, [])
   const isAdmin = user?.role === 'admin'
   const userName = user?.name?.trim() || user?.username?.trim() || 'Pengguna'
   const isRiska = /\briska\b/i.test(userName) || /^riska$/i.test(user?.username?.trim() || '')
@@ -110,7 +117,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           activeRequest.current?.abort(); activeRequest.current = null
           assignmentSession.current = data.session_id
           unitsLoadedAt = 0
-          setBusy(false); setEntries([]); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
+          setBusy(false); setEntries([]); setCompletedReplies(new Set()); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
         }
         // Permission decides visibility. Unit metadata is supplementary, not an access gate.
         setEnabled(true)
@@ -208,6 +215,8 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       if (controller.signal.aborted) return
       setPendingDraft(null)
       setEntries(old => [...old, { role: 'riska', ...data }])
+      if (data.session_ended) { setEnabled(false); setOpen(false) }
+      if (data.auth_refresh_required) void refreshUser().catch(() => setEntries(previous => [...previous, { role: 'riska', message: 'Perubahan akun sudah tersimpan. Muat ulang halaman untuk menyegarkan profil dan hak akses tampilan.' }]))
     } catch (error) {
       if (controller.signal.aborted) return
       const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
@@ -243,6 +252,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       </header>
       <p className="text-xs text-muted-foreground">Laporan dan transaksi sesuai hak akses. Pembukuan tetap per entitas.</p>
       <details className="max-h-28 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
+        <p>Admin dapat meminta lihat/tambah/ubah/hapus transaksi, akun, pengguna, unit, produk, mitra, atau pembayaran imbal hasil. Contoh: “ubah produk Daster Arab Jumbo”. Riska menanyakan bagian dan nilai baru satu per satu. “Hapus unit” berarti menonaktifkan dengan tetap menjaga riwayat. Stok awal produk baru adalah nol; gunakan barang masuk untuk mencatat stok dan jurnalnya.</p>
         <p>Pilih entitas, lalu tulis seperti berbicara. Riska akan menanyakan data yang belum lengkap, tanpa menebak harga atau tanggal.</p>
         <p>Contoh: Riska, input barang masuk buat SKU-012 sebanyak 5 pcs harga 20 ribu dari pemasok "Toko Makmur" hari ini.</p>
         <p>Nama produk atau mitra boleh dipakai jika sesuai data terdaftar. Jika ada nama sama, Riska meminta ID/SKU yang tepat. Harga barang masuk/keluar berarti harga per barang dan pembayaran tunai.</p>
@@ -252,7 +262,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       {unitLoadError && <p role="status" className="shrink-0 text-xs text-amber-700">Daftar entitas belum berhasil dimuat. Riska akan mencoba lagi; izin Anda tetap diperiksa oleh sistem.</p>}
       <label className="my-2 shrink-0 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
-          onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
+          onChange={e => { setUnitId(e.target.value); setEntries([]); setCompletedReplies(new Set()) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
           {user?.role === 'pengelola' && !units.some(u => u.id === unitId) && <option value={unitId}>Unit usaha Anda</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -266,7 +276,15 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
           {entry.role === 'riska' && <strong className="block">{RISKA_NAME}</strong>}
           {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p>{isAdmin ? 'Berikut data yang Anda minta. ✨' : `Berikut datanya ya, Kak ${greetingName}. 😊`}</p>}
-          <p>{entry.message}</p>
+          {entry.role === 'user' ? <p className="whitespace-pre-wrap">{entry.message}</p> : <RiskaTypedReply
+            message={entry.message} animate={!completedReplies.has(entry)} onProgress={followTyping}
+            onComplete={() => setCompletedReplies(previous => previous.has(entry) ? previous : new Set(previous).add(entry))}>
+          {!!entry.choices?.length && entry.conversation_id === conversationId && <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-y-auto">{entry.choices.map(choice => <button key={choice.message} type="button" className="min-h-11 rounded-lg border bg-white px-3 py-2 text-left disabled:opacity-40" disabled={busy || !!pendingDraft} onClick={() => void sendMessage(choice.message)}>{choice.label}</button>)}</div>}
+          {entry.credentials && <div className="mt-2 rounded border border-amber-400 bg-amber-50 p-2">
+            <p>Akun {entry.credentials.username} berhasil dibuat. Sampaikan kata sandi sementara secara pribadi; pengguna wajib menggantinya saat login. Kata sandi ini tidak disimpan dalam draf atau penyimpanan browser.</p>
+            <details><summary className="min-h-11 cursor-pointer py-2">Tampilkan kata sandi sementara</summary><code className="break-all">{entry.credentials.temporary_password}</code></details>
+            <button type="button" className="min-h-11 rounded border px-2" onClick={() => { const cleared = { ...entry, credentials: null }; setCompletedReplies(previous => { const next = new Set(previous); next.delete(entry); next.add(cleared); return next }); setEntries(previous => previous.map(item => item === entry ? cleared : item)) }}>Hapus dari tampilan</button>
+          </div>}
           {entry.preview?.details && <p>{Object.entries(entry.preview.details).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>}
           {entry.preview && <p>{entry.preview.unit} · {entry.preview.operation} · {entry.preview.item} · {entry.preview.tanggal}</p>}
           {entry.valuation && <p className="font-bold">Valuasi: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(entry.valuation))}</p>}
@@ -281,16 +299,17 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
               {(['amount', 'saldo', ...(entry.money_columns || [])].includes(k) && Number.isFinite(Number(v))) ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(v)) : String(v)}
             </td>)}</tr>)}</tbody>
           </table></div>}
-          {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
+          {entry.rows !== undefined && !entry.draft_id && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
+          </RiskaTypedReply>}
         </div>)}
         {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Riska sedang memproses...</p>}
       </div>
       {!pendingDraft && !conversationId && <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto landscape:max-h-16 md:max-h-36" aria-label="Command List Riska">
-        {(['read', 'admin', 'local'] as const).map(category => {
+        {(['read', 'admin', 'manage', 'local'] as const).map(category => {
           const commands = visibleCommands.filter(command => command.category === category)
           if (!commands.length) return null
           return <div key={category}>
-            <p className="text-xs text-muted-foreground">{category === 'read' ? 'Laporan Ringkas' : category === 'admin' ? 'Eksekusi Strategis Admin' : 'Operasional — Riska membantu melengkapi data'}</p>
+            <p className="text-xs text-muted-foreground">{category === 'read' ? 'Laporan Ringkas' : category === 'admin' ? 'Eksekusi Strategis Admin' : category === 'manage' ? 'Kelola Data Admin' : 'Operasional — Riska membantu melengkapi data'}</p>
             <div className="flex snap-x snap-proximity gap-2 overflow-x-auto overscroll-x-contain py-1" aria-label={`Pintasan ${category}`}>
               {commands.map(command => <button type="button" key={command.id}
                 className={`min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border px-3 text-sm disabled:opacity-40 ${category === 'admin' ? 'border-amber-300 bg-amber-50 text-amber-950' : 'bg-gray-100 text-gray-900'}`}
