@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import api from '@/api/client'
 import { useAuth } from '@/lib/auth'
@@ -8,11 +9,30 @@ type Reply = { message: string; rows?: Record<string, string | number>[]; money_
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string }
 
+type Command = {
+  id: string; label: string; category: 'read' | 'admin' | 'local'
+  message?: string; path?: string; template?: string; unitCodes?: string[]
+}
+const COMMANDS: Command[] = [
+  { id: 'profit', label: '📊 Cek Laba Rugi', category: 'read', message: 'cek laba rugi' },
+  { id: 'cash', label: '💰 Cek Saldo Kas', category: 'read', message: 'cek saldo kas' },
+  { id: 'performance', label: '🏢 Performa Unit Usaha', category: 'read', message: 'performa' },
+  { id: 'transaction', label: '➕ Input Transaksi Baru', category: 'admin', path: '/transactions' },
+  { id: 'journal', label: '📖 Tinjau Jurnal Unit', category: 'admin', path: '/ledger' },
+  { id: 'permissions', label: '🔐 Kelola Izin Entitas', category: 'admin', path: '/riska-permissions' },
+  { id: 'yield', label: '🤝 Input Imbal Hasil', category: 'local', unitCodes: ['UU04'], path: '/imbal-hasil', template: 'imbal mitra=ID tanggal=YYYY-MM-DD bulan=BULAN tahun=TAHUN nominal=NOMINAL' },
+  { id: 'stock-in', label: '📦 Barang Masuk', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'masuk produk=SKU qty=JUMLAH harga=HARGA pemasok=ID tanggal=YYYY-MM-DD' },
+  { id: 'stock-out', label: '🛒 Barang Keluar', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'keluar produk=SKU qty=JUMLAH harga=HARGA customer=ID tanggal=YYYY-MM-DD' },
+  { id: 'stock-adjust', label: '📝 Opname Barang Rusak', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'rusak produk=SKU qty=JUMLAH tanggal=YYYY-MM-DD' },
+]
+
 const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const messageInput = useRef<HTMLInputElement>(null)
   const activeRequest = useRef<AbortController | null>(null)
   const chatLog = useRef<HTMLDivElement>(null)
   const isAdmin = user?.role === 'admin'
@@ -89,6 +109,21 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   useEffect(() => {
     chatLog.current?.scrollTo({ top: chatLog.current.scrollHeight })
   }, [entries, busy, open])
+  const ownUnit = units.find(unit => unit.id === user?.unit_usaha_id)
+  const visibleCommands = COMMANDS.filter(command => isAdmin || command.category === 'read' || (
+    command.category === 'local' && user?.role === 'pengelola' &&
+    command.unitCodes?.includes(ownUnit?.code.toUpperCase() || '')
+  ))
+  function selectCommand(command: Command) {
+    if (busy || pendingDraft || !visibleCommands.includes(command)) return
+    if (command.message) { void sendMessage(command.message); return }
+    if (!isAdmin && command.template) {
+      setMessage(command.template)
+      messageInput.current?.focus()
+      return
+    }
+    if (command.path) { setOpen(false); navigate(command.path) }
+  }
   if (!enabled) return null
   async function sendMessage(shortcut?: string) {
     const text = (shortcut ?? message).trim()
@@ -198,17 +233,22 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         </div>)}
         {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Riska sedang memproses...</p>}
       </div>
-      <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto pb-2" aria-label="Pintasan Riska">
-        {[
-          { label: '📊 Cek Laba Rugi', command: 'cek laba rugi' },
-          { label: '💰 Cek Saldo Kas', command: 'cek saldo kas' },
-          { label: '🏢 Performa Unit Usaha', command: 'performa' },
-        ].map(shortcut => <button type="button" key={shortcut.command}
-          className="min-h-11 shrink-0 whitespace-nowrap rounded-full border bg-gray-100 px-3 text-sm text-gray-900 disabled:opacity-40"
-          disabled={busy || !!pendingDraft} onClick={() => void sendMessage(shortcut.command)}>{shortcut.label}</button>)}
+      <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto" aria-label="Command List Riska">
+        {(['read', 'admin', 'local'] as const).map(category => {
+          const commands = visibleCommands.filter(command => command.category === category)
+          if (!commands.length) return null
+          return <div key={category}>
+            <p className="text-xs text-muted-foreground">{category === 'read' ? 'Laporan' : category === 'admin' ? 'Kontrol Admin — buka formulir' : isAdmin ? 'Operasional — buka formulir' : 'Input unit — lengkapi format sebelum Kirim'}</p>
+            <div className="flex gap-2 overflow-x-auto py-1" aria-label={`Pintasan ${category}`}>
+              {commands.map(command => <button type="button" key={command.id}
+                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border bg-gray-100 px-3 text-sm text-gray-900 disabled:opacity-40"
+                disabled={busy || !!pendingDraft} onClick={() => selectCommand(command)}>{command.label}</button>)}
+            </div>
+          </div>
+        })}
       </div>
       <form className="flex shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]" onSubmit={e => { e.preventDefault(); void sendMessage() }}>
-        <input aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" maxLength={1000}
+        <input ref={messageInput} aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" maxLength={1000}
           value={message} onChange={e => setMessage(e.target.value)} disabled={busy || !!pendingDraft} />
         <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !!pendingDraft || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
       </form>
