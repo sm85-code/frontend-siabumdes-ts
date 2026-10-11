@@ -13,6 +13,7 @@ import {
 import { useMemo, useState, type ComponentType } from 'react'
 import { Cell, Pie, PieChart } from 'recharts'
 import { fmtRp, parseMoney } from '@/api/client'
+import RiskaChatBox from '@/components/RiskaChatBox'
 import PeriodFilter from '@/components/PeriodFilter'
 import Spinner from '@/components/Spinner'
 import TableShell from '@/components/TableShell'
@@ -179,6 +180,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6" data-testid="dashboard-page">
+      <RiskaChatBox />
       {blocked.length > 0 && (
         <Card className="fade-in" data-testid="blocked-periods-banner">
           <CardContent className="pt-2">
