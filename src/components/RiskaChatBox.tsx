@@ -11,28 +11,38 @@ const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
-  const management = user?.role === 'admin' || user?.role === 'direktur'
-  const isSaepul = management && /\bsaepul\b/i.test(`${user?.name || ''} ${user?.username || ''}`)
-  const greetingName = isSaepul ? 'Pak Saepul' : user?.name?.trim() || user?.username || 'Bapak/Ibu'
-  const scopeName = user?.role === 'pengelola' ? 'unit' : 'entitas'
-  const welcomeMessage = management
-    ? `Halo, ${greetingName}! Selamat datang kembali di SIABUMDES. 👩‍💼😊
-Saya Riska, Asisten Keuangan tepercaya yang siap membantu mengawasi aktivitas finansial BUMDES kita. Saya siap menyajikan data ringkas secara instan agar Bapak/Ibu bisa mengambil keputusan strategis dengan cepat.
+  const isAdmin = user?.role === 'admin'
+  const userName = user?.name?.trim() || user?.username?.trim() || 'Pengguna'
+  const isRiska = /\briska\b/i.test(userName) || /^riska$/i.test(user?.username?.trim() || '')
+  const greetingName = isRiska ? 'Riska' : userName
+  const reportOptions = `• 📊 Total pendapatan dan laba rugi bulan berjalan
+• 💰 Posisi saldo kas operasional dan bank pada entitas terpilih
+• 🏢 Performa dan profitabilitas unit yang dipilih sesuai izin akses`
+  const welcomeMessage = isAdmin
+    ? `Selamat datang kembali di SIABUMDES! 💻✨
+Saya Riska, Asisten Keuangan digital yang Anda desain untuk membantu mempermudah pemantauan keuangan dan transaksi sistem. Modul pelaporan Riska yang terhubung ke ReportingService telah stand-by dan siap menerima permintaan data.
 
-Sesuai hak akses Bapak/Ibu, berikut data yang bisa saya tampilkan untuk entitas yang dipilih:
-• 📊 Laba rugi dan pendapatan pusat atau unit (bulan berjalan, pembukuan terpisah)
-• 💰 Saldo kas dan rekening bank pada entitas terpilih
-• 🏢 Performa dan profitabilitas unit usaha yang dipilih
+Berikut adalah data yang bisa saya tampilkan untuk Anda sekarang:
+• 📊 Total pendapatan dan laporan laba rugi pusat atau unit (bulan berjalan, pembukuan terpisah)
+• 💰 Posisi saldo kas operasional dan rekening bank pada entitas terpilih
+• 🏢 Analisis performa unit yang dipilih dari daftar unit aktif
 
-Laporan keuangan bagian mana yang ingin Bapak/Ibu periksa hari ini?`
-    : `Halo, ${greetingName}! Selamat datang di SIABUMDES. 👩‍💼😊
-Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya didesain langsung oleh Pak Saepul untuk stand-by di sini guna membantu mempermudah pekerjaan Anda dalam memantau keuangan dan mencatat transaksi sesuai izin Anda.
+Logika laporan keuangan atau instruksi data mana yang ingin Anda jalankan hari ini?`
+    : isRiska
+      ? `Halo, Kak Riska! Selamat datang di SIABUMDES. 👩‍💼✨
+Wah, nama kita sama ya! Saya Riska versi Asisten Keuangan digital yang didesain oleh Pak Saepul untuk membantu mempermudah pekerjaan Kakak dalam memantau keuangan dan mencatat transaksi sesuai izin akses yang ada.
 
-Beberapa hal cepat yang bisa saya bantu periksa sesuai cakupan akses Anda:
-• 📊 Total pendapatan dan laba rugi di ${scopeName} Anda bulan ini
-• 💰 Informasi saldo kas operasional ${scopeName} Anda
+Beberapa hal cepat yang bisa saya bantu periksa hari ini:
+${reportOptions}
 
-Ada data keuangan yang ingin Anda saya tampilkan sekarang?`
+Ada data keuangan yang ingin Kak Riska tampilkan sekarang?`
+      : `Halo, Kak ${greetingName}! Selamat datang di SIABUMDES. 👩‍💼😊
+Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya didesain langsung oleh Pak Saepul untuk stand-by di sini guna membantu mempermudah pekerjaan Kakak dalam memantau keuangan dan mencatat transaksi sesuai izin akses yang ada.
+
+Beberapa hal cepat yang bisa saya bantu periksa hari ini:
+${reportOptions}
+
+Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
@@ -139,7 +149,7 @@ Ada data keuangan yang ingin Anda saya tampilkan sekarang?`
         </div>
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
           {entry.role === 'riska' && <strong className="block">{RISKA_NAME}</strong>}
-          {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p>Berikut datanya ya, {isSaepul ? 'Pak Saepul' : 'Bapak/Ibu'}. 😊</p>}
+          {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p>{isAdmin ? 'Berikut data yang Anda minta. ✨' : `Berikut datanya ya, Kak ${greetingName}. 😊`}</p>}
           <p>{entry.message}</p>
           {entry.preview?.details && <p>{Object.entries(entry.preview.details).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>}
           {entry.preview && <p>{entry.preview.unit} · {entry.preview.operation} · {entry.preview.item} · {entry.preview.tanggal}</p>}
