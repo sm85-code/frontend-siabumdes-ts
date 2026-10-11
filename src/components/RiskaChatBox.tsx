@@ -11,6 +11,28 @@ const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
+  const management = user?.role === 'admin' || user?.role === 'direktur'
+  const isSaepul = management && /\bsaepul\b/i.test(`${user?.name || ''} ${user?.username || ''}`)
+  const greetingName = isSaepul ? 'Pak Saepul' : user?.name?.trim() || user?.username || 'Bapak/Ibu'
+  const scopeName = user?.role === 'pengelola' ? 'unit' : 'entitas'
+  const welcomeMessage = management
+    ? `Halo, ${greetingName}! Selamat datang kembali di SIABUMDES. 👩‍💼😊
+Saya Riska, Asisten Keuangan tepercaya yang siap membantu mengawasi aktivitas finansial BUMDES kita. Saya siap menyajikan data ringkas secara instan agar Bapak/Ibu bisa mengambil keputusan strategis dengan cepat.
+
+Sesuai hak akses Bapak/Ibu, berikut data yang bisa saya tampilkan untuk entitas yang dipilih:
+• 📊 Laba rugi dan pendapatan pusat atau unit (bulan berjalan, pembukuan terpisah)
+• 💰 Saldo kas dan rekening bank pada entitas terpilih
+• 🏢 Performa dan profitabilitas unit usaha yang dipilih
+
+Laporan keuangan bagian mana yang ingin Bapak/Ibu periksa hari ini?`
+    : `Halo, ${greetingName}! Selamat datang di SIABUMDES. 👩‍💼😊
+Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya didesain langsung oleh Pak Saepul untuk stand-by di sini guna membantu mempermudah pekerjaan Anda dalam memantau keuangan dan mencatat transaksi sesuai izin Anda.
+
+Beberapa hal cepat yang bisa saya bantu periksa sesuai cakupan akses Anda:
+• 📊 Total pendapatan dan laba rugi di ${scopeName} Anda bulan ini
+• 💰 Informasi saldo kas operasional ${scopeName} Anda
+
+Ada data keuangan yang ingin Anda saya tampilkan sekarang?`
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
@@ -113,10 +135,11 @@ export default function RiskaChatBox() {
       <div className="min-h-0 flex-1 space-y-2 overflow-x-hidden overflow-y-auto overscroll-contain break-words" role="log" aria-live="polite">
         <div className="mr-4 rounded-lg bg-gray-100 p-2 text-sm text-gray-900">
           <strong className="block">{RISKA_NAME}</strong>
-          <p>Salam hangat dari Pak Saepul! Perkenalkan, saya Riska, Asisten Keuangan BUMDES Anda. Saya siap membantu melihat keuangan dan mencatat transaksi sesuai izin unit Anda.</p>
+          <p className="whitespace-pre-line">{welcomeMessage}</p>
         </div>
         {entries.map((entry, i) => <div key={i} className={`rounded-lg p-2 text-sm ${entry.role === 'user' ? 'ml-8 bg-blue-600 text-white' : 'mr-4 bg-gray-100 text-gray-900'}`}>
           {entry.role === 'riska' && <strong className="block">{RISKA_NAME}</strong>}
+          {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p>Berikut datanya ya, {isSaepul ? 'Pak Saepul' : 'Bapak/Ibu'}. 😊</p>}
           <p>{entry.message}</p>
           {entry.preview?.details && <p>{Object.entries(entry.preview.details).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>}
           {entry.preview && <p>{entry.preview.unit} · {entry.preview.operation} · {entry.preview.item} · {entry.preview.tanggal}</p>}
@@ -132,6 +155,7 @@ export default function RiskaChatBox() {
               {(['amount', 'saldo', ...(entry.money_columns || [])].includes(k) && Number.isFinite(Number(v))) ? new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(v)) : String(v)}
             </td>)}</tr>)}</tbody>
           </table></div>}
+          {entry.role === 'riska' && entry.rows !== undefined && !entry.draft_id && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
         </div>)}
       </div>
       <div className="mt-3 flex shrink-0 gap-2 overflow-x-auto pb-2" aria-label="Pintasan Riska">
