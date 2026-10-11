@@ -72,12 +72,22 @@ export default function RiskaChatBox() {
     {open && <section className="mb-2 flex w-96 max-w-full flex-col rounded-xl border bg-background p-3 shadow-xl">
       <h2 className="font-semibold">💻 Riska (SIABUMDES)</h2>
       <p className="text-xs text-muted-foreground">Saldo kas dan laba rugi bulan berjalan. Pembukuan per entitas.</p>
-      {user?.role === 'pengelola' && <details className="text-xs"><summary>Format input operasional</summary>
-        <p>Stock in/out memakai pembayaran tunai. Lihat “mitra” atau “stok” untuk ID/SKU. Gunakan tanggal YYYY-MM-DD dan nominal tanpa pemisah ribuan.</p>
-        <p>imbal mitra=ID tanggal=2026-10-11 bulan=10 tahun=2026 nominal=100</p>
-        <p>masuk produk=SKU qty=1 harga=100 pemasok=ID tanggal=2026-10-11</p>
-        <p>keluar produk=SKU qty=1 harga=150 customer=ID tanggal=2026-10-11</p>
+      {user?.role === 'pengelola' && <details className="text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
+        <p>Untuk melihat keuangan, boleh bertanya dengan beberapa cara:</p>
+        <p>cek saldo kas</p>
+        <p>berapa total pendapatan bulan ini?</p>
+        <p>tampilkan laba rugi bulan berjalan</p>
+        <p>Kata “berapa”, “lihat”, “tampilkan”, atau “cek” di awal boleh dipakai atau tidak. Kata “total” juga boleh ditambahkan sebelum pendapatan. Pilih unit di pemilih, bukan di dalam pesan.</p>
+        <p>Untuk mencatat barang masuk atau keluar, pembayaran memakai tunai. Ketik “stok” untuk melihat SKU barang dan ID pemasok/customer. Ketik “mitra” untuk melihat ID mitra. Salin kode atau ID dari daftar itu; tidak perlu menghafalnya.</p>
+        <p>Jika SKU mengandung spasi, bungkus dengan tanda kutip ganda. Contoh: produk="Daster Arab Jumbo" bisa dipakai jika SKU di daftar memang “Daster Arab Jumbo”. Nama barang saja belum dapat menggantikan SKU.</p>
+        <p>Tanda kutip juga menjaga customer="Bu Hajah Ani" tetap terbaca sebagai satu nilai, tetapi sistem masih mencari ID customer. Untuk memilih Bu Hajah Ani, salin ID pada namanya dari daftar, bukan nama orangnya. Aturan yang sama berlaku untuk mitra dan pemasok.</p>
+        <p>Tulis uang polos tanpa titik ribuan: nominal=300000, bukan nominal=300.000. Jika ada sen, gunakan titik desimal: harga=25000.50.</p>
+        <p>Tulis kata perintah imbal, masuk, keluar, dan rusak dengan huruf kecil. Isi semua bagian seperti contoh. Ganti ID, SKU, tanggal, jumlah barang, dan nominal sesuai catatan Anda. Tanggal ditulis tahun-bulan-hari.</p>
+        <p>imbal mitra=ID tanggal=2026-10-11 bulan=10 tahun=2026 nominal=300000</p>
+        <p>masuk produk=SKU qty=1 harga=25000 pemasok=ID tanggal=2026-10-11</p>
+        <p>keluar produk=SKU qty=1 harga=35000 customer=ID tanggal=2026-10-11</p>
         <p>rusak produk=SKU qty=1 tanggal=2026-10-11</p>
+        <p>qty berarti jumlah barang. harga berarti harga satu barang. Periksa draf sebelum memilih “Ya, Eksekusi Sekarang”; jika belum benar, pilih “Batal”.</p>
       </details>}
       <label className="my-2 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
