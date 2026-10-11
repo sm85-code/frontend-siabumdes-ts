@@ -5,25 +5,29 @@ import { createPortal } from 'react-dom'
 import api from '@/api/client'
 import { useAuth } from '@/lib/auth'
 
-type Reply = { message: string; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
+type Reply = { message: string; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
 type Entry = Reply & { role: 'user' | 'riska' }
-type Unit = { id: string; code: string; name: string }
+type Unit = { id: string; code: string; name: string; business_type?: string }
 
 type Command = {
   id: string; label: string; category: 'read' | 'admin' | 'local'
-  message?: string; path?: string; template?: string; unitCodes?: string[]
+  message?: string; path?: string; template?: string; unitCodes?: string[]; businessTypes?: string[]
 }
 const COMMANDS: Command[] = [
   { id: 'profit', label: '📊 Cek Laba Rugi', category: 'read', message: 'cek laba rugi' },
   { id: 'cash', label: '💰 Cek Saldo Kas', category: 'read', message: 'cek saldo kas' },
   { id: 'performance', label: '🏢 Performa Unit Usaha', category: 'read', message: 'performa' },
-  { id: 'transaction', label: '➕ Input Transaksi Baru', category: 'admin', path: '/transactions' },
-  { id: 'journal', label: '📖 Tinjau Jurnal Unit', category: 'admin', path: '/ledger' },
-  { id: 'permissions', label: '🔐 Kelola Izin Entitas', category: 'admin', path: '/riska-permissions' },
-  { id: 'yield', label: '🤝 Input Imbal Hasil', category: 'local', unitCodes: ['UU04'], path: '/imbal-hasil', template: 'imbal mitra=ID tanggal=YYYY-MM-DD bulan=BULAN tahun=TAHUN nominal=NOMINAL' },
-  { id: 'stock-in', label: '📦 Barang Masuk', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'masuk produk=SKU qty=JUMLAH harga=HARGA pemasok=ID tanggal=YYYY-MM-DD' },
-  { id: 'stock-out', label: '🛒 Barang Keluar', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'keluar produk=SKU qty=JUMLAH harga=HARGA customer=ID tanggal=YYYY-MM-DD' },
-  { id: 'stock-adjust', label: '📝 Opname Barang Rusak', category: 'local', unitCodes: ['UU05', 'UU06'], path: '/inventory', template: 'rusak produk=SKU qty=JUMLAH tanggal=YYYY-MM-DD' },
+  { id: 'comparison', label: '🏢 Bandingkan Semua Unit', category: 'admin', message: 'laba rugi semua unit bulan ini' },
+  { id: 'close', label: '📕 Tutup Buku', category: 'admin', message: 'tutup buku bulan ini' },
+  { id: 'lock', label: '🔒 Kunci Periode', category: 'admin', message: 'kunci periode bulan ini' },
+  { id: 'transfer', label: '💸 Transfer Bagi Hasil', category: 'admin', message: 'transfer bagi hasil bulan ini' },
+  { id: 'transaction', label: '➕ Buka Form Transaksi', category: 'admin', path: '/transactions' },
+  { id: 'journal', label: '📖 Buka Buku Besar', category: 'admin', path: '/ledger' },
+  { id: 'permissions', label: '🔐 Penugasan Pengguna', category: 'admin', path: '/riska-permissions' },
+  { id: 'yield', label: '🤝 Input Imbal Hasil', category: 'local', unitCodes: ['UU04'], message: 'catat setoran imbal hasil' },
+  { id: 'stock-in', label: '📦 Barang Masuk', category: 'local', businessTypes: ['perdagangan', 'manufaktur'], message: 'input barang masuk' },
+  { id: 'stock-out', label: '🛒 Barang Keluar', category: 'local', businessTypes: ['perdagangan', 'manufaktur'], message: 'input barang keluar' },
+  { id: 'stock-adjust', label: '📝 Opname Barang Rusak', category: 'local', businessTypes: ['perdagangan', 'manufaktur'], message: 'catat barang rusak' },
 ]
 
 const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
@@ -67,6 +71,8 @@ Beberapa hal cepat yang bisa saya bantu periksa hari ini:
 ${reportOptions}
 
 Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
+  const assignmentSession = useRef<string | null>(null)
+  const [finishPrompt, setFinishPrompt] = useState(false)
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [units, setUnits] = useState<Unit[]>([])
@@ -74,19 +80,29 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [message, setMessage] = useState('')
   const [entries, setEntries] = useState<Entry[]>([])
   const [busy, setBusy] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [pendingDraft, setPendingDraft] = useState<string | null>(null)
   useEffect(() => {
     setEnabled(false)
+    setOpen(false)
+    setFinishPrompt(false)
+    assignmentSession.current = null
     setMessage('')
     setEntries([])
     setPendingDraft(null)
+    setConversationId(null)
     setBusy(false)
     let live = true
     let initial = true
     async function load() {
       try {
-        const { data } = await api.get<{ enabled: boolean }>('/riska/availability')
-        if (!live || !data.enabled) { if (live) setEnabled(false); return }
+        const { data } = await api.get<{ enabled: boolean; session_id: string | null }>('/riska/availability')
+        if (!live || !data.enabled) { if (live) { activeRequest.current?.abort(); activeRequest.current = null; setBusy(false); setOpen(false); setEnabled(false) }; return }
+        if (assignmentSession.current !== data.session_id) {
+          activeRequest.current?.abort(); activeRequest.current = null
+          assignmentSession.current = data.session_id
+          setBusy(false); setEntries([]); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
+        }
         const result = await api.get<Unit[]>('/riska/units')
         if (live) {
           if (initial) { setEntries([]); setPendingDraft(null); initial = false }
@@ -109,14 +125,14 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   useEffect(() => {
     chatLog.current?.scrollTo({ top: chatLog.current.scrollHeight })
   }, [entries, busy, open])
-  const ownUnit = units.find(unit => unit.id === user?.unit_usaha_id)
+  const operationUnit = units.find(unit => unit.id === (user?.role === 'pengelola' ? user.unit_usaha_id : unitId))
   const visibleCommands = COMMANDS.filter(command => isAdmin || command.category === 'read' || (
-    command.category === 'local' && user?.role === 'pengelola' &&
-    command.unitCodes?.includes(ownUnit?.code.toUpperCase() || '')
+    command.category === 'local' && ['pengelola', 'direktur', 'bendahara'].includes(user?.role || '') &&
+    (command.unitCodes?.includes(operationUnit?.code.toUpperCase() || '') || command.businessTypes?.includes(operationUnit?.business_type || ''))
   ))
   function selectCommand(command: Command) {
-    if (busy || pendingDraft || !visibleCommands.includes(command)) return
-    if (command.message) { void sendMessage(command.message); return }
+    if (busy || pendingDraft || conversationId || !visibleCommands.includes(command)) return
+    if (command.message) { void sendMessage(command.id === 'performance' && user?.role !== 'pengelola' ? 'performa semua unit' : command.message); return }
     if (!isAdmin && command.template) {
       setMessage(command.template)
       messageInput.current?.focus()
@@ -134,15 +150,18 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>(/^(imbal|masuk|keluar|rusak)\s/i.test(text) ? '/riska/drafts' : '/riska/chat', { message: text, unit_usaha_id: unitId || null, user_role: user?.role }, { signal: controller.signal })
+      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, session_id: assignmentSession.current }, { signal: controller.signal })
       if (controller.signal.aborted) return
+      if (data.session_ended) { setOpen(false); setEnabled(false); return }
+      setConversationId(data.conversation_id || null)
       if (data.draft_id) setPendingDraft(data.draft_id)
       setEntries(old => [...old, { role: 'riska', ...data, rows: data.preview?.rows || data.rows }])
     } catch (error) {
       if (controller.signal.aborted) return
       const status = (error as { response?: { status?: number } }).response?.status
-      if (status === 403) setEnabled(false)
       const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      if (status === 409) setConversationId(null)
+      if (status === 403 && typeof detail === 'string' && /Penugasan|tidak aktif/.test(detail)) setEnabled(false)
       setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Permintaan tidak dapat diproses. Periksa format, akses, COA, dan stok.' }])
     } finally {
       if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
@@ -156,9 +175,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     try {
       const { data } = execute ? await api.post<Reply>(`/riska/drafts/${draftId}/execute`, undefined, { signal: controller.signal }) : await api.delete<Reply>(`/riska/drafts/${draftId}`, { signal: controller.signal })
       if (execute) {
-        void queryClient.invalidateQueries({ queryKey: ['reports'] })
-        void queryClient.invalidateQueries({ queryKey: ['transactions'] })
-        void queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        void queryClient.invalidateQueries()
       }
       if (controller.signal.aborted) return
       setPendingDraft(null)
@@ -166,9 +183,24 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     } catch (error) {
       if (controller.signal.aborted) return
       const response = (error as { response?: { status?: number; data?: { detail?: string } } }).response
-      if (response?.status === 403) setEnabled(false)
+      if (response?.status === 403 && /Penugasan|tidak aktif/.test(response.data?.detail || '')) setEnabled(false)
       if (response?.status === 409) setPendingDraft(null)
       setEntries(old => [...old, { role: 'riska', message: response?.data?.detail || 'Eksekusi belum terkonfirmasi. Periksa halaman transaksi sebelum mencoba lagi.' }])
+    } finally {
+      if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
+    }
+  }
+  async function finishSession() {
+    if (busy || activeRequest.current || !assignmentSession.current) return
+    const controller = new AbortController()
+    activeRequest.current = controller
+    setBusy(true)
+    try {
+      await api.post('/riska/session/finish', { session_id: assignmentSession.current }, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      setEnabled(false); setOpen(false); setEntries([]); setPendingDraft(null); setConversationId(null); setFinishPrompt(false)
+    } catch {
+      if (!controller.signal.aborted) setEntries(old => [...old, { role: 'riska', message: 'Sesi belum berhasil diakhiri. Silakan coba lagi.' }])
     } finally {
       if (activeRequest.current === controller) { activeRequest.current = null; setBusy(false) }
     }
@@ -181,27 +213,17 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         <h2 className="font-semibold">{RISKA_NAME}</h2>
         <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-semibold" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
       </header>
-      <p className="text-xs text-muted-foreground">Saldo kas dan laba rugi bulan berjalan. Pembukuan per entitas.</p>
-      {user?.role === 'pengelola' && <details className="max-h-32 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
-        <p>Untuk melihat keuangan, boleh bertanya dengan beberapa cara:</p>
-        <p>cek saldo kas</p>
-        <p>berapa total pendapatan bulan ini?</p>
-        <p>tampilkan laba rugi bulan berjalan</p>
-        <p>Kata “berapa”, “lihat”, “tampilkan”, atau “cek” di awal boleh dipakai atau tidak. Kata “total” juga boleh ditambahkan sebelum pendapatan. Pilih unit di pemilih, bukan di dalam pesan.</p>
-        <p>Untuk mencatat barang masuk atau keluar, pembayaran memakai tunai. Ketik “stok” untuk melihat SKU barang dan ID pemasok/customer. Ketik “mitra” untuk melihat ID mitra. Salin kode atau ID dari daftar itu; tidak perlu menghafalnya.</p>
-        <p>Jika SKU mengandung spasi, bungkus dengan tanda kutip ganda. Contoh: produk="Daster Arab Jumbo" bisa dipakai jika SKU di daftar memang “Daster Arab Jumbo”. Nama barang saja belum dapat menggantikan SKU.</p>
-        <p>Tanda kutip juga menjaga customer="Bu Hajah Ani" tetap terbaca sebagai satu nilai, tetapi sistem masih mencari ID customer. Untuk memilih Bu Hajah Ani, salin ID pada namanya dari daftar, bukan nama orangnya. Aturan yang sama berlaku untuk mitra dan pemasok.</p>
-        <p>Tulis uang polos tanpa titik ribuan: nominal=300000, bukan nominal=300.000. Jika ada sen, gunakan titik desimal: harga=25000.50.</p>
-        <p>Tulis kata perintah imbal, masuk, keluar, dan rusak dengan huruf kecil. Isi semua bagian seperti contoh. Ganti ID, SKU, tanggal, jumlah barang, dan nominal sesuai catatan Anda. Tanggal ditulis tahun-bulan-hari.</p>
-        <p>imbal mitra=ID tanggal=2026-10-11 bulan=10 tahun=2026 nominal=300000</p>
-        <p>masuk produk=SKU qty=1 harga=25000 pemasok=ID tanggal=2026-10-11</p>
-        <p>keluar produk=SKU qty=1 harga=35000 customer=ID tanggal=2026-10-11</p>
-        <p>rusak produk=SKU qty=1 tanggal=2026-10-11</p>
-        <p>qty berarti jumlah barang. harga berarti harga satu barang. Periksa draf sebelum memilih “Ya, Eksekusi Sekarang”; jika belum benar, pilih “Batal”.</p>
-      </details>}
+      <p className="text-xs text-muted-foreground">Laporan dan transaksi sesuai hak akses. Pembukuan tetap per entitas.</p>
+      <details className="max-h-28 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
+        <p>Pilih entitas, lalu tulis seperti berbicara. Riska akan menanyakan data yang belum lengkap, tanpa menebak harga atau tanggal.</p>
+        <p>Contoh: Riska, input barang masuk buat SKU-012 sebanyak 5 pcs harga 20 ribu dari pemasok "Toko Makmur" hari ini.</p>
+        <p>Nama produk atau mitra boleh dipakai jika sesuai data terdaftar. Jika ada nama sama, Riska meminta ID/SKU yang tepat. Harga barang masuk/keluar berarti harga per barang dan pembayaran tunai.</p>
+        <p>Ketik “stok” atau “mitra” untuk melihat daftar. Format lama dengan tanda = tetap bisa dipakai.</p>
+        <p>Admin dapat menugaskan “aktifkan dirimu di pengelola 4” atau “nonaktifkan Riska untuk [username]”, kemudian mengonfirmasi. Admin juga dapat bertanya “laba rugi unit UU05 dan unit UU06 September 2026”, atau menjalankan “kunci periode bulan ini”. Periksa entitas, periode, nominal, serta pasangan jurnal sebelum menekan Ya, Eksekusi.</p>
+      </details>
       <label className="my-2 shrink-0 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
-          onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || user?.role === 'pengelola'}>
+          onChange={e => { setUnitId(e.target.value); setEntries([]) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
@@ -220,8 +242,8 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           {entry.valuation && <p className="font-bold">Valuasi: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(Number(entry.valuation))}</p>}
           {entry.parties && Object.entries(entry.parties).map(([kind, parties]) => <details key={kind}><summary>{kind}</summary>{parties.map(p => <p key={p.id}>{p.name}: {p.id}</p>)}</details>)}
           {entry.draft_id && <div className="mt-2 flex flex-wrap gap-2">
-            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded bg-blue-600 p-2 text-white disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, true)}>Ya, Eksekusi Sekarang</button>
-            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded border p-2 disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, false)}>Batal</button>
+            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded bg-blue-600 p-2 text-white disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, true)}>{entry.confirmation_level === 'admin' ? 'Ya, Eksekusi' : 'Ya, Eksekusi Sekarang'}</button>
+            <button disabled={busy || pendingDraft !== entry.draft_id} className="rounded border p-2 disabled:opacity-40" onClick={() => void confirm(entry.draft_id!, false)}>{entry.confirmation_level === 'admin' ? 'Batalkan' : 'Batal'}</button>
           </div>}
           {!!entry.rows?.length && <div className="overflow-auto"><table className="mt-2 w-full border-collapse">
             <thead><tr>{Object.keys(entry.rows[0]).map(k => <th className="border p-1 text-left" key={k}>{k}</th>)}</tr></thead>
@@ -233,22 +255,35 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
         </div>)}
         {busy && <p role="status" className="animate-pulse rounded-lg bg-gray-100 p-2 text-sm text-gray-900">Riska sedang memproses...</p>}
       </div>
-      <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto" aria-label="Command List Riska">
+      {!pendingDraft && !conversationId && <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto landscape:max-h-16 md:max-h-36" aria-label="Command List Riska">
         {(['read', 'admin', 'local'] as const).map(category => {
           const commands = visibleCommands.filter(command => command.category === category)
           if (!commands.length) return null
           return <div key={category}>
-            <p className="text-xs text-muted-foreground">{category === 'read' ? 'Laporan' : category === 'admin' ? 'Kontrol Admin — buka formulir' : isAdmin ? 'Operasional — buka formulir' : 'Input unit — lengkapi format sebelum Kirim'}</p>
-            <div className="flex gap-2 overflow-x-auto py-1" aria-label={`Pintasan ${category}`}>
+            <p className="text-xs text-muted-foreground">{category === 'read' ? 'Laporan Ringkas' : category === 'admin' ? 'Eksekusi Strategis Admin' : 'Operasional — Riska membantu melengkapi data'}</p>
+            <div className="flex snap-x snap-proximity gap-2 overflow-x-auto overscroll-x-contain py-1" aria-label={`Pintasan ${category}`}>
               {commands.map(command => <button type="button" key={command.id}
-                className="min-h-11 shrink-0 whitespace-nowrap rounded-full border bg-gray-100 px-3 text-sm text-gray-900 disabled:opacity-40"
-                disabled={busy || !!pendingDraft} onClick={() => selectCommand(command)}>{command.label}</button>)}
+                className={`min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border px-3 text-sm disabled:opacity-40 ${category === 'admin' ? 'border-amber-300 bg-amber-50 text-amber-950' : 'bg-gray-100 text-gray-900'}`}
+                disabled={busy || !!pendingDraft || !!conversationId} onClick={() => selectCommand(command)}>{command.label}</button>)}
             </div>
           </div>
         })}
-      </div>
+      </div>}
+      {conversationId && <div className="flex shrink-0 items-center justify-between gap-2 text-xs">
+        <span>Lengkapi jawaban yang diminta Riska.</span>
+        <button type="button" className="min-h-11 rounded border px-3" disabled={busy} onClick={() => void sendMessage('batal')}>Batalkan pengisian</button>
+      </div>}
+      {!isAdmin && <div className="shrink-0 py-2 text-sm">
+        {finishPrompt ? <div>
+          <p>Ada hal lain yang bisa Riska bantu? Jika sudah selesai, tombol Riska akan hilang sampai Admin menugaskan kembali. Draf yang belum disimpan akan dibatalkan.</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="min-h-11 rounded border px-3" disabled={busy} onClick={() => void finishSession()}>Tidak, selesai</button>
+            <button type="button" className="min-h-11 rounded border px-3" onClick={() => setFinishPrompt(false)}>Masih ada</button>
+          </div>
+        </div> : <button type="button" className="min-h-11 rounded border px-3" disabled={busy} onClick={() => setFinishPrompt(true)}>Akhiri sesi bantuan</button>}
+      </div>}
       <form className="flex shrink-0 gap-2 pb-[env(safe-area-inset-bottom)]" onSubmit={e => { e.preventDefault(); void sendMessage() }}>
-        <input ref={messageInput} aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" maxLength={1000}
+        <input ref={messageInput} aria-label="Pesan untuk Riska" className="min-h-11 min-w-0 flex-1 rounded border bg-background p-2 text-base" placeholder={conversationId ? "Jawab pertanyaan Riska…" : "Tulis perintah atau pertanyaan…"} maxLength={1000}
           value={message} onChange={e => setMessage(e.target.value)} disabled={busy || !!pendingDraft} />
         <button className="rounded bg-blue-600 px-3 text-white" disabled={busy || !!pendingDraft || !message.trim()}>{busy ? '…' : 'Kirim'}</button>
       </form>
