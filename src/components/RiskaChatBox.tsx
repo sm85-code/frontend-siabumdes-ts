@@ -40,7 +40,7 @@ export default function RiskaChatBox() {
     return () => { live = false; window.clearInterval(timer) }
   }, [user?.id, user?.role])
   useEffect(() => {
-    if (!open || !enabled || !window.matchMedia('(max-width: 639px)').matches) return
+    if (!open || !enabled || !window.matchMedia('(max-width: 767px)').matches) return
     const previous = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = previous }
@@ -78,9 +78,9 @@ export default function RiskaChatBox() {
     } finally { setBusy(false) }
   }
   return createPortal(<aside className={open
-    ? 'fixed inset-0 z-50 h-dvh w-full bg-white sm:inset-auto sm:bottom-4 sm:right-4 sm:h-auto sm:w-96 sm:bg-transparent'
+    ? 'fixed inset-0 z-50 bg-white md:inset-auto md:bottom-4 md:right-4 md:w-96 md:bg-transparent'
     : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label={RISKA_NAME}>
-    {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 sm:h-[min(40rem,calc(100dvh-2rem))] sm:rounded-xl sm:border sm:bg-background sm:text-foreground sm:shadow-xl">
+    {open && <section className="flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-gray-900 md:h-[min(40rem,calc(100dvh-2rem))] md:rounded-xl md:border md:bg-background md:text-foreground md:shadow-xl">
       <header className="flex shrink-0 items-center justify-between gap-2 pb-2">
         <h2 className="font-semibold">{RISKA_NAME}</h2>
         <button type="button" className="min-h-11 rounded-lg border px-3 text-sm font-semibold" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
