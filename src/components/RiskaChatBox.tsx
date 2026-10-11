@@ -6,7 +6,7 @@ import api from '@/api/client'
 import RiskaTypedReply from '@/components/RiskaTypedReply'
 import { useAuth } from '@/lib/auth'
 
-type Reply = { message: string; ai?: { model: string; provider: string };  choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
+type Reply = { message: string; ai_conversation_id?: string; ai?: { model: string; provider: string };  choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string; business_type?: string }
 
@@ -97,6 +97,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
   const [showCommands, setShowCommands] = useState(false)
   const [entries, setEntries] = useState<Entry[]>([])
   const [busy, setBusy] = useState(false)
+  const [aiConversationId, setAiConversationId] = useState<string | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [pendingDraft, setPendingDraft] = useState<string | null>(null)
   useEffect(() => {
@@ -121,7 +122,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
           activeRequest.current?.abort(); activeRequest.current = null
           assignmentSession.current = data.session_id
           unitsLoadedAt = 0
-          setBusy(false); setEntries([]); setCompletedReplies(new Set()); setPendingDraft(null); setConversationId(null); setMessage(''); setFinishPrompt(false)
+          setBusy(false); setEntries([]); setCompletedReplies(new Set()); setPendingDraft(null); setConversationId(null); setAiConversationId(null); setMessage(''); setFinishPrompt(false)
         }
         // Permission decides visibility. Unit metadata is supplementary, not an access gate.
         setAiModels(data.ai_models || {})
@@ -190,17 +191,18 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, session_id: assignmentSession.current, ai_mode: aiMode }, { signal: controller.signal })
+      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, ai_conversation_id: aiConversationId, session_id: assignmentSession.current, ai_mode: aiMode }, { signal: controller.signal })
       if (controller.signal.aborted) return
       if (data.session_ended) { setOpen(false); setEnabled(false); return }
       setConversationId(data.conversation_id || null)
+      if (data.ai_conversation_id) setAiConversationId(data.ai_conversation_id)
       if (data.draft_id) setPendingDraft(data.draft_id)
       setEntries(old => [...old, { role: 'riska', ...data, rows: data.preview?.rows || data.rows }])
     } catch (error) {
       if (controller.signal.aborted) return
       const status = (error as { response?: { status?: number } }).response?.status
       const detail = (error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      if (status === 409) setConversationId(null)
+      if (status === 409) { setConversationId(null); setAiConversationId(null) }
       if (status === 403 && typeof detail === 'string' && /Penugasan|tidak aktif/.test(detail)) setEnabled(false)
       setEntries(old => [...old, { role: 'riska', message: typeof detail === 'string' ? detail : 'Maaf, saya belum berhasil memproses permintaan ini. Boleh coba lagi? Jika masih terkendala, kita periksa data dan izin aksesnya bersama.' }])
     } finally {
@@ -240,7 +242,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
     try {
       await api.post('/riska/session/finish', { session_id: assignmentSession.current }, { signal: controller.signal })
       if (controller.signal.aborted) return
-      setEnabled(false); setOpen(false); setEntries([]); setPendingDraft(null); setConversationId(null); setFinishPrompt(false)
+      setEnabled(false); setOpen(false); setEntries([]); setPendingDraft(null); setConversationId(null); setAiConversationId(null); setFinishPrompt(false)
     } catch {
       if (!controller.signal.aborted) setEntries(old => [...old, { role: 'riska', message: 'Sesi belum berhasil diakhiri. Silakan coba lagi.' }])
     } finally {
@@ -267,7 +269,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       {unitLoadError && <p role="status" className="shrink-0 text-xs text-amber-700">Daftar entitas belum berhasil dimuat. Riska akan mencoba lagi; izin Anda tetap diperiksa oleh sistem.</p>}
       <label className="my-2 shrink-0 text-sm">Entitas
         <select className="ml-2 max-w-full rounded border bg-background p-1" value={unitId}
-          onChange={e => { setUnitId(e.target.value); setEntries([]); setCompletedReplies(new Set()) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
+          onChange={e => { setUnitId(e.target.value); setAiConversationId(null); setEntries([]); setCompletedReplies(new Set()) }} disabled={busy || !!pendingDraft || !!conversationId || user?.role === 'pengelola'}>
           {user?.role !== 'pengelola' && <option value="">BUMDES Pusat</option>}
           {user?.role === 'pengelola' && !units.some(u => u.id === unitId) && <option value={unitId}>Unit usaha Anda</option>}
           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
