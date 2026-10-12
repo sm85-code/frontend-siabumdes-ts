@@ -51,6 +51,11 @@ export function useSort<T extends Record<string, unknown>>(
 
   const headerProps = (key: string) => ({
     onClick: () => toggleSort(key),
+    tabIndex: 0,
+    'aria-sort': (sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') as 'ascending' | 'descending' | 'none',
+    onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggleSort(key) }
+    },
     className: 'cursor-pointer select-none',
     'data-testid': `sort-${key}`,
     title: 'Klik untuk mengurutkan',

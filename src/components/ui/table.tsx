@@ -5,7 +5,7 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
   return (
     <table
       data-slot="table"
-      className={cn('w-full caption-bottom text-sm', className)}
+      className={cn('w-full caption-bottom border-collapse text-sm', className)}
       {...props}
     />
   )
@@ -29,7 +29,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
   return (
     <tr
       data-slot="table-row"
-      className={cn('border-b transition-colors hover:bg-muted/40', className)}
+      className={cn('border-b border-border transition-colors hover:bg-muted/50 data-[state=selected]:bg-primary/10', className)}
       {...props}
     />
   )
@@ -40,8 +40,8 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'h-10 px-3 text-left align-middle text-xs font-semibold tracking-wider uppercase',
-        'text-[color:var(--text-secondary)] [&:has([role=checkbox])]:pr-0',
+        'h-12 bg-muted/70 px-4 py-3 text-left align-middle text-xs font-semibold tracking-wide',
+        'text-foreground [&:has([role=checkbox])]:pr-0',
         className,
       )}
       {...props}
@@ -53,7 +53,7 @@ function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
   return (
     <td
       data-slot="table-cell"
-      className={cn('px-3 py-2.5 align-middle [&:has([role=checkbox])]:pr-0', className)}
+      className={cn('px-4 py-3 align-middle [&:has([role=checkbox])]:pr-0', className)}
       {...props}
     />
   )

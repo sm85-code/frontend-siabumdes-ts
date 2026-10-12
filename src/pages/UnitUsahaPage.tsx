@@ -1,3 +1,4 @@
+import TableShell from '@/components/TableShell'
 import { Pencil, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -233,6 +234,7 @@ export default function UnitUsahaPage() {
         )}
       </div>
 
+      <TableShell minWidth={680} label="Daftar unit usaha">
       <Table>
         <TableHeader>
           <TableRow>
@@ -269,6 +271,7 @@ export default function UnitUsahaPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`Edit ${u.name}`}
                     data-testid={`unit-edit-${u.code}`}
                     onClick={() => openEdit(u)}
                   >
@@ -280,6 +283,7 @@ export default function UnitUsahaPage() {
           ))}
         </TableBody>
       </Table>
+      </TableShell>
 
       <Dialog
         open={canWrite && !!editing}
