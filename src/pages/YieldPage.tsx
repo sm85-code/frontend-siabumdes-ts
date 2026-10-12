@@ -17,6 +17,9 @@ import { Card } from '@/components/ui/card'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
 
+const yieldTableClass = '[&_th]:h-auto [&_th]:px-5 [&_th]:py-4 [&_td]:px-5 [&_td]:py-3'
+const yieldHeaderClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
+
 export type YieldPartner = { id: string; name: string; capital: string; yield_amount: string; payments?: Record<string, string>; payment_dates?: Record<string, string | null> }
 type Partner = YieldPartner
 type SortKey = 'name' | 'capital' | 'yield_amount' | 'total' | `month-${number}`
@@ -116,8 +119,8 @@ export default function YieldPage() {
     </div>
       <section hidden={tab !== 'partners'} role="tabpanel" id="yield-panel-partners" aria-labelledby="yield-tab-partners" className="min-w-0 space-y-3">
         <div className="flex justify-end"><Button disabled={!writable} onClick={() => startEdit(null)}><Plus className="size-4" />Tambah Mitra</Button></div>
-        <Card className="overflow-hidden p-0"><TableShell minWidth={720}><Table>
-          <TableHeader><TableRow><TableHead>No.</TableHead>{sortable('name', 'Nama Mitra')}{sortable('capital', 'Jumlah Penyertaan Modal')}{sortable('yield_amount', 'Imbal Hasil (3%)')}<TableHead>Aksi</TableHead></TableRow></TableHeader>
+        <Card className="overflow-hidden p-0"><TableShell minWidth={720}><Table className={yieldTableClass}>
+          <TableHeader className={yieldHeaderClass}><TableRow><TableHead>No.</TableHead>{sortable('name', 'Nama Mitra')}{sortable('capital', 'Jumlah Penyertaan Modal')}{sortable('yield_amount', 'Imbal Hasil (3%)')}<TableHead>Aksi</TableHead></TableRow></TableHeader>
           <TableBody>{rows.map(row => <TableRow key={row.id}><TableCell>{row.no}</TableCell><TableCell>{row.name}</TableCell>
             <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(row.capital)}</TableCell><TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(row.yield_amount)}</TableCell>
             <TableCell><div className="flex gap-2"><Button variant="outline" disabled={!writable} onClick={() => startEdit(row)}><Pencil className="size-4" />Ubah</Button><Button variant="outline" disabled={!writable} onClick={() => void remove(row)}><Trash2 className="size-4" />Hapus</Button></div></TableCell>
@@ -127,8 +130,8 @@ export default function YieldPage() {
       </section>
       <section hidden={tab !== 'recap'} role="tabpanel" id="yield-panel-recap" aria-labelledby="yield-tab-recap" className="min-w-0 space-y-3">
         <p className="text-sm text-muted-foreground">Tanda — berarti pembayaran belum dicatat, bukan nilai Rp 0. Nama mitra mengikuti tab Data Mitra Usaha.</p>
-        <Card className="overflow-hidden p-0"><TableShell minWidth={1700}><Table>
-          <TableHeader><TableRow><TableHead rowSpan={2}>No.</TableHead>{sortable('name', 'Nama Mitra', undefined, 2)}<TableHead rowSpan={2}>Aksi</TableHead><TableHead colSpan={12} className="text-center">Pembayaran Imbal Hasil (3%)</TableHead>{sortable('total', 'Jumlah', undefined, 2)}</TableRow>
+        <Card className="overflow-hidden p-0"><TableShell minWidth={1700}><Table className={yieldTableClass}>
+          <TableHeader className={yieldHeaderClass}><TableRow><TableHead rowSpan={2}>No.</TableHead>{sortable('name', 'Nama Mitra', undefined, 2)}<TableHead rowSpan={2}>Aksi</TableHead><TableHead colSpan={12} className="text-center">Pembayaran Imbal Hasil (3%)</TableHead>{sortable('total', 'Jumlah', undefined, 2)}</TableRow>
           <TableRow>{MONTHS.map((month, i) => <TableHead key={month} aria-sort={sort.key === `month-${i}` ? sort.desc ? 'descending' : 'ascending' : 'none'}><button type="button" className="inline-flex items-center gap-1" onClick={() => setSort({ key: `month-${i}`, desc: sort.key === `month-${i}` ? !sort.desc : false })}>{month}<ArrowUpDown className="size-3" /></button></TableHead>)}</TableRow></TableHeader>
           <TableBody>{rows.map(row => <TableRow key={row.id}><TableCell>{row.no}</TableCell><TableCell>{row.name}</TableCell><TableCell><Button variant="outline" size="icon" aria-label={`Input pembayaran ${row.name}`} disabled={!writable} onClick={() => setPaymentPartner(row)}><Pencil className="size-4" /></Button></TableCell>{MONTHS.map((month, i) => <TableCell key={month} className="text-right whitespace-nowrap tabular-nums">{row.payments?.[String(i + 1)] == null ? '—' : fmtRp(row.payments[String(i + 1)])}</TableCell>)}<TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">{paymentTotal(row) == null ? '—' : fmtRp(paymentTotal(row))}</TableCell></TableRow>)}{!rows.length && <TableRow><TableCell colSpan={16} className="py-8 text-center">Belum ada mitra. Tambahkan melalui tab Data Mitra Usaha.</TableCell></TableRow>}</TableBody>
           <tfoot className="border-t bg-muted/50 font-semibold"><TableRow><TableCell colSpan={3}>TOTAL</TableCell>{totals.months.map((value, index) => <TableCell key={index} className="text-right whitespace-nowrap tabular-nums">{fmtRp(value)}</TableCell>)}<TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(totals.payments)}</TableCell></TableRow></tfoot>
