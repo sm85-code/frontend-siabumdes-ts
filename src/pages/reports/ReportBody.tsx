@@ -19,9 +19,9 @@ export default function ReportBody({ active, data }: { active: string; data: Any
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Kode</TableHead>
-              <TableHead>Nama Akun</TableHead>
-              <TableHead className="num">Jumlah</TableHead>
+              <TableHead>Kode Akun</TableHead>
+              <TableHead>Uraian</TableHead>
+              <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -30,17 +30,17 @@ export default function ReportBody({ active, data }: { active: string; data: Any
                 PENDAPATAN
               </TableCell>
             </TableRow>
-            {(data.pendapatan || []).map((it: AnyData) => (
-              <TableRow key={it.code}>
+            {(data.rincian_transaksi?.pendapatan ?? data.pendapatan ?? []).map((it: AnyData, index: number) => (
+              <TableRow key={`${it.code}-${index}`}>
                 <TableCell>{it.code}</TableCell>
-                <TableCell>{it.name}</TableCell>
-                <TableCell className="num">{fmtRp(it.amount)}</TableCell>
+                <TableCell>{it.description ?? it.name}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(it.amount)}</TableCell>
               </TableRow>
             ))}
             <TableRow>
               <TableCell />
               <TableCell className="font-semibold">Total Pendapatan</TableCell>
-              <TableCell className="num font-semibold">{fmtRp(data.total_pendapatan)}</TableCell>
+              <TableCell className="text-right whitespace-nowrap tabular-nums font-semibold">{fmtRp(data.total_pendapatan)}</TableCell>
             </TableRow>
             {data.has_hpp && (
               <>
@@ -49,22 +49,22 @@ export default function ReportBody({ active, data }: { active: string; data: Any
                     HARGA POKOK PENJUALAN
                   </TableCell>
                 </TableRow>
-                {(data.hpp || []).map((it: AnyData) => (
-                  <TableRow key={it.code}>
+                {(data.rincian_transaksi?.hpp ?? data.hpp ?? []).map((it: AnyData, index: number) => (
+                  <TableRow key={`${it.code}-${index}`}>
                     <TableCell>{it.code}</TableCell>
-                    <TableCell>{it.name}</TableCell>
-                    <TableCell className="num">{fmtRp(it.amount)}</TableCell>
+                    <TableCell>{it.description ?? it.name}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(it.amount)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
                   <TableCell />
                   <TableCell className="font-semibold">Total HPP</TableCell>
-                  <TableCell className="num font-semibold">{fmtRp(data.total_hpp)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums font-semibold">{fmtRp(data.total_hpp)}</TableCell>
                 </TableRow>
                 <TableRow style={{ background: 'var(--total-row-bg)' }}>
                   <TableCell />
                   <TableCell className="font-bold">LABA KOTOR</TableCell>
-                  <TableCell className="num font-bold">{fmtRp(data.laba_kotor)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap tabular-nums font-bold">{fmtRp(data.laba_kotor)}</TableCell>
                 </TableRow>
               </>
             )}
@@ -73,24 +73,24 @@ export default function ReportBody({ active, data }: { active: string; data: Any
                 BEBAN
               </TableCell>
             </TableRow>
-            {(data.beban || []).map((it: AnyData) => (
-              <TableRow key={it.code}>
+            {(data.rincian_transaksi?.beban ?? data.beban ?? []).map((it: AnyData, index: number) => (
+              <TableRow key={`${it.code}-${index}`}>
                 <TableCell>{it.code}</TableCell>
-                <TableCell>{it.name}</TableCell>
-                <TableCell className="num">{fmtRp(it.amount)}</TableCell>
+                <TableCell>{it.description ?? it.name}</TableCell>
+                <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(it.amount)}</TableCell>
               </TableRow>
             ))}
             <TableRow>
               <TableCell />
               <TableCell className="font-semibold">Total Beban</TableCell>
-              <TableCell className="num font-semibold">{fmtRp(data.total_beban)}</TableCell>
+              <TableCell className="text-right whitespace-nowrap tabular-nums font-semibold">{fmtRp(data.total_beban)}</TableCell>
             </TableRow>
             <TableRow style={{ background: 'var(--total-row-bg)' }}>
               <TableCell />
               <TableCell className="font-bold" style={{ color: 'var(--primary-dark)' }}>
                 LABA / (RUGI) BERSIH
               </TableCell>
-              <TableCell className="num font-bold" style={{ color: 'var(--primary-dark)' }}>
+              <TableCell className="text-right whitespace-nowrap tabular-nums font-bold" style={{ color: 'var(--primary-dark)' }}>
                 {fmtRp(data.laba_bersih)}
               </TableCell>
             </TableRow>
