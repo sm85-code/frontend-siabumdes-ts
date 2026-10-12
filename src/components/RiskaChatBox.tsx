@@ -153,7 +153,7 @@ function RiskaSessionChat() {
   ))
   function selectCommand(command: Command) {
     if (busy || pendingDraft || conversationId || !visibleCommands.includes(command)) return
-    if (command.message) { void sendMessage(command.id === 'performance' && user?.role !== 'pengelola' ? 'performa semua unit' : command.message); return }
+    if (command.message) { void sendMessage(command.id === 'performance' && user?.role !== 'pengelola' ? 'performa semua unit' : command.message, true); return }
     if (!isAdmin && command.template) {
       setMessage(command.template)
       messageInput.current?.focus()
@@ -162,7 +162,7 @@ function RiskaSessionChat() {
     if (command.path) { setOpen(false); navigate(command.path) }
   }
   if (!enabled) return null
-  async function sendMessage(shortcut?: string) {
+  async function sendMessage(shortcut?: string, direct = false) {
     const text = (shortcut ?? message).trim()
     if (!text || busy || (pendingDraft && !canRevise) || activeRequest.current) return
     const controller = new AbortController()
@@ -171,7 +171,7 @@ function RiskaSessionChat() {
     setBusy(true)
     setEntries(old => [...old, { role: 'user', message: text }])
     try {
-      const { data } = await api.post<Reply>('/riska/chat', { message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, ai_conversation_id: aiConversationId, revision_draft_id: canRevise ? pendingDraft : null, session_id: assignmentSession.current, ai_mode: aiMode }, { signal: controller.signal })
+      const { data } = await api.post<Reply>('/riska/chat', { operation_id: crypto.randomUUID(), message: text, unit_usaha_id: unitId || null, conversation_id: conversationId, ai_conversation_id: aiConversationId, revision_draft_id: canRevise ? pendingDraft : null, session_id: assignmentSession.current, ai_mode: direct ? 'internal' : aiMode }, { signal: controller.signal })
       if (controller.signal.aborted) return
       if (data.session_ended) { setOpen(false); setEnabled(false); return }
       setConversationId(data.conversation_id || null)
@@ -237,7 +237,7 @@ function RiskaSessionChat() {
     : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label={RISKA_NAME}>
     {open && <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-slate-900 md:h-[min(40rem,calc(100dvh-2rem))] md:rounded-2xl md:border md:border-indigo-200 md:bg-white md:text-slate-900 md:shadow-2xl">
       <header className="flex shrink-0 items-center justify-between gap-2 rounded-xl bg-indigo-700 px-3 py-3 text-white">
-        <div><h2 className="font-semibold" style={{ color: '#fff' }}>{RISKA_NAME}</h2><p className="mt-1 text-xs text-indigo-100">Asisten internal · sesuai hak akses</p></div>
+        <div><h2 className="font-semibold" style={{ color: '#fff' }}>{RISKA_NAME}</h2><p className="mt-1 text-xs text-indigo-100">Agen keuangan · sesuai hak akses</p></div>
         <button type="button" className="min-h-11 rounded-lg border border-white/30 px-3 text-sm font-semibold hover:bg-white/10" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
       </header>
       <div className="flex shrink-0 items-center justify-between gap-2 py-2 text-xs text-slate-500">
@@ -249,7 +249,7 @@ function RiskaSessionChat() {
           <p className="font-semibold">Cadangan AI hari ini: USD {Number(aiBudget.reserved_usd).toFixed(2)} / {Number(aiBudget.daily_limit_usd).toFixed(2)} · Sisa {aiBudget.remaining_calls} panggilan</p>
           <details><summary className="cursor-pointer py-1">{aiBudget.exhausted ? 'Mengapa kuota habis?' : 'Rincian pemakaian & batas'}</summary>
             <p>{aiBudget.calls} / {aiBudget.call_limit} panggilan. Berhasil: {aiBudget.statuses.succeeded || 0}; gagal: {aiBudget.statuses.failed || 0}; diproses: {aiBudget.statuses.reserved || 0}.</p>
-            <p>Kuota bersama seluruh pengguna SIABUMDES. Setiap panggilan mencadangkan USD {aiBudget.per_call_usd}, termasuk yang gagal. Permintaan laporan dengan penjelasan AI dapat memakai dua panggilan. Cadangan ini bukan tagihan aktual penyedia.</p>
+            <p>Kuota bersama seluruh pengguna SIABUMDES. Setiap panggilan mencadangkan USD {aiBudget.per_call_usd}, termasuk yang gagal. Satu pesan agen dapat memakai beberapa panggilan untuk membaca alat lalu menjelaskan hasilnya. Cadangan ini bukan tagihan aktual penyedia.</p>
             {aiBudget.reason && <p>{aiBudget.reason}</p>}
             <p>Reset berikutnya: {new Date(aiBudget.resets_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB. Mode Internal tidak memakai biaya AI.</p>
           </details>
@@ -258,7 +258,7 @@ function RiskaSessionChat() {
       </div>}
       <details className="mb-2 max-h-44 shrink-0 overflow-y-auto rounded-lg border px-3 text-xs">
         <summary className="min-h-11 cursor-pointer py-3">Pengaturan & bantuan</summary>
-      <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-xs text-slate-500">Bantuan <select aria-label="Mode bantuan Riska" className="ml-2 rounded-lg border bg-white p-2 text-slate-900" value={aiMode} onChange={e => setAiMode(e.target.value as typeof aiMode)} disabled={busy || !!pendingDraft || !!conversationId}><option value="auto">Otomatis · AI</option><option value="internal">Internal · tanpa token AI</option><option value="sol" disabled={!aiModels.sol?.available}>Sol · {aiModels.sol?.model || 'belum tersedia'}</option><option value="sonnet" disabled={!aiModels.sonnet?.available}>Sonnet · {aiModels.sonnet?.model || 'belum tersedia'}</option></select></label><button type="button" className="min-h-11 rounded-lg border px-3 text-xs" onClick={() => setShowCommands(v => !v)}>{showCommands ? 'Tutup menu' : 'Menu bantuan'}</button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-xs text-slate-500">Bantuan <select aria-label="Mode bantuan Riska" className="ml-2 rounded-lg border bg-white p-2 text-slate-900" value={aiMode} onChange={e => setAiMode(e.target.value as typeof aiMode)} disabled={busy || !!pendingDraft || !!conversationId}><option value="auto">Agen otomatis · Sol / Sonnet</option><option value="internal">Perintah langsung · tanpa AI</option><option value="sol" disabled={!aiModels.sol?.available}>Sol · {aiModels.sol?.model || 'belum tersedia'}</option><option value="sonnet" disabled={!aiModels.sonnet?.available}>Sonnet · {aiModels.sonnet?.model || 'belum tersedia'}</option></select></label><button type="button" className="min-h-11 rounded-lg border px-3 text-xs" onClick={() => setShowCommands(v => !v)}>{showCommands ? 'Tutup menu' : 'Menu bantuan'}</button></div>
       <details className="max-h-28 shrink-0 overflow-y-auto text-xs"><summary>Bantuan: cara bertanya dan mencatat</summary>
         <p>Admin dapat meminta lihat/tambah/ubah/hapus transaksi, akun, pengguna, unit, produk, mitra, atau pembayaran imbal hasil. Contoh: “ubah produk Daster Arab Jumbo”. Riska menanyakan bagian dan nilai baru satu per satu. “Hapus unit” berarti menonaktifkan dengan tetap menjaga riwayat. Stok awal produk baru adalah nol; gunakan barang masuk untuk mencatat stok dan jurnalnya.</p>
         <p>Pilih entitas, lalu tulis seperti berbicara. Riska akan menanyakan data yang belum lengkap, tanpa menebak harga atau tanggal.</p>
@@ -311,7 +311,7 @@ function RiskaSessionChat() {
           {entry.rows !== undefined && !entry.draft_id && !/ada hal lain/i.test(entry.message) && <p className="mt-2">Semoga membantu. Ada hal lain yang perlu Riska cari tahu lagi? ✨</p>}
           </RiskaTypedReply>}
         </div>)}
-        {busy && <p role="status" className="flex items-center gap-2 rounded-2xl bg-indigo-50/60 px-4 py-3 text-sm text-slate-600"><span className="motion-safe:animate-pulse" aria-hidden="true">● ● ●</span> Riska sedang menyiapkan jawaban…</p>}
+        {busy && <p role="status" className="flex items-center gap-2 rounded-2xl bg-indigo-50/60 px-4 py-3 text-sm text-slate-600"><span className="motion-safe:animate-pulse" aria-hidden="true">● ● ●</span> Riska sedang memeriksa data dan menyiapkan jawaban…</p>}
       </div>
       {showCommands && !pendingDraft && !conversationId && <div className="mt-3 max-h-36 shrink-0 space-y-2 overflow-y-auto landscape:max-h-16 md:max-h-36" aria-label="Command List Riska">
         {(['read', 'admin', 'manage', 'local'] as const).map(category => {
