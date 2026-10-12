@@ -7,6 +7,7 @@ import RiskaTypedReply from '@/components/RiskaTypedReply'
 import { useAuth } from '@/lib/auth'
 
 type Reply = { can_revise?: boolean; message: string; ai_conversation_id?: string; ai?: { model: string; provider: string };  choices?: { label: string; message: string }[]; rows?: Record<string, string | number>[]; money_columns?: string[]; valuation?: string; draft_id?: string; conversation_id?: string; confirmation_level?: 'admin'; refresh_required?: boolean; session_ended?: boolean; auth_refresh_required?: boolean; credentials?: { username: string; temporary_password: string } | null; preview?: { unit: string; operation: string; item: string; tanggal: string; details?: Record<string, string>; rows: Record<string, string | number>[] }; parties?: Record<string, { id: string; name: string }[]> }
+type AiBudget = { unavailable?: boolean; calls: number; call_limit: number; reserved_usd: string; daily_limit_usd: string; per_call_usd: string; remaining_calls: number; exhausted: boolean; reason: string | null; resets_at: string; statuses: Record<string, number> }
 type Entry = Reply & { role: 'user' | 'riska' }
 type Unit = { id: string; code: string; name: string; business_type?: string }
 
@@ -68,6 +69,7 @@ function RiskaSessionChat() {
   const [unitLoadError, setUnitLoadError] = useState(false)
   const [unitId, setUnitId] = useState(user?.role === 'pengelola' ? user.unit_usaha_id || '' : '')
   const [message, setMessage] = useState('')
+  const [aiBudget, setAiBudget] = useState<AiBudget | null>(null)
   const [aiModels, setAiModels] = useState<Record<string, { available: boolean; model: string }>>({})
   const [aiMode, setAiMode] = useState<'auto' | 'internal' | 'sol' | 'sonnet'>('auto')
   const [showCommands, setShowCommands] = useState(false)
@@ -88,7 +90,7 @@ function RiskaSessionChat() {
       const controller = new AbortController()
       visibilityRequest = controller
       try {
-        const { data } = await api.get<{ enabled: boolean; session_id: string | null; ai_models?: Record<string, { available: boolean; model: string }> }>('/riska/availability', { signal: controller.signal })
+        const { data } = await api.get<{ enabled: boolean; session_id: string | null; ai_budget?: AiBudget; ai_models?: Record<string, { available: boolean; model: string }> }>('/riska/availability', { signal: controller.signal })
         if (!live) return
         if (!data.enabled) {
           activeRequest.current?.abort(); activeRequest.current = null
@@ -103,6 +105,7 @@ function RiskaSessionChat() {
         }
         // Permission decides visibility. Unit metadata is supplementary, not an access gate.
         setAiModels(data.ai_models || {})
+        setAiBudget(data.ai_budget || null)
         setEnabled(true)
         if (Date.now() - unitsLoadedAt >= 30_000) {
           try {
@@ -234,13 +237,25 @@ function RiskaSessionChat() {
     : 'fixed bottom-20 right-4 z-50 sm:bottom-4'} aria-label={RISKA_NAME}>
     {open && <section className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-200 flex h-full min-h-0 w-full flex-col rounded-none bg-white p-3 text-slate-900 md:h-[min(40rem,calc(100dvh-2rem))] md:rounded-2xl md:border md:border-indigo-200 md:bg-white md:text-slate-900 md:shadow-2xl">
       <header className="flex shrink-0 items-center justify-between gap-2 rounded-xl bg-indigo-700 px-3 py-3 text-white">
-        <div><h2 className="font-semibold">{RISKA_NAME}</h2><p className="mt-1 text-xs text-indigo-100">Asisten internal · sesuai hak akses</p></div>
+        <div><h2 className="font-semibold" style={{ color: '#fff' }}>{RISKA_NAME}</h2><p className="mt-1 text-xs text-indigo-100">Asisten internal · sesuai hak akses</p></div>
         <button type="button" className="min-h-11 rounded-lg border border-white/30 px-3 text-sm font-semibold hover:bg-white/10" onClick={() => setOpen(false)}>Tutup Riska ✕</button>
       </header>
       <div className="flex shrink-0 items-center justify-between gap-2 py-2 text-xs text-slate-500">
         <span className="truncate">{units.find(unit => unit.id === unitId)?.name || (user?.role === 'pengelola' ? 'Unit usaha Anda' : 'BUMDES Pusat')}</span>
         <button type="button" className="min-h-11 shrink-0 rounded-lg border px-3" onClick={() => setShowCommands(value => !value)}>{showCommands ? 'Tutup pintasan' : 'Pintasan'}</button>
       </div>
+      {aiBudget && <div className="mb-2 shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs text-slate-800" role="status">
+        {aiBudget.unavailable ? <p>Pemakaian AI belum tersedia.</p> : <>
+          <p className="font-semibold">Cadangan AI hari ini: USD {Number(aiBudget.reserved_usd).toFixed(2)} / {Number(aiBudget.daily_limit_usd).toFixed(2)} · Sisa {aiBudget.remaining_calls} panggilan</p>
+          <details><summary className="cursor-pointer py-1">{aiBudget.exhausted ? 'Mengapa kuota habis?' : 'Rincian pemakaian & batas'}</summary>
+            <p>{aiBudget.calls} / {aiBudget.call_limit} panggilan. Berhasil: {aiBudget.statuses.succeeded || 0}; gagal: {aiBudget.statuses.failed || 0}; diproses: {aiBudget.statuses.reserved || 0}.</p>
+            <p>Kuota bersama seluruh pengguna SIABUMDES. Setiap panggilan mencadangkan USD {aiBudget.per_call_usd}, termasuk yang gagal. Permintaan laporan dengan penjelasan AI dapat memakai dua panggilan. Cadangan ini bukan tagihan aktual penyedia.</p>
+            {aiBudget.reason && <p>{aiBudget.reason}</p>}
+            <p>Reset berikutnya: {new Date(aiBudget.resets_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB. Mode Internal tidak memakai biaya AI.</p>
+          </details>
+          {aiBudget.exhausted && aiMode !== 'internal' && <button type="button" className="mt-1 min-h-11 rounded border border-indigo-300 bg-white px-3 font-semibold text-indigo-800 disabled:opacity-50" disabled={busy || !!pendingDraft || !!conversationId} onClick={() => setAiMode('internal')}>Gunakan mode Internal</button>}
+        </>}
+      </div>}
       <details className="mb-2 max-h-44 shrink-0 overflow-y-auto rounded-lg border px-3 text-xs">
         <summary className="min-h-11 cursor-pointer py-3">Pengaturan & bantuan</summary>
       <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-xs text-slate-500">Bantuan <select aria-label="Mode bantuan Riska" className="ml-2 rounded-lg border bg-white p-2 text-slate-900" value={aiMode} onChange={e => setAiMode(e.target.value as typeof aiMode)} disabled={busy || !!pendingDraft || !!conversationId}><option value="auto">Otomatis · AI</option><option value="internal">Internal · tanpa token AI</option><option value="sol" disabled={!aiModels.sol?.available}>Sol · {aiModels.sol?.model || 'belum tersedia'}</option><option value="sonnet" disabled={!aiModels.sonnet?.available}>Sonnet · {aiModels.sonnet?.model || 'belum tersedia'}</option></select></label><button type="button" className="min-h-11 rounded-lg border px-3 text-xs" onClick={() => setShowCommands(v => !v)}>{showCommands ? 'Tutup menu' : 'Menu bantuan'}</button></div>
