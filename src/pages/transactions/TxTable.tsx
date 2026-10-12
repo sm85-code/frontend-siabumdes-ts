@@ -112,10 +112,10 @@ export default function TxTable({
           Transaksi {activeGroup === 'BUMDES' ? 'BUMDes' : activeGroup} — {periodLabel}
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          {total} transaksi · halaman {page}/{pageCount}. Edit/hapus transaksi Imbal Hasil melalui menu Imbal Hasil. Bukti opsional dapat diunggah atau dihapus dengan tombol X di sini.
+          {total} transaksi · halaman {page}/{pageCount}
         </p>
       </CardHeader>
-      <TableShell minWidth={720} data-testid="tx-table">
+      <TableShell minWidth={720} label="Daftar transaksi keuangan">
         <Table data-testid="tx-table">
           <TableHeader>
             <TableRow>
@@ -176,7 +176,7 @@ export default function TxTable({
                 const editable = canEditRow(t)
                 const manageProofs = canManageProofs(t)
                 return (
-                  <TableRow key={t.id}>
+                  <TableRow data-state={selected.has(t.id) ? 'selected' : undefined} key={t.id}>
                     {canBulkDelete && (
                       <TableCell>
                         <Checkbox

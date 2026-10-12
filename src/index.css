@@ -662,3 +662,37 @@ h4,
 select { color-scheme: light; }
 .dark select { color-scheme: dark; }
 select option { background-color: var(--popover); color: var(--popover-foreground); }
+
+/* Shared workspace rhythm, theme-aware surfaces and readable financial tables. */
+:root { --total-row-bg: color-mix(in oklch, var(--primary) 10%, var(--card)); --status-error-strong: var(--destructive); }
+.siabumdes-content { min-width: 0; }
+.siabumdes-content h1 { font-size: clamp(1.5rem, 2vw, 1.875rem); line-height: 1.3; overflow-wrap: anywhere; }
+.siabumdes-content > div { min-width: 0; }
+.siabumdes-content .label { font-size: .8125rem; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.siabumdes-content [data-slot=card] { border-radius: 1rem; }
+.siabumdes-content [data-slot=card]:has(> .table-shell:only-child) { border: 0; }
+.table-shell { scrollbar-width: thin; scrollbar-color: var(--border) transparent; overscroll-behavior-x: contain; }
+.table-shell [data-slot=table] { background: var(--card); color: var(--card-foreground); }
+.table-shell [data-slot=table-header] [data-slot=table-row]:hover { background: transparent; }
+.table-shell [data-slot=table-body] [data-slot=table-row]:nth-child(even) { background-color: color-mix(in oklch, var(--muted) 30%, transparent); }
+.table-shell [data-slot=table-body] [data-slot=table-row]:hover { background-color: var(--muted); }
+.table-shell [data-slot=table-body] [data-slot=table-row][data-state=selected] { background-color: color-mix(in oklch, var(--primary) 10%, var(--card)); }
+[data-slot=table-head].num, [data-slot=table-cell].num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+[data-slot=table-cell].text-right { font-variant-numeric: tabular-nums; }
+[data-slot=table-cell] { line-height: 1.6; }
+[data-slot=table-head][aria-sort] { border-radius: 0; }
+[data-slot=table-head][aria-sort]:focus-visible { outline: 2px solid var(--ring); outline-offset: -3px; }
+[data-slot=table-cell][colspan].text-center { padding-block: 2rem; color: var(--muted-foreground); }
+[data-slot=tabs-list][data-variant=default] { height: auto; max-width: 100%; flex-wrap: wrap; gap: .25rem; padding: .375rem; border: 1px solid var(--border); border-radius: .875rem; }
+[data-slot=tabs-list][data-variant=default] [data-slot=tabs-trigger] { min-height: 40px; padding: .5rem .875rem; border-radius: .625rem; }
+[data-slot=tabs-list][data-variant=default] [data-slot=tabs-trigger][data-state=active] { background: var(--primary); color: var(--primary-foreground); }
+@media (max-width: 639px) {
+  [data-slot=table-cell], [data-slot=table-head] { padding-inline: .875rem; }
+  [data-slot=button] { min-height: 40px; }
+  [data-slot=input], [data-slot=textarea], [data-slot=select-trigger] { font-size: 16px; }
+}
+@media print {
+  .table-shell { overflow: visible; border: 0; box-shadow: none; }
+  .table-shell > div { min-width: 0 !important; }
+  .table-shell [data-slot=table] { color: #111; background: white; }
+}
