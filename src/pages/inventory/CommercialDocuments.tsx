@@ -418,7 +418,7 @@ export default function CommercialDocuments() {
       {loading && <p role="status">Memuat dokumen dan rekap…</p>}
       {view === "documents" ? (
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-4 sm:p-5">
             <TableShell minWidth={850}>
               <Table>
                 <TableHeader>

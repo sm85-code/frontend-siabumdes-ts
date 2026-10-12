@@ -670,18 +670,18 @@ select option { background-color: var(--popover); color: var(--popover-foregroun
 .siabumdes-content > div { min-width: 0; }
 .siabumdes-content .label { font-size: .8125rem; letter-spacing: 0; text-transform: none; font-weight: 600; }
 .siabumdes-content [data-slot=card] { border-radius: 1rem; }
-.siabumdes-content [data-slot=card]:has(> .table-shell:only-child) { border: 0; }
-/* Tables below a card title need breathing room between both frames. */
-.siabumdes-content [data-slot=card] > .table-shell:not(:only-child) {
-  width: calc(100% - 2rem);
-  margin: 0 1rem 1rem;
+/* Every direct table has an inset, including table-only cards and paginated lists. */
+.siabumdes-content { --table-card-inset: 1rem; }
+.siabumdes-content [data-slot=card] > .table-shell {
+  width: calc(100% - 2 * var(--table-card-inset));
+  margin: 0 var(--table-card-inset) var(--table-card-inset);
   border-radius: .75rem;
 }
+.siabumdes-content [data-slot=card] > .table-shell:first-child {
+  margin-top: var(--table-card-inset);
+}
 @media (min-width: 640px) {
-  .siabumdes-content [data-slot=card] > .table-shell:not(:only-child) {
-    width: calc(100% - 2.5rem);
-    margin: 0 1.25rem 1.25rem;
-  }
+  .siabumdes-content { --table-card-inset: 1.25rem; }
 }
 .table-shell { scrollbar-width: thin; scrollbar-color: var(--border) transparent; overscroll-behavior-x: contain; }
 .table-shell [data-slot=table] { background: var(--card); color: var(--card-foreground); }
@@ -704,7 +704,8 @@ select option { background-color: var(--popover); color: var(--popover-foregroun
   [data-slot=input], [data-slot=textarea], [data-slot=select-trigger] { font-size: 16px; }
 }
 @media print {
-  .siabumdes-content [data-slot=card] > .table-shell:not(:only-child) { width: 100%; margin: 0; }
+  .siabumdes-content [data-slot=card] > .table-shell { width: 100%; margin: 0; }
+  .siabumdes-content [data-slot=card] > .table-shell:first-child { margin-top: 0; }
   .table-shell { overflow: visible; border: 0; box-shadow: none; }
   .table-shell > div { min-width: 0 !important; }
   .table-shell [data-slot=table] { color: #111; background: white; }
