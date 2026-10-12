@@ -221,6 +221,7 @@ Ada data keuangan yang ingin Kak ${greetingName} saya tampilkan sekarang?`
       }
       if (controller.signal.aborted) return
       setPendingDraft(null)
+      setConversationId(null)
       setEntries(old => [...old, { role: 'riska', ...data }])
       if (data.session_ended) { setEnabled(false); setOpen(false) }
       if (data.auth_refresh_required) void refreshUser().catch(() => setEntries(previous => [...previous, { role: 'riska', message: 'Perubahan akun sudah tersimpan. Muat ulang halaman untuk menyegarkan profil dan hak akses tampilan.' }]))
