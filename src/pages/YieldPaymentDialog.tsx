@@ -25,38 +25,45 @@ export const PAYMENT_MONTHS = [
 export default function YieldPaymentDialog({
   partner,
   year,
+  month: monthNumber,
   onClose,
   onSaved,
 }: {
   partner: YieldPartner
   year: number
+  month: number
   onClose: () => void
   onSaved: () => Promise<void>
 }) {
-  const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
-  const [transactionDate, setTransactionDate] = useState(today)
-  const [month, setMonth] = useState('')
-  const [automatic, setAutomatic] = useState(true)
-  const [manual, setManual] = useState('')
+  const month = String(monthNumber)
+  const mm = String(monthNumber).padStart(2, '0')
+  const firstDay = `${year}-${mm}-01`
+  const lastDay = `${year}-${mm}-${String(new Date(year, monthNumber, 0).getDate()).padStart(2, '0')}`
+  // Default: tanggal tercatat; jika belum ada, hari ini bila masih di bulan tsb, selain itu akhir bulan.
+  const defaultDate = () => {
+    const recorded = partner.payment_dates?.[month]
+    if (recorded) return recorded
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+    return today >= firstDay && today <= lastDay ? today : lastDay
+  }
+  const recorded = partner.payments?.[month]
+  const [transactionDate, setTransactionDate] = useState(defaultDate)
+  const [automatic, setAutomatic] = useState(recorded == null)
+  const [manual, setManual] = useState(recorded ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const confirm = useConfirm()
-  const selectMonth = (value: string) => {
-    setMonth(value)
-    setError('')
-    setTransactionDate(partner.payment_dates?.[value] || today())
-    const recorded = partner.payments?.[value]
-    setManual(recorded ?? '')
-    setAutomatic(recorded == null)
-  }
   const submit = async (remove: boolean) => {
     if (saving) return
+    if (transactionDate && (transactionDate < firstDay || transactionDate > lastDay)) {
+      setError(`Tanggal transaksi harus berada di periode ${mm}/${year}.`)
+      return
+    }
     if (
       !transactionDate ||
-      !month ||
       (!automatic && (manual.trim() === '' || !Number.isFinite(Number(manual)) || Number(manual) <= 0))
     ) {
-      setError('Pilih bulan, tanggal transaksi, dan nominal pembayaran lebih dari nol.')
+      setError('Isi tanggal transaksi dan jumlah setoran lebih dari nol.')
       return
     }
     setError('')
@@ -91,12 +98,9 @@ export default function YieldPaymentDialog({
     }
   }
   return (
-    <FormDialog compact title="Input Pembayaran" error={error} onClose={onClose}>
+    <FormDialog compact title={`${partner.name} - Setoran Periode : ${mm}/${year}`} error={error} onClose={onClose}>
       {({ cancel, run }) => (
         <>
-          <p className="text-sm font-medium">
-            {partner.name} · Tahun {year}
-          </p>
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -106,52 +110,30 @@ export default function YieldPaymentDialog({
             noValidate
           >
             <div className="space-y-2">
-              <Label htmlFor="payment-month">Bulan</Label>
-              <select
-                id="payment-month"
-                className="h-10 w-full rounded-lg border bg-popover px-3 text-popover-foreground"
-                value={month}
-                disabled={saving}
-                onChange={(e) => selectMonth(e.target.value)}
-              >
-                <option value="">Pilih bulan</option>
-                {PAYMENT_MONTHS.map((name, i) => (
-                  <option key={name} value={i + 1}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              {month && (
-                <p className="text-xs text-muted-foreground">
-                  {partner.payments?.[month] == null
-                    ? 'Belum ada pembayaran tercatat.'
-                    : `Pembayaran tercatat: ${fmtRp(partner.payments[month])}. Simpan akan memperbarui nilai bulan ini.`}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-date">Tanggal transaksi</Label>
+              <Label htmlFor="payment-date">Tanggal Transaksi</Label>
               <Input
                 id="payment-date"
                 type="date"
                 value={transactionDate}
+                min={firstDay}
+                max={lastDay}
                 disabled={saving}
                 onChange={(e) => setTransactionDate(e.target.value)}
               />
             </div>
             <fieldset className="space-y-3" disabled={saving}>
-              <legend className="mb-2 text-sm font-medium">Metode nominal</legend>
+              <legend className="mb-2 text-sm font-medium">Jumlah Setoran</legend>
               <label className="flex items-center gap-2">
                 <input type="radio" name="payment-method" checked={automatic} onChange={() => setAutomatic(true)} />
-                Otomatis 3%
+                Nominal Otomatis (3%)
               </label>
-              <Input aria-label="Nominal otomatis 3%" readOnly value={fmtRp(partner.yield_amount)} />
+              <Input aria-label="Nominal Otomatis (3%)" readOnly value={fmtRp(partner.yield_amount)} />
               <label className="flex items-center gap-2">
                 <input type="radio" name="payment-method" checked={!automatic} onChange={() => setAutomatic(false)} />
-                Nominal Manual
+                Nominal Senduene
               </label>
               <Input
-                aria-label="Nominal manual (Rp)"
+                aria-label="Nominal Senduene (Rp)"
                 type="number"
                 inputMode="decimal"
                 min="0.01"
@@ -159,7 +141,7 @@ export default function YieldPaymentDialog({
                 disabled={automatic}
                 value={manual}
                 onChange={(e) => setManual(e.target.value)}
-                placeholder="Input nominal Imbal Hasil"
+                placeholder="Input jumlah setoran"
               />
             </fieldset>
             <div className="flex flex-wrap gap-2">
