@@ -1,6 +1,6 @@
 import FormDialog from '@/components/FormDialog'
-import { ArrowDown, ArrowUp, BarChart3, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
 import { useAuth, can } from "@/lib/auth";
@@ -36,7 +36,6 @@ import {
   type StockInFormValues,
   type StockOutFormValues,
 } from "@/schemas/inventory";
-import PeriodFilter from "@/components/PeriodFilter";
 import TableShell from "@/components/TableShell";
 import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
@@ -74,24 +73,34 @@ function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
 const BASE = "/v1/uu05_inventory";
 const today = () => new Date().toISOString().slice(0, 10);
 
-const TABS = [
-  { id: "summary", label: "Summary", icon: PieChart },
-  { id: "katalog", label: "Katalog Produk", icon: Package },
-  { id: "stock-in", label: "Stock In", icon: ArrowDown },
-  { id: "stock-out", label: "Stock Out", icon: ArrowUp },
-  { id: "kelola", label: "Penyesuaian Stok", icon: SlidersHorizontal },
-  { id: "vendor", label: "Mitra Pemasok", icon: Truck },
-  { id: "customer", label: "Customer", icon: Users },
-  { id: "utang", label: "Utang", icon: Wallet },
-  { id: "piutang", label: "Piutang", icon: HandCoins },
-  { id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins },
-  { id: "laporan", label: "Laporan", icon: BarChart3 },
+// Tab utama -> sub tab (id sub tab = id tab lama, sehingga state & loader tetap sama).
+const TAB_GROUPS = [
+  { id: "ringkasan", label: "Ringkasan", icon: PieChart, tabs: [{ id: "summary", label: "Ringkasan", icon: PieChart }] },
+  { id: "persetokan", label: "Persetokan", icon: Package, tabs: [
+    { id: "katalog", label: "Katalog Produk", icon: Package },
+    { id: "stock-in", label: "Stock In", icon: ArrowDown },
+    { id: "stock-out", label: "Stock Out", icon: ArrowUp },
+    { id: "kelola", label: "Penyesuaian Stok", icon: SlidersHorizontal },
+  ] },
+  { id: "data-orang", label: "Data Orang-Orang", icon: Users, tabs: [
+    { id: "vendor", label: "Pemasok", icon: Truck },
+    { id: "customer", label: "Customer", icon: Users },
+  ] },
+  { id: "perutangan", label: "Perutangan", icon: Wallet, tabs: [
+    { id: "utang", label: "Utang", icon: Wallet },
+    { id: "piutang", label: "Piutang", icon: HandCoins },
+  ] },
+  { id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins, tabs: [{ id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins }] },
 ];
+const SUB_TAB_ACTIVE = { background: "color-mix(in oklch, var(--primary) 14%, transparent)", color: "var(--primary-dark)", borderColor: "color-mix(in oklch, var(--primary) 40%, transparent)" };
 
 export default function Inventory() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.has("document") ? "documents" : "summary");
+  const [tab, setTabRaw] = useState(searchParams.has("document") ? "documents" : "summary");
+  // Tab lama "laporan" sudah digabung ke Ringkasan.
+  const setTab = (id: string) => setTabRaw(id === "laporan" ? "summary" : id);
+  const activeGroup = TAB_GROUPS.find(g => g.tabs.some(t => t.id === tab)) ?? TAB_GROUPS[0];
   const [meta, setMeta] = useState<InventoryMeta | null>(null);
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
@@ -118,7 +127,7 @@ export default function Inventory() {
   const [vendorDefaults, setVendorDefaults] = useState<PartnerFormValues>(emptyPartnerFormValues());
   const [customerEditingId, setCustomerEditingId] = useState<string | null>(null);
   const [customerDefaults, setCustomerDefaults] = useState<PartnerFormValues>(emptyPartnerFormValues());
-  const [period, setPeriod] = useState<PeriodValue>({
+  const [period] = useState<PeriodValue>({
     mode: "monthly", startDate: "", endDate: "", label: "",
   });
 
@@ -194,7 +203,7 @@ export default function Inventory() {
   useEffect(() => { loadCore(); }, [loadCore]);
   useEffect(() => {
     if (tab === "kelola" || tab === "stock-in" || tab === "stock-out" || tab === "summary") loadOps();
-    if (tab === "laporan" || tab === "summary") loadReports();
+    if (tab === "summary") loadReports();
     if (["stock-in", "stock-out", "vendor", "customer", "utang", "piutang"].includes(tab)) loadTrade();
   }, [tab, loadOps, loadReports, loadTrade]);
 
@@ -479,25 +488,34 @@ export default function Inventory() {
       )}
 
       <div className="flex gap-2 flex-wrap" role="tablist" aria-label="Tab inventory">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
+        {TAB_GROUPS.map((g) => {
+          const Icon = g.icon;
+          const active = activeGroup.id === g.id;
           return (
-            <Button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              variant={active ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTab(t.id)}
-              data-testid={`tab-${t.id}`}
-            >
-              <Icon size={16} /> {t.label}
+            <Button key={g.id} type="button" role="tab" aria-selected={active} variant={active ? "default" : "outline"} size="sm"
+              onClick={() => { if (!active) setTab(g.tabs[0].id); }} data-testid={`tab-group-${g.id}`}>
+              <Icon size={16} /> {g.label}
             </Button>
           );
         })}
       </div>
+
+      {activeGroup.tabs.length > 1 && (
+        <div className="flex gap-1.5 flex-wrap border-b pb-2" role="tablist" aria-label={`Sub tab ${activeGroup.label}`} data-testid="inventory-subtabs">
+          {activeGroup.tabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <Button key={t.id} type="button" role="tab" aria-selected={active} variant="ghost" size="sm"
+                className="min-h-9 rounded-full border border-transparent font-medium"
+                style={active ? SUB_TAB_ACTIVE : { color: "var(--text-muted)" }}
+                onClick={() => setTab(t.id)} data-testid={`tab-${t.id}`}>
+                <Icon size={14} /> {t.label}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {tab === "documents" && <CommercialDocuments />}
 
@@ -841,77 +859,10 @@ export default function Inventory() {
         </Card>
       )}
 
-      {tab === "laporan" && (
-        <div className="space-y-4">
-          <Card className="p-4 flex flex-wrap gap-4 items-end">
-            <div>
-              <label className="label">Periode</label>
-              <PeriodFilter
-                value={period}
-                onChange={setPeriod}
-                defaultMode="monthly"
-                data-testid="inventory-period-filter"
-              />
-            </div>
-            <Button type="button" variant="outline" onClick={loadReports}>Muat ulang</Button>
-          </Card>
-
-          {valuation && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Stat label="SKU aktif" value={valuation.summary?.sku_count ?? 0} />
-              <Stat label="Total qty" value={valuation.summary?.total_qty ?? 0} />
-              <Stat label="Nilai persediaan" value={fmtRp(Number(valuation.summary?.total_value || 0))} />
-            </div>
-          )}
-
-          {movementReport && (
-            <Card className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="label mb-1">Stock in</p>
-                <p className="font-heading text-xl font-bold">{movementReport.stock_in?.qty ?? 0} unit</p>
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>{fmtRp(Number(movementReport.stock_in?.value || 0))} · {movementReport.stock_in?.count ?? 0} transaksi</p>
-              </div>
-              <div>
-                <p className="label mb-1">Stock out</p>
-                <p className="font-heading text-xl font-bold">{movementReport.stock_out?.qty ?? 0} unit</p>
-                <p className="text-sm" style={{ color: "var(--text-muted)" }}>{fmtRp(Number(movementReport.stock_out?.value || 0))} · {movementReport.stock_out?.count ?? 0} transaksi</p>
-              </div>
-            </Card>
-          )}
-
-          {(valuation?.by_category?.length ?? 0) > 0 && (
-            <Card className="p-0 overflow-hidden">
-              <TableShell minWidth={720}>
-              <Table>
-                <TableHeader><TableRow><TableHead>Kategori</TableHead><TableHead className="num">SKU</TableHead><TableHead className="num">Qty</TableHead><TableHead className="num">Nilai</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {(valuation?.by_category ?? []).map((c) => (
-                    <TableRow key={c.category}>
-                      <TableCell>{c.category}</TableCell>
-                      <TableCell className="num">{c.sku_count}</TableCell>
-                      <TableCell className="num">{c.qty}</TableCell>
-                      <TableCell className="num">{fmtRp(Number(c.value))}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </TableShell>
-            </Card>
-          )}
-        </div>
-      )}
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <Card className="p-4">
-      <p className="label mb-1">{label}</p>
-      <p className="font-heading text-2xl font-bold">{value}</p>
-    </Card>
-  );
-}
 
 function MovementTable({
   rows,
