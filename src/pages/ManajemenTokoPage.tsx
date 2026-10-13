@@ -131,10 +131,9 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   onCell: (t: CellTarget) => void
   onEmptyUraian: () => void
 }) {
-  const [extra, setExtra] = useState(0)
   const rows = useMemo(() => buildTxRows(items, entries, jenis), [items, entries, jenis])
   const { sorted, headerProps, sortIndicator } = useSort<TxRow>(rows)
-  const padCount = Math.max(DEFAULT_TX_ROWS - rows.length, 0) + extra
+  const padCount = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
   const display = [...sorted, ...Array.from({ length: padCount }, (_, i) => emptyTxRow(`empty-${i}`))]
   const totals = txTotals(rows)
   const title = JENIS_LABEL[jenis]
@@ -148,7 +147,6 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-xl font-semibold">{title}</h2>
-        <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={980} label={`Tabel ${title}`}><Table className={tableClass}>
         <TableHeader className={headerClass}><TableRow>
