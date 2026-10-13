@@ -262,10 +262,11 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
       </TableCell>
       <TableCell>
         <Select value={jenis} onValueChange={(v) => { const j = v as TokoJenis; setJenis(j); void persist({ name, jenis: j, keterangan }) }} disabled={busy}>
-          <SelectTrigger aria-label={`Jenis Transaksi baris ${no}`} className="w-full"><SelectValue placeholder={<span className="italic text-muted-foreground/60">{HINT}</span>} /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pemasukan">Pemasukan</SelectItem>
-            <SelectItem value="pengeluaran">Pengeluaran</SelectItem>
+          <SelectTrigger aria-label={`Jenis Transaksi baris ${no}`} className="h-11 w-full px-3"><SelectValue placeholder={<span className="italic text-muted-foreground/60">{HINT}</span>} /></SelectTrigger>
+          <SelectContent position="popper" align="start" sideOffset={4}
+            className="w-(--radix-select-trigger-width) min-w-(--radix-select-trigger-width) p-1">
+            <SelectItem value="pemasukan" className="min-h-11 px-3 text-sm">Pemasukan</SelectItem>
+            <SelectItem value="pengeluaran" className="min-h-11 px-3 text-sm">Pengeluaran</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
