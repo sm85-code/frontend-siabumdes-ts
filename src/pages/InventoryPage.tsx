@@ -1,5 +1,5 @@
 import FormDialog from '@/components/FormDialog'
-import { ArrowDown, ArrowUp, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
+import { ArrowDown, FileText, ArrowUp, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
@@ -20,6 +20,7 @@ import type {
 import {
   KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE, UTANG_ACCOUNT_CODE,
 } from "@/lib/uu05InventoryCoa";
+import SubTabs from "@/components/SubTabs";
 import CommercialDocuments from "@/pages/inventory/CommercialDocuments";
 import InventorySummary from "@/pages/InventorySummary";
 import ProductFormCard from "@/pages/inventory/ProductFormCard";
@@ -90,9 +91,8 @@ const TAB_GROUPS = [
     { id: "utang", label: "Utang", icon: Wallet },
     { id: "piutang", label: "Piutang", icon: HandCoins },
   ] },
-  { id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins, tabs: [{ id: "documents", label: "Invoice / PO / Rekap", icon: HandCoins }] },
+  { id: "documents", label: "Dokumen", icon: FileText, tabs: [{ id: "documents", label: "Dokumen", icon: FileText }] },
 ];
-const SUB_TAB_ACTIVE = { background: "color-mix(in oklch, var(--primary) 14%, transparent)", color: "var(--primary-dark)", borderColor: "color-mix(in oklch, var(--primary) 40%, transparent)" };
 
 export default function Inventory() {
   const { user } = useAuth();
@@ -501,20 +501,7 @@ export default function Inventory() {
       </div>
 
       {activeGroup.tabs.length > 1 && (
-        <div className="flex gap-1.5 flex-wrap border-b pb-2" role="tablist" aria-label={`Sub tab ${activeGroup.label}`} data-testid="inventory-subtabs">
-          {activeGroup.tabs.map((t) => {
-            const Icon = t.icon;
-            const active = tab === t.id;
-            return (
-              <Button key={t.id} type="button" role="tab" aria-selected={active} variant="ghost" size="sm"
-                className="min-h-9 rounded-full border border-transparent font-medium"
-                style={active ? SUB_TAB_ACTIVE : { color: "var(--text-muted)" }}
-                onClick={() => setTab(t.id)} data-testid={`tab-${t.id}`}>
-                <Icon size={14} /> {t.label}
-              </Button>
-            );
-          })}
-        </div>
+        <SubTabs tabs={activeGroup.tabs} value={tab} onChange={setTab} label={`Sub tab ${activeGroup.label}`} testId="inventory-subtabs" />
       )}
 
       {tab === "documents" && <CommercialDocuments />}

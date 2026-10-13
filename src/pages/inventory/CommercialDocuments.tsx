@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, Eye, FileText, Plus, Trash2 } from "lucide-react";
+import { Download, Eye, FileText, List, Plus, RefreshCw, Trash2, Users } from "lucide-react";
+import SubTabs from "@/components/SubTabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import api, { fmtRp, fmtDate, getApiError } from "@/api/client";
 import { triggerBlobDownload } from "@/api/transactions";
 import { useSearchParams } from "react-router-dom";
@@ -73,6 +75,12 @@ const labels: Record<Kind, string> = {
   po: "PO Pemasok",
   purchase_statement: "Rekap Pembelian",
 };
+const hints: Record<Kind, string> = {
+  invoice: "Dibuat dari penjualan yang sudah tercatat.",
+  po: "Pemesanan ke pemasok; belum menambah stok atau jurnal.",
+  purchase_statement: "Rangkuman barang yang sudah diterima dari pemasok.",
+};
+const ALL = "__all";
 const blankLine = (): PoLine => ({
   product_id: "",
   date: today(),
@@ -352,59 +360,59 @@ export default function CommercialDocuments() {
     </label>
   );
   const partnerSelect = (
-    <label className="grid gap-1 text-sm">
-      {kind === "invoice" ? "Pelanggan" : "Pemasok"}
-      <select className="input" aria-label="Mitra dokumen" value={partner} onChange={(e) => setPartner(e.target.value)}>
-        <option value="">Seluruh mitra / pilih mitra</option>
-        {partners.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="grid gap-1 text-sm">
+      <span>{kind === "invoice" ? "Pelanggan" : "Pemasok"}</span>
+      <Select value={partner || ALL} onValueChange={(v) => setPartner(v === ALL ? "" : v)}>
+        <SelectTrigger aria-label="Mitra dokumen" className="h-10 w-full"><SelectValue /></SelectTrigger>
+        <SelectContent position="popper">
+          <SelectItem value={ALL}>Semua mitra</SelectItem>
+          {partners.map((p) => (
+            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
+  const viewOptions = [
+    { id: "documents" as const, label: "Daftar Dokumen", icon: List },
+    { id: "statements" as const, label: "Rekap per Mitra", icon: Users },
+  ];
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {(Object.keys(labels) as Kind[]).map((k) => (
-          <Button
-            key={k}
-            size="sm"
-            variant={kind === k ? "default" : "outline"}
-            onClick={() => {
-              setKind(k);
-              setPartner("");
-              setOffset(0);
-              setError("");
-            }}
-          >
-            {labels[k]}
-          </Button>
-        ))}
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Invoice mengambil penjualan tercatat. PO adalah pemesanan, belum menambah stok atau jurnal. Rekap Pembelian
-        merangkum barang yang sudah diterima. Periode dan pilihan mitra berlaku pada rekap dan pemilihan transaksi
-        sumber.
-      </p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {partnerSelect}
-        {field("Tanggal awal", start, setStart, "date")}
-        {field("Tanggal akhir", end, setEnd, "date")}
-      </div>
+      <SubTabs
+        tabs={(Object.keys(labels) as Kind[]).map((k) => ({ id: k, label: labels[k] }))}
+        value={kind}
+        label="Jenis dokumen"
+        testIdPrefix="doc-tab-"
+        onChange={(k) => {
+          setKind(k as Kind);
+          setPartner("");
+          setOffset(0);
+          setError("");
+        }}
+      />
+      <p className="text-sm text-muted-foreground">{hints[kind]} Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</p>
+      <Card>
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+          {partnerSelect}
+          {field("Tanggal awal", start, setStart, "date")}
+          {field("Tanggal akhir", end, setEnd, "date")}
+        </CardContent>
+      </Card>
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant={view === "documents" ? "default" : "outline"} onClick={() => setView("documents")}>
-          Daftar Dokumen
-        </Button>
-        <Button size="sm" variant={view === "statements" ? "default" : "outline"} onClick={() => setView("statements")}>
-          Rekap per Mitra
-        </Button>
-        <Button size="sm" onClick={() => void load()} disabled={loading || busy}>
-          Segarkan
+        <div className="inline-flex rounded-lg border p-0.5" role="radiogroup" aria-label="Tampilan">
+          {viewOptions.map((o) => (
+            <button key={o.id} type="button" role="radio" aria-checked={view === o.id} onClick={() => setView(o.id)}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors ${view === o.id ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <o.icon className="size-4" /> {o.label}
+            </button>
+          ))}
+        </div>
+        <Button size="sm" variant="ghost" onClick={() => void load()} disabled={loading || busy} aria-label="Segarkan">
+          <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Segarkan
         </Button>
         {canWrite && (
-          <Button size="sm" className="sm:ml-auto" onClick={openCreate} disabled={busy}>
+          <Button size="sm" className="w-full sm:ml-auto sm:w-auto" onClick={openCreate} disabled={busy}>
             <Plus className="size-4" />
             Buat {labels[kind]}
           </Button>
