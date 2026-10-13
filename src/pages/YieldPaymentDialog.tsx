@@ -37,15 +37,11 @@ export default function YieldPaymentDialog({
 }) {
   const month = String(monthNumber)
   const mm = String(monthNumber).padStart(2, '0')
-  const firstDay = `${year}-${mm}-01`
-  const lastDay = `${year}-${mm}-${String(new Date(year, monthNumber, 0).getDate()).padStart(2, '0')}`
-  // Default: tanggal tercatat; jika belum ada, hari ini bila masih di bulan tsb, selain itu akhir bulan.
-  const defaultDate = () => {
-    const recorded = partner.payment_dates?.[month]
-    if (recorded) return recorded
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
-    return today >= firstDay && today <= lastDay ? today : lastDay
-  }
+  // Tanggal bebas di tahun periode (1 Jan – 31 Des).
+  const firstDay = `${year}-01-01`
+  const lastDay = `${year}-12-31`
+  // Default isian baru: tanggal 28 bulan tsb; isian tersimpan memakai tanggal tercatat.
+  const defaultDate = () => partner.payment_dates?.[month] || `${year}-${mm}-28`
   const recorded = partner.payments?.[month]
   const [transactionDate, setTransactionDate] = useState(defaultDate)
   const [automatic, setAutomatic] = useState(recorded == null)
@@ -56,7 +52,7 @@ export default function YieldPaymentDialog({
   const submit = async (remove: boolean) => {
     if (saving) return
     if (transactionDate && (transactionDate < firstDay || transactionDate > lastDay)) {
-      setError(`Tanggal transaksi harus berada di periode ${mm}/${year}.`)
+      setError(`Tanggal transaksi harus berada di tahun ${year}.`)
       return
     }
     if (
