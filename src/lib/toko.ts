@@ -19,7 +19,8 @@ export type TxRow = {
   [k: string]: unknown
 }
 
-export const DEFAULT_TX_ROWS = 10
+/** Tabel Pemasukan/Pengeluaran: max(5, jumlah item Data berjenis tsb) baris. */
+export const DEFAULT_TX_ROWS = 5
 export const DEFAULT_DATA_ROWS = 5
 
 export function currentPeriod(d = new Date()): string {
