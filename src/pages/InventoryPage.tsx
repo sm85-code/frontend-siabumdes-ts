@@ -1,5 +1,5 @@
 import FormDialog from '@/components/FormDialog'
-import { ArrowDown, FileText, ArrowUp, HandCoins, Package, Pencil, PieChart, Plus, SlidersHorizontal, Trash2, Truck, Users, Wallet } from "lucide-react"
+import { ArrowDown, FileText, Tags, ArrowUp, HandCoins, Package, Pencil, PieChart, SlidersHorizontal, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
@@ -23,17 +23,16 @@ import {
 import SubTabs from "@/components/SubTabs";
 import CommercialDocuments from "@/pages/inventory/CommercialDocuments";
 import InventorySummary from "@/pages/InventorySummary";
-import ProductFormCard from "@/pages/inventory/ProductFormCard";
+import CatalogTable from "@/pages/inventory/CatalogTable";
+import CategoryTable from "@/pages/inventory/CategoryTable";
 import StockInFormCard from "@/pages/inventory/StockInFormCard";
 import StockOutFormCard from "@/pages/inventory/StockOutFormCard";
 import AdjustFormCard from "@/pages/inventory/AdjustFormCard";
 import PartnerFormCard from "@/pages/inventory/PartnerFormCard";
 import {
   emptyPartnerFormValues,
-  emptyProductForm,
   type AdjustFormValues,
   type PartnerFormValues,
-  type ProductFormValues,
   type StockInFormValues,
   type StockOutFormValues,
 } from "@/schemas/inventory";
@@ -42,7 +41,6 @@ import Spinner from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -78,6 +76,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const TAB_GROUPS = [
   { id: "ringkasan", label: "Ringkasan", icon: PieChart, tabs: [{ id: "summary", label: "Ringkasan", icon: PieChart }] },
   { id: "persetokan", label: "Persetokan", icon: Package, tabs: [
+    { id: "kategori", label: "Kategori Produk", icon: Tags },
     { id: "katalog", label: "Katalog Produk", icon: Package },
     { id: "stock-in", label: "Stock In", icon: ArrowDown },
     { id: "stock-out", label: "Stock Out", icon: ArrowUp },
@@ -114,15 +113,10 @@ export default function Inventory() {
   const [movementReport, setMovementReport] = useState<InventoryMovementReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [q, setQ] = useState("");
-  const [catFilter, setCatFilter] = useState("");
   const [payment, setPayment] = useState<{ kind: "purchase" | "sale"; id: string; outstanding: number } | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(today());
   const [operation, setOperation] = useState<"stock-in" | "stock-out" | "adjust" | "vendor" | "customer" | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [productDefaults, setProductDefaults] = useState<ProductFormValues>(emptyProductForm());
   const [vendorEditingId, setVendorEditingId] = useState<string | null>(null);
   const [vendorDefaults, setVendorDefaults] = useState<PartnerFormValues>(emptyPartnerFormValues());
   const [customerEditingId, setCustomerEditingId] = useState<string | null>(null);
@@ -133,13 +127,14 @@ export default function Inventory() {
 
   const canAccessRole = can(user, "admin", "direktur", "bendahara", "pengelola");
   const canWrite = can(user, "admin", "direktur", "bendahara", "pengelola");
+  const isAdmin = can(user, "admin");
 
   const loadCore = useCallback(async () => {
     setError("");
     try {
       const [m, p, c] = await Promise.all([
         api.get(`${BASE}/meta`),
-        api.get(`${BASE}/products`, { params: { q: q || undefined, category_id: catFilter || undefined } }),
+        api.get(`${BASE}/products`),
         api.get(`${BASE}/categories`),
       ]);
       setMeta(m.data);
@@ -150,7 +145,7 @@ export default function Inventory() {
     } finally {
       setLoading(false);
     }
-  }, [q, catFilter]);
+  }, []);
 
   const loadOps = useCallback(async () => {
     try {
@@ -217,73 +212,6 @@ export default function Inventory() {
   if (meta && user?.role === "pengelola" && user.unit_usaha_id !== meta.unit_usaha_id) {
     return <Navigate to="/dashboard" replace />;
   }
-
-  const openCreateProduct = () => {
-    setEditingId(null);
-    setProductDefaults(emptyProductForm());
-    setError("");
-    setShowForm(true);
-  };
-
-  const openEditProduct = (p: InventoryProduct) => {
-    setEditingId(p.id);
-    setProductDefaults({
-      sku: p.sku,
-      name: p.name,
-      category_id: p.category_id || "",
-      unit_of_measure: p.unit_of_measure || "pcs",
-      cost_price: String(Number(p.cost_price || 0)),
-      sell_price: String(Number(p.sell_price || 0)),
-      opening_qty: "0",
-    });
-    setError("");
-    setShowForm(true);
-  };
-
-  const closeProductForm = () => {
-    setShowForm(false);
-    setEditingId(null);
-    setProductDefaults(emptyProductForm());
-  };
-
-  const submitProduct = async (values: ProductFormValues) => {
-    try {
-      if (editingId) {
-        await api.put(`${BASE}/products/${editingId}`, {
-          name: values.name,
-          category_id: values.category_id,
-          unit_of_measure: values.unit_of_measure,
-          cost_price: Number(values.cost_price || 0),
-          sell_price: Number(values.sell_price || 0),
-        });
-      } else {
-        await api.post(`${BASE}/products`, {
-          sku: values.sku,
-          name: values.name,
-          category_id: values.category_id,
-          unit_of_measure: values.unit_of_measure,
-          cost_price: Number(values.cost_price || 0),
-          sell_price: Number(values.sell_price || 0),
-          opening_qty: Number(values.opening_qty || 0),
-          unit_usaha_id: meta?.unit_usaha_id,
-        });
-      }
-      closeProductForm();
-      loadCore();
-    } catch (err) {
-      setError(formatApiError(err, "Gagal menyimpan produk"));
-    }
-  };
-
-  const removeProduct = async (id: string) => {
-    if (!window.confirm("Hapus produk ini? Stok harus 0. Riwayat mutasi/penyesuaian & jurnal terkait ikut dihapus.")) return;
-    try {
-      await api.delete(`${BASE}/products/${id}`);
-      loadCore();
-    } catch (err) {
-      setError(formatApiError(err, "Gagal menghapus produk"));
-    }
-  };
 
   const submitStockIn = async (values: StockInFormValues) => {
     try {
@@ -472,11 +400,6 @@ export default function Inventory() {
             {meta?.unit_name || "Persediaan barang dagang"} · katalog, mutasi, pembelian, penjualan & valuasi
           </p>
         </div>
-        {tab === "katalog" && canWrite && (
-          <Button type="button" onClick={openCreateProduct} data-testid="btn-new-product">
-            <Plus  className="size-4" /> Tambah Produk
-          </Button>
-        )}
       </div>
 
       {error && (
@@ -515,78 +438,12 @@ export default function Inventory() {
         />
       )}
 
+      {tab === "kategori" && (
+        <CategoryTable categories={categories} isAdmin={isAdmin} onChanged={loadCore} onError={setError} />
+      )}
+
       {tab === "katalog" && (
-        <div className="space-y-4">
-          <Card className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
-            <div>
-              <label className="label">Cari SKU / nama</label>
-              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="contoh: KIPAS" />
-            </div>
-            <div>
-              <label className="label">Kategori</label>
-              <Select value={catFilter || "__all__"} onValueChange={(v) => setCatFilter(v === "__all__" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Semua kategori</SelectItem>
-                  {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </Card>
-
-          {showForm && canWrite && (
-            <FormDialog title={editingId ? 'Ubah Produk' : 'Tambah Produk'} onClose={closeProductForm} error={error}>{({ cancel, run }) => <>
-              <ProductFormCard
-                editingId={editingId}
-                defaultValues={productDefaults}
-                categories={categories}
-                onSubmit={v => run(() => submitProduct(v))}
-                onCancel={cancel}
-              />
-            </>}</FormDialog>
-          )}
-
-          <Card className="p-0 overflow-hidden">
-            <TableShell minWidth={720}>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead><TableHead>Nama</TableHead><TableHead>Kategori</TableHead><TableHead>Satuan</TableHead>
-                  <TableHead className="num">HPP</TableHead><TableHead className="num">Harga jual</TableHead>
-                  <TableHead className="num">Stok</TableHead><TableHead className="num">Nilai</TableHead>
-                  {canWrite && <TableHead />}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada produk di katalog.</TableCell></TableRow>
-                ) : products.map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.sku}</TableCell>
-                    <TableCell>{p.name}</TableCell>
-                    <TableCell><Badge variant="secondary">{p.category_name || "-"}</Badge></TableCell>
-                    <TableCell>{p.unit_of_measure}</TableCell>
-                    <TableCell className="num">{fmtRp(Number(p.cost_price))}</TableCell>
-                    <TableCell className="num">{fmtRp(Number(p.sell_price))}</TableCell>
-                    <TableCell className="num">{p.qty_on_hand}</TableCell>
-                    <TableCell className="num">{fmtRp(Number(p.stock_value))}</TableCell>
-                    {canWrite && (
-                      <TableCell className="whitespace-nowrap">
-                        <button type="button" className="p-1.5" title="Edit" onClick={() => openEditProduct(p)} data-testid={`btn-edit-product-${p.id}`}>
-                          <Pencil  className="size-4" />
-                        </button>
-                        <button type="button" className="p-1.5" title="Hapus" onClick={() => removeProduct(p.id)}>
-                          <Trash2  className="size-4" />
-                        </button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </TableShell>
-          </Card>
-        </div>
+        <CatalogTable products={products} categories={categories} canWrite={canWrite} unitId={meta?.unit_usaha_id ?? undefined} onChanged={loadCore} onError={setError} />
       )}
 
       {tab === "stock-in" && (

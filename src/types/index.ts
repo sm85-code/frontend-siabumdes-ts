@@ -240,7 +240,10 @@ export interface InventoryMeta {
 
 export interface InventoryCategory {
   id: string
+  code: string
   name: string
+  description?: string | null
+  has_products?: boolean
 }
 
 export interface InventoryProduct {
@@ -255,6 +258,7 @@ export interface InventoryProduct {
   qty_on_hand?: number | string | null
   stock_value?: number | string | null
   is_active?: boolean
+  has_history?: boolean
   [key: string]: unknown
 }
 
