@@ -85,3 +85,12 @@ it('Imbal Hasil allows HQ roles and only the UU04 manager', () => {
   expect(filterNavForUser({ role: 'pengelola', unit_usaha_id: 'u3' }, [], NAV, 'u4').map(n => n.to)).not.toContain('/imbal-hasil')
   expect(pathsFor('pengelola', 'u4')).not.toContain('/imbal-hasil')
 })
+
+it('Manajemen Toko allows admin/direktur/bendahara and only the UU05 manager', () => {
+  for (const role of ['admin', 'direktur', 'bendahara'] as Role[]) expect(pathsFor(role)).toContain('/manajemen-toko')
+  for (const role of ['pengawas', 'penasihat'] as Role[]) expect(pathsFor(role)).not.toContain('/manajemen-toko')
+  const paths = (unit: string) => filterNavForUser({ role: 'pengelola', unit_usaha_id: unit }, [], NAV, undefined, 'u5').map(n => n.to)
+  expect(paths('u5')).toContain('/manajemen-toko')
+  expect(paths('u4')).not.toContain('/manajemen-toko')
+  expect(pathsFor('pengelola', 'u5')).not.toContain('/manajemen-toko')
+})
