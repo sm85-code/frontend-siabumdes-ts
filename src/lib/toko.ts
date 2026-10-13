@@ -58,10 +58,9 @@ export function defaultWeekDate(period: string, week: number): string {
   return `${period}-${String(day).padStart(2, '0')}`
 }
 
-/** Pesan validasi tanggal (null = valid). */
-export function validateEntryDate(period: string, week: number, tanggal: string): string | null {
-  if (isFreeWeek(period, week) && !tanggal.startsWith(`${period}-`))
-    return 'Tanggal Minggu ke-5 harus berada dalam periode bulan yang dipilih.'
+/** Semua minggu: tanggal bebas asalkan dalam bulan periode (null = valid). */
+export function validateEntryDate(period: string, tanggal: string): string | null {
+  if (!tanggal.startsWith(`${period}-`)) return 'Tanggal transaksi harus berada dalam periode bulan yang dipilih.'
   return null
 }
 

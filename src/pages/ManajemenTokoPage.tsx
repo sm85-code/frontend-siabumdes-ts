@@ -301,7 +301,7 @@ function EntryDialog({ target, period, onClose, onSaved }: {
   const save = async (e: FormEvent) => {
     e.preventDefault()
     if (!tanggal) { notify('Tanggal transaksi wajib diisi'); return }
-    const dateError = validateEntryDate(period, target.week, tanggal)
+    const dateError = validateEntryDate(period, tanggal)
     if (dateError) { setDateMsg(dateError); return }
     if (!nominal || Number(nominal) < 0) { notify('Nominal transaksi wajib diisi'); return }
     setBusy(true)
@@ -332,9 +332,10 @@ function EntryDialog({ target, period, onClose, onSaved }: {
           <div className="space-y-2">
             <Label htmlFor="toko-tanggal">Tanggal transaksi</Label>
             <Input id="toko-tanggal" type="date" required value={tanggal} aria-invalid={!!dateMsg}
-              min={free ? `${period}-01` : undefined} max={free ? monthEnd : undefined}
+              min={`${period}-01`} max={monthEnd}
               onChange={(e) => { setTanggal(e.target.value); setDateMsg('') }} />
             {free && !dateMsg && <p className="text-xs text-muted-foreground">Bulan ini tidak memiliki Sabtu di Minggu ke-5; pilih tanggal bebas dalam periode {period}.</p>}
+            {!free && !dateMsg && <p className="text-xs text-muted-foreground">Tanggal dapat diubah ke tanggal mana pun dalam periode {period}.</p>}
             {dateMsg && <p role="alert" className="text-xs text-destructive">{dateMsg}</p>}
           </div>
           <div className="space-y-2">

@@ -40,9 +40,11 @@ describe('manajemen toko helpers', () => {
     expect(isFreeWeek('2026-11', 5)).toBe(true)
     expect(isFreeWeek('2026-10', 5)).toBe(false)
     expect(isFreeWeek('2026-11', 4)).toBe(false)
-    expect(validateEntryDate('2026-11', 5, '2026-11-02')).toBeNull()
-    expect(validateEntryDate('2026-11', 5, '2026-12-01')).toMatch(/periode bulan/)
-    expect(validateEntryDate('2026-10', 4, '2026-12-01')).toBeNull()
+  })
+  it('every week accepts any date in the selected month only', () => {
+    expect(validateEntryDate('2026-11', '2026-11-02')).toBeNull()
+    expect(validateEntryDate('2026-11', '2026-12-01')).toMatch(/periode bulan/)
+    expect(validateEntryDate('2026-10', '2026-09-30')).toMatch(/periode bulan/)
   })
   it('formats with Indonesian thousands separator', () => {
     expect(fmtNumber(1500000)).toBe('1.500.000')
