@@ -72,7 +72,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="font-heading text-2xl font-bold">Profil Saya</h1>
+        <h1 className="font-heading page-h1 text-3xl font-bold">Profil Saya</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Kelola identitas akun dan password Anda sendiri.
         </p>

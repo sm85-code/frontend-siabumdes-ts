@@ -1,4 +1,5 @@
 import FormDialog from '@/components/FormDialog'
+import HelpHint from '@/components/HelpHint'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import YieldPaymentDialog, { PAYMENT_MONTHS } from './YieldPaymentDialog'
@@ -102,8 +103,7 @@ export default function YieldPage() {
   if (!allowed) return <p role="alert">Manajemen Setoran hanya untuk pengelola unit 4.</p>
   const writable = data?.unit_active === true && !saving
   return <div className="min-w-0 space-y-5">
-    <h1 className="font-heading text-3xl font-bold">Manajemen Setoran</h1>
-    <p className="text-sm text-muted-foreground">Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal; pembayaran bulanan dicatat per tahun dengan mengklik sel bulan di rekap. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui rekap ini.</p>
+    <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Setoran</h1><HelpHint label="Tentang Manajemen Setoran"><p>Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal.</p><p>Klik sel bulan di tab Setoran untuk mencatat pembayaran. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui sel yang sama.</p><p>Tanda — berarti pembayaran belum dicatat, bukan Rp 0. Nama mitra mengikuti tab Data Mitra Usaha.</p></HelpHint></div>
     <div className="flex items-center gap-3"><Label htmlFor="yield-year">Tahun</Label><Input id="yield-year" groupDigits={false} type="number" min="1900" max="9999" className="w-28" value={yearDraft} onChange={e => setYearDraft(e.target.value)} onBlur={() => { const value = Number(yearDraft); if (Number.isInteger(value) && value >= 1900 && value <= 9999) setYear(value); else { notify('Masukkan tahun antara 1900 dan 9999'); setYearDraft(String(year)) } }} /></div>
     {error ? <div role="alert" className="space-y-2"><p>{getApiError(error)}</p><Button onClick={() => void refetch()}>Coba lagi</Button></div> : isLoading ? <Spinner label="Memuat mitra..." /> : <>
     {data?.unit_active === false && <p role="status">Unit nonaktif. Data dapat dilihat, tetapi tidak dapat diubah.</p>}
@@ -129,7 +129,6 @@ export default function YieldPage() {
         </Table></TableShell></Card>
       </section>
       <section hidden={tab !== 'recap'} role="tabpanel" id="yield-panel-recap" aria-labelledby="yield-tab-recap" className="min-w-0 space-y-3">
-        <p className="text-sm text-muted-foreground">Tanda — berarti pembayaran belum dicatat, bukan nilai Rp 0. Nama mitra mengikuti tab Data Mitra Usaha.</p>
         <Card className="overflow-hidden p-0"><TableShell minWidth={1700}><Table className={yieldTableClass}>
           <TableHeader className={yieldHeaderClass}><TableRow><TableHead rowSpan={2}>No.</TableHead>{sortable('name', 'Nama Mitra', undefined, 2)}<TableHead colSpan={12} className="text-center">Pembayaran Imbal Hasil (3%)</TableHead>{sortable('total', 'Jumlah', undefined, 2)}</TableRow>
           <TableRow>{MONTHS.map((month, i) => <TableHead key={month} aria-sort={sort.key === `month-${i}` ? sort.desc ? 'descending' : 'ascending' : 'none'}><button type="button" className="inline-flex items-center gap-1" onClick={() => setSort({ key: `month-${i}`, desc: sort.key === `month-${i}` ? !sort.desc : false })}>{month}<ArrowUpDown className="size-3" /></button></TableHead>)}</TableRow></TableHeader>

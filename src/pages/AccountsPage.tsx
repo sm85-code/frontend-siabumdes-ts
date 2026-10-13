@@ -341,7 +341,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-2">
         <div>
-          <h2 className="font-heading text-2xl font-bold">Kode Akun — {groupLabel}</h2>
+          <h2 className="font-heading text-lg font-semibold">Kode Akun — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedAccounts.length} akun aktif pada kelompok <b>{group}</b>.
           </p>
@@ -570,7 +570,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-4">
         <div>
-          <h2 className="font-heading text-2xl font-bold">Jenis Transaksi — {groupLabel}</h2>
+          <h2 className="font-heading text-lg font-semibold">Jenis Transaksi — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedTypes.length} jenis transaksi pada kelompok <b>{group}</b>. Debit & Kredit hanya bisa memilih akun dari kelompok yang sama.
           </p>

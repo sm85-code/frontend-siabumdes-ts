@@ -193,7 +193,7 @@ export default function OrgProfilePage() {
     <div className="max-w-3xl space-y-6" data-testid="org-profile-page">
       <div>
         <p className="label mb-1">PENGATURAN</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold">Profil BUMDes</h1>
+        <h1 className="font-heading page-h1 text-3xl font-bold">Profil BUMDes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word
           (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.

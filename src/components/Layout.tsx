@@ -70,6 +70,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           />
           <span className="font-heading truncate text-sm font-semibold">BUMDes Karya Raharja</span>
         </div>
+        <div className="ml-auto"><AppearancePopover iconOnly align="end" /></div>
       </div>
 
       <aside
@@ -121,7 +122,6 @@ export default function Layout({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="shrink-0 p-4">
-            <AppearancePopover triggerClassName="mb-3 w-full justify-start gap-2" align="start" />
             <div className="mb-3 flex items-center gap-3">
               {user.photo_url ? (
                 <img
@@ -155,6 +155,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-40 bg-black/20 lg:hidden" onClick={() => setOpen(false)} />
       )}
       <main className="min-w-0 flex-1 pt-20 pb-24 lg:pt-0 lg:pb-0">
+        <div className="mx-auto hidden w-full max-w-[1400px] justify-end px-8 pt-6 lg:flex"><AppearancePopover iconOnly align="end" /></div>
         <div className="siabumdes-content fade-in mx-auto w-full max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
 
