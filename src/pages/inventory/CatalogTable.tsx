@@ -14,8 +14,8 @@ import { DEFAULT_CATALOG_ROWS, buildSku, isRowComplete, shouldAppendRow, skuPref
 
 const BASE = "/api/v1/inventory";
 const LOCKED = "Produk sudah memiliki stok/riwayat mutasi: kategori, HPP, dan hapus terkunci.";
-const STICKY_NO = "sticky left-0 z-10 bg-card w-12 min-w-12";
-const STICKY_NAME = "sticky left-12 z-10 bg-card min-w-48";
+const COL_NO = "w-12";
+const COL_NAME = "min-w-48";
 type ApiErr = { response?: { data?: { detail?: unknown } } };
 const detail = (e: unknown, fallback: string) => { const d = (e as ApiErr).response?.data?.detail; return typeof d === "string" ? d : fallback; };
 const blank = (): CatalogRow => ({ key: crypto.randomUUID(), category_id: "", sku: "", name: "", unit_of_measure: "", cost_price: "0", sell_price: "0" });
@@ -110,8 +110,8 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
         <TableShell minWidth={980}>
           <Table className="toko-table">
             <TableHeader><TableRow>
-              <TableHead className={STICKY_NO}>No.</TableHead><TableHead className="min-w-44">Kategori</TableHead><TableHead className="min-w-40">SKU</TableHead>
-              <TableHead className={STICKY_NAME}>Nama</TableHead><TableHead className="min-w-24">Satuan</TableHead>
+              <TableHead className={COL_NO}>No.</TableHead><TableHead className="min-w-44">Kategori</TableHead><TableHead className="min-w-40">SKU</TableHead>
+              <TableHead className={COL_NAME}>Nama</TableHead><TableHead className="min-w-24">Satuan</TableHead>
               <TableHead className="num min-w-32">HPP</TableHead><TableHead className="num min-w-32">Harga jual</TableHead>
               <TableHead className="num">Stok</TableHead><TableHead className="num min-w-32">Nilai</TableHead>
               {canWrite && <TableHead className="w-12 border-0 bg-transparent" aria-label="Aksi" />}
@@ -122,7 +122,7 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
                 const locked = isLocked(p);
                 return (
                   <TableRow key={r.key} onClick={() => onRowClick(i)} onFocusCapture={() => onRowClick(i)}>
-                    <TableCell className={STICKY_NO}>{i + 1}</TableCell>
+                    <TableCell className={COL_NO}>{i + 1}</TableCell>
                     {canWrite ? <>
                       <TableCell>
                         <Select value={r.category_id || undefined} disabled={locked} onValueChange={(v) => update(r.key, { category_id: v, ...(r.id ? {} : { sku: "" }) }, Boolean(r.id))}>
@@ -136,13 +136,13 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
                           {r.sku || <span className="italic text-muted-foreground/60">klik untuk input</span>}
                         </button>
                       </TableCell>
-                      <TableCell className={STICKY_NAME}><Input aria-label={`Nama baris ${i + 1}`} value={r.name} maxLength={255} onChange={(e) => update(r.key, { name: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
+                      <TableCell className={COL_NAME}><Input aria-label={`Nama baris ${i + 1}`} value={r.name} maxLength={255} onChange={(e) => update(r.key, { name: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><Input aria-label={`Satuan baris ${i + 1}`} value={r.unit_of_measure} maxLength={20} placeholder="pcs" onChange={(e) => update(r.key, { unit_of_measure: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><NumericInput className="input h-10 w-full text-right" aria-label={`HPP baris ${i + 1}`} min={0} step="any" value={r.cost_price} disabled={locked} title={locked ? LOCKED : undefined} onChange={(e) => update(r.key, { cost_price: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><NumericInput className="input h-10 w-full text-right" aria-label={`Harga jual baris ${i + 1}`} min={0} step="any" value={r.sell_price} onChange={(e) => update(r.key, { sell_price: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                     </> : <>
                       <TableCell>{p?.category_name || "-"}</TableCell><TableCell className="font-medium">{r.sku}</TableCell>
-                      <TableCell className={STICKY_NAME}>{r.name}</TableCell><TableCell>{r.unit_of_measure}</TableCell>
+                      <TableCell className={COL_NAME}>{r.name}</TableCell><TableCell>{r.unit_of_measure}</TableCell>
                       <TableCell className="num">{p ? fmtRp(Number(p.cost_price)) : ""}</TableCell><TableCell className="num">{p ? fmtRp(Number(p.sell_price)) : ""}</TableCell>
                     </>}
                     <TableCell className="num" title="Stok hanya bertambah melalui Stock In">{p ? p.qty_on_hand : 0}</TableCell>
