@@ -55,6 +55,8 @@ export const NAV: NavItem[] = [
     roles: ROLES_REPORTS,
   },
   { to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
+  { to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
+  { to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
   {
     to: '/inventory',
     label: 'Manajemen Stok',
@@ -62,8 +64,6 @@ export const NAV: NavItem[] = [
     roles: ROLES_INVENTORY,
     inventoryUnitOnly: true,
   },
-  { to: '/imbal-hasil', label: 'Imbal Hasil', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
-  { to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
   { to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
   { to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
