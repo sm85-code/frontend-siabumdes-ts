@@ -75,7 +75,10 @@ export default function ManajemenTokoPage() {
   })
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data])
   const entries = useMemo(() => entriesQuery.data ?? [], [entriesQuery.data])
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['toko'] })
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['toko'] }),
+    queryClient.invalidateQueries({ queryKey: ['transactions'] }),
+  ])
 
   if (user?.role === 'pengelola' && unitsLoading) return <Spinner label="Memeriksa akses unit..." />
   if (!allowed) return <p role="alert">Manajemen Toko hanya untuk pengelola unit 5.</p>
@@ -105,7 +108,7 @@ export default function ManajemenTokoPage() {
       ) : itemsQuery.isLoading ? <Spinner label="Memuat data toko..." /> : (
         <>
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
-            <p className="text-sm text-muted-foreground">Uraian diambil dari tab Data sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p>
+            <p className="text-sm text-muted-foreground">Uraian diambil dari tab Data sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal. Setiap nominal otomatis tercatat sebagai transaksi Unit 5 (bukti diunggah dari halaman Transaksi).</p>
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
                 onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Data untuk menambah uraian.') }} />
@@ -144,7 +147,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-xl font-semibold">Tabel {title}</h2>
+        <h2 className="font-heading text-xl font-semibold">{title}</h2>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={980} label={`Tabel ${title}`}><Table className={tableClass}>
@@ -303,7 +306,7 @@ function EntryDialog({ target, period, onClose, onSaved }: {
     if (!tanggal) { notify('Tanggal transaksi wajib diisi'); return }
     const dateError = validateEntryDate(period, tanggal)
     if (dateError) { setDateMsg(dateError); return }
-    if (!nominal || Number(nominal) < 0) { notify('Nominal transaksi wajib diisi'); return }
+    if (!nominal || Number(nominal) <= 0) { notify('Nominal transaksi harus lebih dari nol'); return }
     setBusy(true)
     try {
       await api.put('/v1/toko/entries', { item_id: target.item.id, period, week: target.week, tanggal, nominal })
