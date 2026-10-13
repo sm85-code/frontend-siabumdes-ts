@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import HelpHint from "@/components/HelpHint";
 import { Trash2 } from "lucide-react";
 import api, { fmtRp } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -113,7 +114,7 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
               <TableHead className={COL_NO}>No.</TableHead><TableHead className="min-w-44">Kategori</TableHead><TableHead className="min-w-40">SKU</TableHead>
               <TableHead className={COL_NAME}>Nama</TableHead><TableHead className="min-w-24">Satuan</TableHead>
               <TableHead className="num min-w-32">HPP</TableHead><TableHead className="num min-w-32">Harga jual</TableHead>
-              <TableHead className="num">Stok</TableHead><TableHead className="num min-w-32">Nilai</TableHead>
+              <TableHead className="num"><span className="inline-flex items-center gap-0.5">Stok<HelpHint label="Tentang Stok dan Nilai">Stok awal selalu 0; stok bertambah melalui Stock In. Nilai = HPP × Stok.</HelpHint></span></TableHead><TableHead className="num min-w-32">Nilai</TableHead>
               {canWrite && <TableHead className="w-12 border-0 bg-transparent" aria-label="Aksi" />}
             </TableRow></TableHeader>
             <TableBody>
@@ -161,7 +162,6 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
           </Table>
         </TableShell>
       </Card>
-      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Stok awal selalu 0; tambah stok melalui Stock In. Nilai = HPP × Stok.</p>
       <Dialog open={Boolean(skuRow)} onOpenChange={(open) => { if (!open) setSkuRow(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Kode SKU : KRS.{skuCode}</DialogTitle></DialogHeader>

@@ -1,4 +1,5 @@
 import FormDialog from '@/components/FormDialog'
+import HelpHint from "@/components/HelpHint";
 import { ArrowDown, FileText, Tags, ArrowUp, HandCoins, Package, Pencil, PieChart, SlidersHorizontal, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
@@ -395,7 +396,7 @@ export default function Inventory() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">{meta?.unit_code ? `Unit Usaha ${meta.unit_code}` : "Unit Usaha"}</p>
-          <h1 className="font-heading text-3xl font-bold">Manajemen Stok</h1>
+          <h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Stok</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
             {meta?.unit_name || "Persediaan barang dagang"} · katalog, mutasi, pembelian, penjualan & valuasi
           </p>
@@ -450,8 +451,7 @@ export default function Inventory() {
         <div className="space-y-4">
           <Card>
           <CardContent className="pt-6">
-            <p className="label mb-2">Penerimaan barang (Stock In / Pembelian)</p>
-            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</p>
+            <p className="label mb-3 flex items-center gap-1">Penerimaan barang (Stock In / Pembelian)<HelpHint>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-in"); } }>Input Penerimaan Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-in" && <FormDialog title="Penerimaan Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
               <StockInFormCard products={products} vendors={activeVendors} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
@@ -467,10 +467,7 @@ export default function Inventory() {
         <div className="space-y-4">
           <Card>
           <CardContent className="pt-6">
-            <p className="label mb-2">Pengeluaran barang (Stock Out / Penjualan)</p>
-            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-              Centang pemakaian internal untuk beban tanpa jurnal penjualan; tanpa centang = stock out penjualan (HPP + pendapatan, tunai/piutang).
-            </p>
+            <p className="label mb-3 flex items-center gap-1">Pengeluaran barang (Stock Out / Penjualan)<HelpHint>Centang pemakaian internal untuk beban tanpa jurnal penjualan; tanpa centang = stock out penjualan (HPP + pendapatan, tunai/piutang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-out"); } }>Input Pengeluaran Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-out" && <FormDialog title="Pengeluaran Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
               <StockOutFormCard products={products} customers={activeCustomers} onClientError={setError} onSubmit={v => run(async () => { await submitStockOut(v); setOperation(null); })} />
@@ -486,11 +483,7 @@ export default function Inventory() {
         <div className="space-y-4">
           <Card>
           <CardContent className="pt-6">
-            <p className="label mb-2">Penyesuaian Stok</p>
-            <p className="text-sm mb-4" style={{ color: "var(--text-muted)" }}>
-              Pengurangan stok (delta negatif) menghasilkan 2 transaksi: pengurangan fisik nilai persediaan, lalu pengakuan beban kerugian.
-              Penambahan stok (delta positif) tetap 1 jurnal dengan akun kredit/offset pilihan Anda.
-            </p>
+            <p className="label mb-3 flex items-center gap-1">Penyesuaian Stok<HelpHint><p>Pengurangan stok (delta negatif) menghasilkan 2 transaksi: pengurangan fisik nilai persediaan, lalu pengakuan beban kerugian.</p><p>Penambahan stok (delta positif) tetap 1 jurnal dengan akun kredit/offset pilihan Anda.</p></HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("adjust"); } }>Input Penyesuaian Stok</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "adjust" && <FormDialog title="Penyesuaian Stok" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
               <AdjustFormCard products={products} onSubmit={v => run(async () => { await submitAdjust(v); setOperation(null); })} />

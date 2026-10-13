@@ -677,7 +677,7 @@ select option { background-color: var(--popover); color: var(--popover-foregroun
   margin: 0 var(--table-card-inset) var(--table-card-inset);
   border-radius: .75rem;
 }
-.siabumdes-content [data-slot=card] > .table-shell:first-child {
+.siabumdes-content [data-slot=card] > .table-shell {
   margin-top: var(--table-card-inset);
 }
 @media (min-width: 640px) {

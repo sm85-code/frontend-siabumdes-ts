@@ -11,7 +11,7 @@ export default function RiskaPermissionsPage() {
   const mutation = useMutation({ mutationFn: async (body: { user_id: string; is_allowed: boolean }) => api.patch('/v1/admin/riska-assignments', body),
     onSuccess: () => client.invalidateQueries({ queryKey: key }) })
   return <section className="space-y-4">
-    <h1 className="text-2xl font-bold">Penugasan Asisten Riska</h1>
+    <h1 className="font-heading page-h1 text-3xl font-bold">Penugasan Asisten Riska</h1>
     <p>Pilih pengguna yang membutuhkan bantuan. Riska hanya memakai hak akses pengguna tersebut. Setelah pengguna mengakhiri sesi, Riska menghilang sampai ditugaskan kembali.</p>
     {(error || mutation.error) && <p role="alert">Perubahan tidak berhasil. Periksa koneksi dan hak akses.</p>}
     {mutation.isSuccess && <p role="status">Penugasan tersimpan. Tombol Riska akan mengikuti status bantuan dalam sekitar 5 detik, atau saat pengguna kembali membuka halaman SIABUMDES.</p>}

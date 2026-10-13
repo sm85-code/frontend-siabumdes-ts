@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import HelpHint from "@/components/HelpHint";
 import { Download, Eye, FileText, List, Plus, RefreshCw, Trash2, Users } from "lucide-react";
 import SubTabs from "@/components/SubTabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -391,7 +392,7 @@ export default function CommercialDocuments() {
           setError("");
         }}
       />
-      <p className="text-sm text-muted-foreground">{hints[kind]} Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</p>
+      <p className="flex items-center gap-1 text-sm text-muted-foreground">{hints[kind]}<HelpHint>Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</HelpHint></p>
       <Card>
         <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
           {partnerSelect}

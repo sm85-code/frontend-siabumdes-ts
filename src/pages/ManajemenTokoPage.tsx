@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useState, type FormEvent } from 'react'
+import HelpHint from '@/components/HelpHint'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, Database, Plus, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
@@ -86,7 +87,7 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <h1 className="font-heading text-3xl font-bold">Manajemen Toko</h1>
+      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Data sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
@@ -108,7 +109,6 @@ export default function ManajemenTokoPage() {
       ) : itemsQuery.isLoading ? <Spinner label="Memuat data toko..." /> : (
         <>
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
-            <p className="text-sm text-muted-foreground">Uraian diambil dari tab Data sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal. Setiap nominal otomatis tercatat sebagai transaksi Unit 5 (bukti diunggah dari halaman Transaksi).</p>
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
                 onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Data untuk menambah uraian.') }} />
@@ -146,7 +146,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-xl font-semibold">{title}</h2>
+        <h2 className="font-heading text-lg font-semibold">{title}</h2>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={980} label={`Tabel ${title}`}><Table className={tableClass}>
         <TableHeader className={headerClass}><TableRow>
@@ -194,7 +194,7 @@ function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => P
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</p>
+        <HelpHint label="Tentang tab Data">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={760} label="Tabel Data Transaksi"><Table className={tableClass}>
