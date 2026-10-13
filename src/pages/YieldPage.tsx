@@ -99,15 +99,15 @@ export default function YieldPage() {
     } catch (e) { notify(getApiError(e)) } finally { setSaving(false) }
   }
   if (user?.role === 'pengelola' && unitsLoading) return <Spinner label="Memeriksa akses unit..." />
-  if (!allowed) return <p role="alert">Imbal Hasil hanya untuk pengelola unit 4.</p>
+  if (!allowed) return <p role="alert">Manajemen Setoran hanya untuk pengelola unit 4.</p>
   const writable = data?.unit_active === true && !saving
   return <div className="min-w-0 space-y-5">
-    <h1 className="font-heading text-3xl font-bold">Imbal Hasil</h1>
+    <h1 className="font-heading text-3xl font-bold">Manajemen Setoran</h1>
     <p className="text-sm text-muted-foreground">Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal; pembayaran bulanan dicatat per tahun melalui tombol pensil di rekap. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui rekap ini.</p>
     <div className="flex items-center gap-3"><Label htmlFor="yield-year">Tahun</Label><Input id="yield-year" groupDigits={false} type="number" min="1900" max="9999" className="w-28" value={yearDraft} onChange={e => setYearDraft(e.target.value)} onBlur={() => { const value = Number(yearDraft); if (Number.isInteger(value) && value >= 1900 && value <= 9999) setYear(value); else { notify('Masukkan tahun antara 1900 dan 9999'); setYearDraft(String(year)) } }} /></div>
     {error ? <div role="alert" className="space-y-2"><p>{getApiError(error)}</p><Button onClick={() => void refetch()}>Coba lagi</Button></div> : isLoading ? <Spinner label="Memuat mitra..." /> : <>
     {data?.unit_active === false && <p role="status">Unit nonaktif. Data dapat dilihat, tetapi tidak dapat diubah.</p>}
-    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Imbal Hasil">
+    <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Setoran">
       {([{ id: 'recap', label: 'Rekap Catatan Imbal Hasil', icon: ClipboardList }, { id: 'partners', label: 'Data Mitra Usaha', icon: Users }] as const).map(item => {
         const Icon = item.icon
         return <Button key={item.id} type="button" role="tab" aria-selected={tab === item.id}
