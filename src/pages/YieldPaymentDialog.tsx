@@ -2,6 +2,7 @@ import FormDialog from '@/components/FormDialog'
 import { useState } from 'react'
 import api, { fmtRp, getApiError } from '@/api/client'
 import { useConfirm } from '@/components/ConfirmProvider'
+import { notify } from '@/lib/feedback'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -88,7 +89,10 @@ export default function YieldPaymentDialog({
       await onSaved()
       onClose()
     } catch (e) {
-      setError(getApiError(e))
+      // Termasuk penolakan backend untuk periode tutup buku / dikunci (assert_can_mutate_period).
+      const message = getApiError(e)
+      setError(message)
+      notify(message, { type: 'error' })
     } finally {
       setSaving(false)
     }
