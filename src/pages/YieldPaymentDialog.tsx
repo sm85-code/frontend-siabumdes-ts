@@ -1,6 +1,6 @@
 import FormDialog from '@/components/FormDialog'
 import { useState } from 'react'
-import api, { fmtRp, getApiError } from '@/api/client'
+import api, { fmtRp, getApiError, parseMoney } from '@/api/client'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { notify } from '@/lib/feedback'
 import { Button } from '@/components/ui/button'
@@ -45,8 +45,13 @@ export default function YieldPaymentDialog({
   const defaultDate = () => partner.payment_dates?.[month] || `${year}-${mm}-28`
   const recorded = partner.payments?.[month]
   const [transactionDate, setTransactionDate] = useState(defaultDate)
-  const [automatic, setAutomatic] = useState(recorded == null)
-  const [manual, setManual] = useState(recorded ?? '')
+  // Isian tersimpan selalu menampilkan nominal tercatat: Otomatis hanya bila sama persis
+  // dengan 3% modal saat ini; selain itu Nominal Senduene berisi nominal tercatat,
+  // sehingga simpan ulang bulan lama tidak mengubah nominalnya setelah modal diubah.
+  const [automatic, setAutomatic] = useState(
+    recorded == null || parseMoney(recorded) === parseMoney(partner.yield_amount),
+  )
+  const [manual, setManual] = useState(recorded != null ? String(parseMoney(recorded)) : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const confirm = useConfirm()
