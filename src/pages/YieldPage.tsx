@@ -108,7 +108,7 @@ export default function YieldPage() {
     {error ? <div role="alert" className="space-y-2"><p>{getApiError(error)}</p><Button onClick={() => void refetch()}>Coba lagi</Button></div> : isLoading ? <Spinner label="Memuat mitra..." /> : <>
     {data?.unit_active === false && <p role="status">Unit nonaktif. Data dapat dilihat, tetapi tidak dapat diubah.</p>}
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Setoran">
-      {([{ id: 'recap', label: 'Rekap Catatan Imbal Hasil', icon: ClipboardList }, { id: 'partners', label: 'Data Mitra Usaha', icon: Users }] as const).map(item => {
+      {([{ id: 'recap', label: 'Setoran', icon: ClipboardList }, { id: 'partners', label: 'Data Mitra Usaha', icon: Users }] as const).map(item => {
         const Icon = item.icon
         return <Button key={item.id} type="button" role="tab" aria-selected={tab === item.id}
           aria-controls={`yield-panel-${item.id}`} id={`yield-tab-${item.id}`}
