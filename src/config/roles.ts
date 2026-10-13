@@ -29,6 +29,10 @@ export const ROLES_AUDIT_LOG: Role[] = ['admin']
 export const ROLES_ORG_PROFILE: Role[] = ['admin', 'direktur', 'pengawas', 'penasihat']
 export const ROLES_UNIT_USAHA: Role[] = ['admin', 'direktur', 'pengawas', 'penasihat']
 export const ROLES_INVENTORY: Role[] = ['admin', 'direktur', 'bendahara', 'pengelola']
+/** Manajemen Toko: pengelola hanya jika terikat unit 5 (UU05), dicek di filterNavForUser/halaman. */
+export const ROLES_TOKO: Role[] = ['admin', 'direktur', 'bendahara', 'pengelola']
+/** Kode unit usaha toko (unit 5). */
+export const TOKO_UNIT_CODE = 'UU05'
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Admin Utama',

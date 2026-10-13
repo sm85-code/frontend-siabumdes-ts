@@ -8,6 +8,7 @@ import {
   Home,
   Package,
   Receipt,
+  Store,
   UserCircle,
   Users,
 } from 'lucide-react'
@@ -18,6 +19,7 @@ import {
   ROLES_INVENTORY,
   ROLES_ORG_PROFILE,
   ROLES_REPORTS,
+  ROLES_TOKO,
   ROLES_UNIT_USAHA,
   ROLES_USERS,
   can,
@@ -33,6 +35,8 @@ export interface NavItem {
   /** Hide Inventory for pengelola unless their unit is perdagangan/manufaktur. */
   inventoryUnitOnly?: boolean
   yieldUnitOnly?: boolean
+  /** Pengelola hanya boleh melihat jika unitnya UU05 (unit 5 / toko). */
+  tokoUnitOnly?: boolean
 }
 
 /** Fixed mobile bottom-nav slot order (left→right). Lainnya is appended in BottomNav. */
@@ -59,6 +63,7 @@ export const NAV: NavItem[] = [
     inventoryUnitOnly: true,
   },
   { to: '/imbal-hasil', label: 'Imbal Hasil', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
+  { to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
   { to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
   { to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
   { to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
@@ -72,11 +77,13 @@ export function filterNavForUser(
   inventoryUnitIds: string[] | null | undefined,
   items: NavItem[] = NAV,
   yieldUnitId?: string,
+  tokoUnitId?: string,
 ): NavItem[] {
   if (!user) return []
   return items.filter((n) => {
     if (!can(user, ...n.roles)) return false
     if (n.yieldUnitOnly && user.role === 'pengelola') return !!yieldUnitId && user.unit_usaha_id === yieldUnitId
+    if (n.tokoUnitOnly && user.role === 'pengelola') return !!tokoUnitId && user.unit_usaha_id === tokoUnitId
     if (n.inventoryUnitOnly && user.role === 'pengelola') {
       return Boolean(inventoryUnitIds?.includes(user.unit_usaha_id ?? ''))
     }

@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { inventoryUnitIds, data: units } = useInventoryUnitIds()
 
   const visible = useMemo(
-    () => filterNavForUser(user, inventoryUnitIds, NAV, units?.find(u => u.code === 'UU04')?.id),
+    () => filterNavForUser(user, inventoryUnitIds, NAV, units?.find(u => u.code === 'UU04')?.id, units?.find(u => u.code === 'UU05')?.id),
     [user, inventoryUnitIds, units],
   )
 

@@ -7,6 +7,7 @@ import {
   ROLES_AUDIT_LOG,
   ROLES_COA,
   ROLES_INVENTORY,
+  ROLES_TOKO,
   ROLES_LEDGER,
   ROLES_ORG_PROFILE,
   ROLES_REPORTS,
@@ -33,6 +34,7 @@ const AccountsPage = lazy(() => import('@/pages/AccountsPage'))
 const YieldPage = lazy(() => import('@/pages/YieldPage'))
 const InventoryPage = lazy(() => import('@/pages/InventoryPage'))
 const OrgProfilePage = lazy(() => import('@/pages/OrgProfilePage'))
+const ManajemenTokoPage = lazy(() => import('@/pages/ManajemenTokoPage'))
 
 function PageFallback() {
   return (
@@ -179,6 +181,7 @@ export default function App() {
                   </Protected>
                 }
               />
+              <Route path="/manajemen-toko" element={<Protected roles={ROLES_TOKO}><LazyPage><ManajemenTokoPage /></LazyPage></Protected>} />
               <Route path="/imbal-hasil" element={<Protected roles={ROLES_INVENTORY}><LazyPage><YieldPage /></LazyPage></Protected>} />
               <Route
                 path="/inventory"
