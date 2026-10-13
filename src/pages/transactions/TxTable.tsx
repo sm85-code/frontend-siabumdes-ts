@@ -1,4 +1,4 @@
-import { automaticTransactionDescription } from '@/lib/automaticTransactionDescription'
+import { automaticTransactionDescription, isManagedAutomatic } from '@/lib/automaticTransactionDescription'
 import { Paperclip, Link2, Pencil, Receipt, Trash2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -89,9 +89,9 @@ export default function TxTable({
     return true
   }
 
-  const canEditRow = (tx: Transaction) => canManageProofs(tx) && !tx.reference?.startsWith('YIELD:')
+  const canEditRow = (tx: Transaction) => canManageProofs(tx) && !isManagedAutomatic(tx.reference)
 
-  const selectable = sorted.filter(tx => !tx.reference?.startsWith('YIELD:'))
+  const selectable = sorted.filter(tx => !isManagedAutomatic(tx.reference))
   const toggleSel = (id: string) => {
     const n = new Set(selected)
     if (n.has(id)) n.delete(id)
@@ -181,7 +181,7 @@ export default function TxTable({
                       <TableCell>
                         <Checkbox
                           data-testid={`sel-tx-${t.id}`}
-                          disabled={t.reference?.startsWith('YIELD:')}
+                          disabled={isManagedAutomatic(t.reference)}
                           checked={selected.has(t.id)}
                           onCheckedChange={() => toggleSel(t.id)}
                         />
@@ -273,7 +273,7 @@ export default function TxTable({
                               <Pencil className="size-4" />
                             </Button>
                           )}
-                          {!t.reference?.startsWith('YIELD:') && can(user, 'admin', 'direktur', 'bendahara') && (
+                          {!isManagedAutomatic(t.reference) && can(user, 'admin', 'direktur', 'bendahara') && (
                             <Button
                               data-testid={`del-tx-${t.id}`}
                               onClick={() => onDelete(t.id)}

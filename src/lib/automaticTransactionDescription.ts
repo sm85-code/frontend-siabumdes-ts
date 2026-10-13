@@ -1,5 +1,13 @@
 import type { Account, Transaction, UnitUsaha } from '@/types'
 
+/**
+ * Transaksi otomatis yang dikelola dari menu asalnya (Imbal Hasil `YIELD:`, Manajemen Toko `TOKO:`):
+ * di halaman Transaksi hanya bukti yang boleh diunggah/dihapus, tanpa ubah/hapus transaksi.
+ */
+export function isManagedAutomatic(reference?: string | null): boolean {
+  return !!reference && (reference.startsWith('YIELD:') || reference.startsWith('TOKO:'))
+}
+
 /** Render known legacy automatic labels without rewriting historical journals. */
 export function automaticTransactionDescription(tx: Transaction, units: UnitUsaha[], accounts: Account[]) {
   const match = tx.reference?.match(/^(CLOSE|BAGIHASIL)-(\d{4})-(\d{2})-(BUMDES|UU\d+)$/)

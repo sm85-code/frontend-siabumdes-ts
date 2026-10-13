@@ -31,3 +31,17 @@ describe('proof access on automatic Imbal Hasil transactions', () => {
     expect(markup([{ file_id: 'proof' }], admin, false)).not.toContain('del-proof-yield-proof')
   })
 })
+
+describe('automatic Manajemen Toko transactions follow the Imbal Hasil rules', () => {
+  it('allows proof upload but hides edit, delete and bulk selection', () => {
+    const toko = { ...tx, id: 'toko', unit_usaha_id: 'u5', reference: 'TOKO:e1', transaction_type: 'pendapatan_usaha_unit5', proofs: [{ file_id: 'p1', file_name: 'b.pdf' }] }
+    const html = renderToStaticMarkup(<TxTable rows={[toko]} loading={false} activeGroup="UU05"
+      periodLabel="Oktober" total={1} offset={0} limit={25} hasMore={false} onPageChange={noop}
+      units={[]} accounts={[]} user={admin} canWrite canBulkDelete selected={new Set()}
+      setSelected={noop} onEdit={noop} onDelete={noop} onUploadProof={noop} onDeleteProof={noop} />)
+    expect(html).toContain('add-proof-toko')
+    expect(html).toContain('del-proof-toko-p1')
+    expect(html).not.toContain('edit-tx-toko')
+    expect(html).not.toContain('del-tx-toko')
+  })
+})
