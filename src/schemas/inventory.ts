@@ -40,40 +40,6 @@ const nonzeroIntString = (requiredMsg: string, invalidMsg: string) =>
       return Number.isFinite(n) && Number.isInteger(n) && n !== 0
     }, { message: invalidMsg })
 
-export const productFormSchema = z.object({
-  sku: z
-    .string()
-    .trim()
-    .min(1, 'SKU wajib diisi')
-    .max(64, 'SKU maksimal 64 karakter'),
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Nama produk wajib diisi')
-    .max(200, 'Nama produk maksimal 200 karakter'),
-  category_id: z.string().trim().min(1, 'Kategori wajib dipilih'),
-  unit_of_measure: z
-    .string()
-    .trim()
-    .min(1, 'Satuan wajib diisi')
-    .max(32, 'Satuan maksimal 32 karakter'),
-  cost_price: nonNegNumberString('Harga pokok wajib diisi', 'Harga pokok harus angka ≥ 0'),
-  sell_price: nonNegNumberString('Harga jual wajib diisi', 'Harga jual harus angka ≥ 0'),
-  opening_qty: nonNegNumberString('Qty awal wajib diisi', 'Qty awal harus angka ≥ 0'),
-})
-
-export type ProductFormValues = z.infer<typeof productFormSchema>
-
-export const emptyProductForm = (): ProductFormValues => ({
-  sku: '',
-  name: '',
-  category_id: '',
-  unit_of_measure: 'pcs',
-  cost_price: '0',
-  sell_price: '0',
-  opening_qty: '0',
-})
-
 export const stockInFormSchema = z
   .object({
     product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
