@@ -36,6 +36,7 @@ import {
 const tableClass = '[&_th]:h-auto [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-2'
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
 const HINT = 'klik untuk input'
+const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Transaksi. Hapus isian nominalnya dulu.'
 const JENIS_LABEL: Record<TokoJenis, string> = { pemasukan: 'Pemasukan', pengeluaran: 'Pengeluaran' }
 
 /** Teks petunjuk samar, miring, tanpa garis bawah untuk sel kosong. */
@@ -242,7 +243,7 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
 
   const remove = async () => {
     if (!item) return
-    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" beserta seluruh isian mingguannya akan dihapus.`, confirmLabel: 'Hapus' }))) return
+    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Data.`, confirmLabel: 'Hapus' }))) return
     try { await api.delete(`/v1/toko/items/${item.id}`); await onChanged() } catch (e) { notify(getApiError(e), { type: 'error' }) }
   }
 
@@ -269,7 +270,13 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
           onChange={(e) => setKeterangan(e.target.value)} onBlur={() => void persist({ name, jenis, keterangan })} />
       </TableCell>
       <TableCell>
-        {item && <Button variant="ghost" size="icon" aria-label={`Hapus baris ${no}`} onClick={() => void remove()}><Trash2 className="size-4" /></Button>}
+        {item && (item.has_entries ? (
+          <span className="inline-flex" title={LOCKED_HINT} aria-label={LOCKED_HINT} tabIndex={0}>
+            <Button variant="ghost" size="icon" disabled aria-label={`Hapus baris ${no} (terkunci)`}><Trash2 className="size-4" /></Button>
+          </span>
+        ) : (
+          <Button variant="ghost" size="icon" aria-label={`Hapus baris ${no}`} title="Hapus baris" onClick={() => void remove()}><Trash2 className="size-4" /></Button>
+        ))}
       </TableCell>
     </TableRow>
   )

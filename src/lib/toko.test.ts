@@ -24,9 +24,15 @@ describe('manajemen toko helpers', () => {
     expect(rows[0].w2).toBeNull()
     expect(txTotals(rows)).toMatchObject({ w1: 1_500_000, w3: 750_000, jumlah: 2_250_000 })
   })
-  it('defaults week dates inside the month', () => {
+  it('defaults to the Saturday of week N, clamped to the month', () => {
+    // Oktober 2026: tgl 1 = Kamis, Sabtu pertama = 3
+    expect(defaultWeekDate('2026-10', 1)).toBe('2026-10-03')
+    expect(defaultWeekDate('2026-10', 2)).toBe('2026-10-10')
+    expect(defaultWeekDate('2026-10', 5)).toBe('2026-10-31')
+    // Agustus 2026: tgl 1 = Sabtu
+    expect(defaultWeekDate('2026-08', 1)).toBe('2026-08-01')
+    // Februari 2026: Sabtu pertama = 7, minggu ke-5 = 35 → dibatasi 28
     expect(defaultWeekDate('2026-02', 5)).toBe('2026-02-28')
-    expect(defaultWeekDate('2026-10', 2)).toBe('2026-10-08')
   })
   it('formats with Indonesian thousands separator', () => {
     expect(fmtNumber(1500000)).toBe('1.500.000')

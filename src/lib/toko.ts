@@ -2,7 +2,7 @@ import { parseMoney } from '@/lib/money'
 
 export type TokoJenis = 'pemasukan' | 'pengeluaran'
 export const WEEKS = [1, 2, 3, 4, 5] as const
-export type TokoItem = { id: string; name: string; jenis: TokoJenis; keterangan: string; position: number }
+export type TokoItem = { id: string; name: string; jenis: TokoJenis; keterangan: string; position: number; has_entries?: boolean }
 export type TokoEntry = { id: string; item_id: string; period: string; week: number; tanggal: string; nominal: string }
 
 export type TxRow = {
@@ -26,11 +26,17 @@ export function currentPeriod(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-/** Tanggal awal minggu ke-N dalam periode (hari 1, 8, 15, 22, 29; dibatasi akhir bulan). */
+/**
+ * Default tanggal popup: hari Sabtu minggu ke-N dalam periode.
+ * Minggu ke-1 = tanggal 1 s.d. Sabtu pertama; minggu berikutnya Minggu–Sabtu.
+ * Jika Sabtu minggu ke-N melewati akhir bulan, dibatasi ke tanggal terakhir bulan.
+ */
 export function defaultWeekDate(period: string, week: number): string {
   const [y, m] = period.split('-').map(Number)
   const last = new Date(y, m, 0).getDate()
-  const day = Math.min(1 + (week - 1) * 7, last)
+  const firstDow = new Date(y, m - 1, 1).getDay() // 0 = Minggu, 6 = Sabtu
+  const firstSaturday = 1 + ((6 - firstDow + 7) % 7)
+  const day = Math.min(firstSaturday + (week - 1) * 7, last)
   return `${period}-${String(day).padStart(2, '0')}`
 }
 
