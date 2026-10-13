@@ -24,6 +24,8 @@ import {
   buildTxRows,
   currentPeriod,
   defaultWeekDate,
+  isFreeWeek,
+  validateEntryDate,
   emptyTxRow,
   fmtNumber,
   txTotals,
@@ -291,10 +293,16 @@ function EntryDialog({ target, period, onClose, onSaved }: {
   const [tanggal, setTanggal] = useState(target.entry?.tanggal ?? defaultWeekDate(period, target.week))
   const [nominal, setNominal] = useState(target.entry ? String(parseMoney(target.entry.nominal)) : '')
   const [busy, setBusy] = useState(false)
+  const [dateMsg, setDateMsg] = useState('')
+  const free = isFreeWeek(period, target.week)
+  const [y, m] = period.split('-').map(Number)
+  const monthEnd = `${period}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
     if (!tanggal) { notify('Tanggal transaksi wajib diisi'); return }
+    const dateError = validateEntryDate(period, target.week, tanggal)
+    if (dateError) { setDateMsg(dateError); return }
     if (!nominal || Number(nominal) < 0) { notify('Nominal transaksi wajib diisi'); return }
     setBusy(true)
     try {
@@ -323,7 +331,11 @@ function EntryDialog({ target, period, onClose, onSaved }: {
         <form onSubmit={save} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="toko-tanggal">Tanggal transaksi</Label>
-            <Input id="toko-tanggal" type="date" required value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+            <Input id="toko-tanggal" type="date" required value={tanggal} aria-invalid={!!dateMsg}
+              min={free ? `${period}-01` : undefined} max={free ? monthEnd : undefined}
+              onChange={(e) => { setTanggal(e.target.value); setDateMsg('') }} />
+            {free && !dateMsg && <p className="text-xs text-muted-foreground">Bulan ini tidak memiliki Sabtu di Minggu ke-5; pilih tanggal bebas dalam periode {period}.</p>}
+            {dateMsg && <p role="alert" className="text-xs text-destructive">{dateMsg}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="toko-nominal">Nominal transaksi</Label>

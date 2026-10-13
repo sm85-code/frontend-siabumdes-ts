@@ -26,18 +26,43 @@ export function currentPeriod(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-/**
- * Default tanggal popup: hari Sabtu minggu ke-N dalam periode.
- * Minggu ke-1 = tanggal 1 s.d. Sabtu pertama; minggu berikutnya Minggu–Sabtu.
- * Jika Sabtu minggu ke-N melewati akhir bulan, dibatasi ke tanggal terakhir bulan.
- */
-export function defaultWeekDate(period: string, week: number): string {
+function monthInfo(period: string) {
   const [y, m] = period.split('-').map(Number)
   const last = new Date(y, m, 0).getDate()
   const firstDow = new Date(y, m - 1, 1).getDay() // 0 = Minggu, 6 = Sabtu
   const firstSaturday = 1 + ((6 - firstDow + 7) % 7)
-  const day = Math.min(firstSaturday + (week - 1) * 7, last)
+  return { last, firstSaturday }
+}
+
+/** True bila Sabtu minggu ke-5 masih jatuh di bulan periode. */
+export function week5HasSaturday(period: string): boolean {
+  const { last, firstSaturday } = monthInfo(period)
+  return firstSaturday + 28 <= last
+}
+
+/** Minggu ke-5 tanpa Sabtu: tanggal bebas, asalkan masih dalam bulan periode. */
+export function isFreeWeek(period: string, week: number): boolean {
+  return week === 5 && !week5HasSaturday(period)
+}
+
+/**
+ * Default tanggal popup: hari Sabtu minggu ke-N dalam periode.
+ * Minggu ke-1 = tanggal 1 s.d. Sabtu pertama; minggu berikutnya Minggu–Sabtu.
+ * Bila bulan tidak punya Sabtu ke-5, minggu ke-5 default ke hari setelah
+ * Sabtu minggu ke-4 (atau akhir bulan bila tidak ada sisa hari).
+ */
+export function defaultWeekDate(period: string, week: number): string {
+  const { last, firstSaturday } = monthInfo(period)
+  const saturday = firstSaturday + (week - 1) * 7
+  const day = saturday <= last ? saturday : Math.min(firstSaturday + 22, last)
   return `${period}-${String(day).padStart(2, '0')}`
+}
+
+/** Pesan validasi tanggal (null = valid). */
+export function validateEntryDate(period: string, week: number, tanggal: string): string | null {
+  if (isFreeWeek(period, week) && !tanggal.startsWith(`${period}-`))
+    return 'Tanggal Minggu ke-5 harus berada dalam periode bulan yang dipilih.'
+  return null
 }
 
 /** Baris tabel transaksi dari item berjenis tertentu (data asli saja, tanpa baris kosong). */

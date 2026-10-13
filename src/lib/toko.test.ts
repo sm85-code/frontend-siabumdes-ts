@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTxRows, defaultWeekDate, txTotals, fmtNumber, type TokoItem, type TokoEntry } from '@/lib/toko'
+import { buildTxRows, defaultWeekDate, isFreeWeek, validateEntryDate, txTotals, fmtNumber, type TokoItem, type TokoEntry } from '@/lib/toko'
 
 const items: TokoItem[] = [
   { id: 'a', name: 'Penjualan', jenis: 'pemasukan', keterangan: '', position: 1 },
@@ -31,8 +31,18 @@ describe('manajemen toko helpers', () => {
     expect(defaultWeekDate('2026-10', 5)).toBe('2026-10-31')
     // Agustus 2026: tgl 1 = Sabtu
     expect(defaultWeekDate('2026-08', 1)).toBe('2026-08-01')
-    // Februari 2026: Sabtu pertama = 7, minggu ke-5 = 35 → dibatasi 28
+    // Februari 2026: Sabtu 7,14,21,28 → tidak ada sisa hari → akhir bulan
     expect(defaultWeekDate('2026-02', 5)).toBe('2026-02-28')
+    // November 2026: Sabtu 7,14,21,28 → minggu ke-5 default 29
+    expect(defaultWeekDate('2026-11', 5)).toBe('2026-11-29')
+  })
+  it('week 5 without Saturday is free but must stay in the month', () => {
+    expect(isFreeWeek('2026-11', 5)).toBe(true)
+    expect(isFreeWeek('2026-10', 5)).toBe(false)
+    expect(isFreeWeek('2026-11', 4)).toBe(false)
+    expect(validateEntryDate('2026-11', 5, '2026-11-02')).toBeNull()
+    expect(validateEntryDate('2026-11', 5, '2026-12-01')).toMatch(/periode bulan/)
+    expect(validateEntryDate('2026-10', 4, '2026-12-01')).toBeNull()
   })
   it('formats with Indonesian thousands separator', () => {
     expect(fmtNumber(1500000)).toBe('1.500.000')
