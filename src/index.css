@@ -701,7 +701,7 @@ select option { background-color: var(--popover); color: var(--popover-foregroun
 @media (max-width: 639px) {
   [data-slot=table-cell], [data-slot=table-head] { padding-inline: .875rem; }
   [data-slot=button] { min-height: 40px; }
-  [data-slot=input], [data-slot=textarea], [data-slot=select-trigger] { font-size: 16px; }
+  [data-slot=input], [data-slot=textarea], [data-slot=select-trigger], [data-slot=select-item] { font-size: 16px; }
 }
 @media print {
   .siabumdes-content [data-slot=card] > .table-shell { width: 100%; margin: 0; }
