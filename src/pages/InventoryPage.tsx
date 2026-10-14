@@ -86,7 +86,7 @@ const TAB_GROUPS = [
   ] },
   { id: "data-orang", label: "Data Orang-Orang", icon: Users, tabs: [
     { id: "vendor", label: "Pemasok", icon: Truck },
-    { id: "customer", label: "Pelanggan", icon: Users },
+    { id: "customer", label: "Customer", icon: Users },
   ] },
   { id: "perutangan", label: "Perutangan", icon: Wallet, tabs: [
     { id: "utang", label: "Utang", icon: Wallet },
