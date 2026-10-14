@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import HelpHint from '@/components/HelpHint'
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react'
 import type {
   InventoryMovement,
   InventoryMovementReport,
@@ -42,7 +42,7 @@ function Stat({
   }
   return (
     <Card
-      className={`h-full${clickable ? ' cursor-pointer transition hover:border-primary/50 hover:bg-muted/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''}`}
+      className={`h-full${clickable ? ' cursor-pointer border-primary/40 transition hover:border-primary hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''}`}
       data-testid={testId ?? 'inventory-stat'}
       role={clickable ? 'button' : undefined}
       tabIndex={clickable ? 0 : undefined}
@@ -58,13 +58,17 @@ function Stat({
               <HelpHint label={`Info ${label}`}>{hint}</HelpHint>
             </span>
           ) : null}
-          {clickable ? <ChevronRight className="ml-auto size-4 shrink-0" style={{ color: 'var(--text-muted)' }} aria-hidden /> : null}
         </div>
         <p className="font-heading mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl">{value}</p>
         <p className="mt-auto truncate pt-1 text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
           {sub ?? '\u00a0'}
         </p>
-        {clickable && cta ? <p className="mt-1 truncate text-xs font-medium text-primary">{cta} →</p> : null}
+        {clickable && cta ? (
+          <span className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm">
+            <Plus className="size-4" aria-hidden />
+            {cta}
+          </span>
+        ) : null}
       </CardContent>
     </Card>
   )
