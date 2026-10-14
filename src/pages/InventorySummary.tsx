@@ -1,17 +1,12 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { fmtRp, fmtDate } from '@/api/client'
 import TableShell from '@/components/TableShell'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
-import {
-  BarChart, Bar, XAxis, YAxis,
-  PieChart, Pie, Cell, CartesianGrid,
-} from 'recharts'
-import {
-  ChartContainer, ChartTooltip, ChartTooltipContent,
-  ChartLegend, ChartLegendContent,
-} from '@/components/ui/chart'
+import { Input } from '@/components/ui/input'
+import HelpHint from '@/components/HelpHint'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import type {
   InventoryMovement,
   InventoryMovementReport,
@@ -19,15 +14,8 @@ import type {
   InventoryValuation,
 } from '@/types'
 
-const COLORS = [
-  'var(--chart-1)',
-  'var(--chart-5)',
-  'var(--chart-3)',
-  'var(--chart-4)',
-  'var(--chart-2)',
-  'var(--chart-6)',
-]
-const TOP_OUT_CHART_CONFIG = { qty: { label: 'Qty keluar', color: 'var(--chart-1)' } }
+type SortKey = 'sku' | 'name' | 'category' | 'qty' | 'hpp' | 'value'
+const num = (v: unknown) => Number(v || 0)
 
 function Stat({
   label,
@@ -86,59 +74,55 @@ export default function InventorySummary({
     [products],
   )
 
-  const topByValue = useMemo(
-    () =>
-      [...products]
-        .sort((a, b) => Number(b.stock_value || 0) - Number(a.stock_value || 0))
-        .slice(0, 10),
-    [products],
-  )
+  const [q, setQ] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('sku')
+  const [sortAsc, setSortAsc] = useState(true)
 
-  const topOut = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        product_id?: string | null
-        sku?: string | null
-        name: string
-        qty: number
-        value: number
-        count: number
+  const allSku = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    const rows = products
+      .map((p) => {
+        const qty = num(p.qty_on_hand)
+        const hpp = num(p.cost_price)
+        return { p, qty, hpp, value: qty * hpp }
+      })
+      .filter(({ p }) =>
+        !term ||
+        [p.sku, p.name, p.category_name].some((x) => String(x || '').toLowerCase().includes(term)),
+      )
+    const get = (r: (typeof rows)[number]): string | number => {
+      switch (sortKey) {
+        case 'sku': return r.p.sku || ''
+        case 'name': return r.p.name || ''
+        case 'category': return r.p.category_name || ''
+        case 'qty': return r.qty
+        case 'hpp': return r.hpp
+        default: return r.value
       }
-    >()
-    for (const m of movements) {
-      if (m.direction !== 'out' || m.finance_status === 'cancelled') continue
-      const key = String(m.product_id || m.sku || m.id)
-      const prev = map.get(key) || {
-        product_id: m.product_id,
-        sku: m.sku,
-        name: m.product_name || m.sku || '—',
-        qty: 0,
-        value: 0,
-        count: 0,
-      }
-      prev.qty += Number(m.quantity || 0)
-      prev.value += Number(m.total_value || 0)
-      prev.count += 1
-      if (m.sku) prev.sku = m.sku
-      if (m.product_name) prev.name = m.product_name
-      map.set(key, prev)
     }
-    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 8)
-  }, [movements])
-
-  const categoryChart = useMemo(() => {
-    const rows = valuation?.by_category || []
+    rows.sort((a, b) => {
+      const x = get(a), y = get(b)
+      const c = typeof x === 'number' && typeof y === 'number'
+        ? x - y
+        : String(x).localeCompare(String(y), 'id', { numeric: true })
+      return sortAsc ? c : -c
+    })
     return rows
-      .map((c) => ({
-        name: c.category || '—',
-        value: Number(c.value || 0),
-        qty: Number(c.qty || 0),
-        sku_count: c.sku_count,
-      }))
-      .filter((c) => c.value > 0)
-      .sort((a, b) => b.value - a.value)
-  }, [valuation])
+  }, [products, q, sortKey, sortAsc])
+  const allSkuTotal = allSku.reduce((s, r) => s + r.value, 0)
+
+  const toggleSort = (k: SortKey) => {
+    if (k === sortKey) setSortAsc(!sortAsc)
+    else { setSortKey(k); setSortAsc(k === 'sku' || k === 'name' || k === 'category') }
+  }
+  const SortHead = ({ k, label, numeric }: { k: SortKey; label: string; numeric?: boolean }) => (
+    <TableHead className={numeric ? 'num' : undefined} aria-sort={sortKey === k ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="inline-flex items-center gap-1 font-inherit" onClick={() => toggleSort(k)}>
+        {label}
+        {sortKey === k ? (sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ArrowUpDown className="size-3 opacity-40" />}
+      </button>
+    </TableHead>
+  )
 
   const recentOut = useMemo(
     () =>
@@ -183,134 +167,66 @@ export default function InventorySummary({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="font-heading mb-1 text-lg font-semibold">Produk terlaris (stock out)</h3>
-            <p className="mb-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Agregasi qty keluar dari mutasi terbaru (bukan dibatalkan).
-            </p>
-            {topOut.length > 0 ? (
-              <ChartContainer
-                config={TOP_OUT_CHART_CONFIG}
-                className="aspect-auto w-full"
-                style={{ height: 280 }}
-              >
-                <BarChart
-                  data={topOut}
-                  layout="vertical"
-                  margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--legacy-border)"
-                    horizontal={false}
-                  />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(v, name) =>
-                          name === 'qty' ? `${v} unit` : fmtRp(Number(v))
-                        }
-                      />
-                    }
-                  />
-                  <Bar dataKey="qty" name="qty" fill="var(--color-qty)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                Belum ada stock out untuk ditampilkan.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <h3 className="font-heading mb-1 text-lg font-semibold">Nilai stok per kategori</h3>
-            <p className="mb-4 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Berdasarkan valuasi persediaan saat ini.
-            </p>
-            {categoryChart.length > 0 ? (
-              <ChartContainer config={{}} className="aspect-auto w-full" style={{ height: 280 }}>
-                <PieChart>
-                  <Pie
-                    data={categoryChart}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    innerRadius={44}
-                  >
-                    {categoryChart.map((c, i) => (
-                      <Cell key={c.name} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent formatter={(v) => fmtRp(Number(v))} />
-                    }
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <p className="py-16 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                Belum ada data valuasi kategori.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="overflow-hidden p-0">
-          <div className="p-4 pb-2">
-            <h3 className="font-heading text-lg font-semibold">Top nilai persediaan</h3>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              10 SKU dengan nilai stok tertinggi
-            </p>
-          </div>
-          <TableShell minWidth={640}>
-            <Table>
-              <TableHeader>
+      <Card className="overflow-hidden p-0" data-testid="inventory-all-sku">
+        <div className="flex flex-wrap items-center gap-2 p-4 pb-2">
+          <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">
+            Daftar seluruh SKU
+            <HelpHint>Semua produk di katalog, termasuk stok 0. Nilai persediaan = Stok × HPP.</HelpHint>
+          </h3>
+          <Input
+            type="search"
+            aria-label="Cari SKU/produk/kategori"
+            placeholder="Cari SKU/produk/kategori"
+            className="ml-auto w-full sm:w-64"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        <TableShell minWidth={760}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <SortHead k="sku" label="SKU" />
+                <SortHead k="name" label="Nama Produk" />
+                <SortHead k="category" label="Kategori" />
+                <SortHead k="qty" label="Stok" numeric />
+                <SortHead k="hpp" label="HPP" numeric />
+                <SortHead k="value" label="Nilai Persediaan" numeric />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {allSku.length === 0 ? (
                 <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Nama</TableHead>
-                  <TableHead className="num">Qty</TableHead>
-                  <TableHead className="num">Nilai</TableHead>
+                  <TableCell colSpan={6} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                    {products.length === 0 ? 'Belum ada produk.' : 'Tidak ada yang cocok.'}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topByValue.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="py-8 text-center"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Belum ada produk.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  topByValue.map((p) => (
+              ) : (
+                <>
+                  {allSku.map(({ p, qty, hpp, value }) => (
                     <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.sku}</TableCell>
+                      <TableCell className="font-medium whitespace-nowrap">{p.sku}</TableCell>
                       <TableCell>{p.name}</TableCell>
-                      <TableCell className="num">{p.qty_on_hand}</TableCell>
-                      <TableCell className="num">{fmtRp(Number(p.stock_value || 0))}</TableCell>
+                      <TableCell>{p.category_name || '-'}</TableCell>
+                      <TableCell className={`num whitespace-nowrap ${qty === 0 ? 'text-destructive' : ''}`}>
+                        {qty.toLocaleString('id-ID')} {p.unit_of_measure || ''}
+                      </TableCell>
+                      <TableCell className="num whitespace-nowrap">{fmtRp(hpp)}</TableCell>
+                      <TableCell className="num whitespace-nowrap">{fmtRp(value)}</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableShell>
-        </Card>
+                  ))}
+                  <TableRow className="font-semibold">
+                    <TableCell colSpan={5}>Total ({allSku.length} SKU)</TableCell>
+                    <TableCell className="num whitespace-nowrap">{fmtRp(allSkuTotal)}</TableCell>
+                  </TableRow>
+                </>
+              )}
+            </TableBody>
+          </Table>
+        </TableShell>
+      </Card>
 
+      <div className="grid grid-cols-1 gap-6">
         <Card className="overflow-hidden p-0">
           <div className="p-4 pb-2">
             <h3 className="font-heading text-lg font-semibold">Peringatan stok tipis</h3>
