@@ -397,9 +397,6 @@ export default function Inventory() {
         <div>
           <p className="label mb-1">{meta?.unit_code ? `Unit Usaha ${meta.unit_code}` : "Unit Usaha"}</p>
           <h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Stok</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            {meta?.unit_name || "Persediaan barang dagang"} · katalog, mutasi, pembelian, penjualan & valuasi
-          </p>
         </div>
       </div>
 

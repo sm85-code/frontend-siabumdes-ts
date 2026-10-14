@@ -281,13 +281,6 @@ export default function ReportsPage() {
       <div>
         <p className="label mb-1">FINANCIAL STATEMENTS</p>
         <h1 className="font-heading page-h1 text-3xl font-bold">Laporan Keuangan</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          {isPengelola
-            ? 'Anda hanya dapat mengakses laporan unit usaha yang Anda kelola.'
-            : isAdmin
-              ? 'Tiga tab: Laporan Keuangan (pilih kelompok BUMDes atau salah satu unit usaha), Tutup Buku, dan Transfer Bagi Hasil.'
-              : 'Laporan Keuangan — pilih kelompok BUMDes atau salah satu unit usaha.'}
-        </p>
       </div>
 
       {isAdmin && (

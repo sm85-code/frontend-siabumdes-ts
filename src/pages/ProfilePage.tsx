@@ -73,9 +73,6 @@ export default function ProfilePage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="font-heading page-h1 text-3xl font-bold">Profil Saya</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Kelola identitas akun dan password Anda sendiri.
-        </p>
       </div>
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-error">{error}</div>}

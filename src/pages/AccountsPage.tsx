@@ -1,4 +1,5 @@
 import FormDialog from '@/components/FormDialog'
+import HelpHint from '@/components/HelpHint'
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -300,10 +301,7 @@ export default function COAPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Chart of Accounts</p>
-          <h1 className="font-heading text-3xl font-bold page-h1">Kode Akun & Jenis Transaksi</h1>
-          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.
-          </p>
+          <div className="flex items-center gap-1"><h1 className="font-heading text-3xl font-bold page-h1">Kode Akun & Jenis Transaksi</h1><HelpHint label="Tentang Kode Akun"><p>Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.</p></HelpHint></div>
         </div>
       </div>
 
