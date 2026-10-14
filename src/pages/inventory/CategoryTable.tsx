@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { InventoryCategory } from "@/types";
 import { DEFAULT_CATALOG_ROWS } from "@/lib/catalog";
 
-const BASE = "/api/v1/inventory";
+const BASE = "/v1/uu05_inventory";
 const LOCKED = "Kategori sudah dipakai produk: kode tidak dapat diubah dan kategori tidak dapat dihapus.";
 type Row = { key: string; id?: string; code: string; name: string; description: string; has_products?: boolean };
 const blank = (): Row => ({ key: crypto.randomUUID(), code: "", name: "", description: "" });
