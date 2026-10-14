@@ -99,7 +99,7 @@ export function fmtNumber(n: number): string {
   return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n)
 }
 
-export type TradeRecord = { id: string; name: string | null; total_amount: string; created_at: string | null }
+export type TradeRecord = { id: string; name: string | null; total_amount: string; created_at: string | null; transaction_date?: string | null }
 
 /** Minggu ke-n periode: Senin–Sabtu mulai Senin pertama bulan (Minggu ikut minggu sebelumnya). */
 export function tradeWeek(period: string, d: Date): number | null {
@@ -117,8 +117,9 @@ export function tradeWeek(period: string, d: Date): number | null {
 export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] {
   const map = new Map<string, TxRow>()
   for (const r of records) {
-    if (!r.created_at) continue
-    const w = tradeWeek(period, new Date(r.created_at))
+    const d = r.transaction_date ? new Date(`${r.transaction_date}T00:00:00`) : r.created_at ? new Date(r.created_at) : null
+    if (!d) continue
+    const w = tradeWeek(period, d)
     if (!w) continue
     const name = r.name?.trim() || '-'
     const row = map.get(name) ?? { key: name, item: null, uraian: name, w1: null, w2: null, w3: null, w4: null, w5: null, jumlah: 0, entries: {} }
