@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import HelpHint from "@/components/HelpHint";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import api, { fmtRp } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -162,6 +162,12 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
           </Table>
         </TableShell>
       </Card>
+      {canWrite && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setRows((rs) => [...rs, blank()])}><Plus className="size-4" /> Tambah baris</Button>
+          <span className="text-xs text-muted-foreground">{categories.length ? "Pilih Kategori, lalu klik SKU untuk mengisi kode produk baru." : "Belum ada kategori produk. Minta admin menambahkannya di Kategori Produk."}</span>
+        </div>
+      )}
       <Dialog open={Boolean(skuRow)} onOpenChange={(open) => { if (!open) setSkuRow(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Kode SKU : KRS.{skuCode}</DialogTitle></DialogHeader>
