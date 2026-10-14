@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { fmtRp, fmtDate } from '@/api/client'
 import TableShell from '@/components/TableShell'
 import { Card, CardContent } from '@/components/ui/card'
@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import HelpHint from '@/components/HelpHint'
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight } from 'lucide-react'
 import type {
   InventoryMovement,
   InventoryMovementReport,
@@ -22,23 +22,50 @@ function Stat({
   value,
   sub,
   hint,
+  onClick,
+  cta,
+  testId,
 }: {
   label: string
   value: ReactNode
   sub?: ReactNode
   hint?: ReactNode
+  onClick?: () => void
+  cta?: string
+  testId?: string
 }) {
+  const clickable = Boolean(onClick)
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
   return (
-    <Card className="h-full" data-testid="inventory-stat">
+    <Card
+      className={`h-full${clickable ? ' cursor-pointer transition hover:border-primary/50 hover:bg-muted/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring' : ''}`}
+      data-testid={testId ?? 'inventory-stat'}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      aria-label={clickable ? `Buka ${label}` : undefined}
+      onClick={onClick}
+      onKeyDown={clickable ? onKeyDown : undefined}
+    >
       <CardContent className="flex h-full flex-col p-4">
         <div className="flex min-h-7 items-center gap-1">
           <p className="label truncate text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
-          {hint ? <HelpHint label={`Info ${label}`}>{hint}</HelpHint> : null}
+          {hint ? (
+            <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+              <HelpHint label={`Info ${label}`}>{hint}</HelpHint>
+            </span>
+          ) : null}
+          {clickable ? <ChevronRight className="ml-auto size-4 shrink-0" style={{ color: 'var(--text-muted)' }} aria-hidden /> : null}
         </div>
         <p className="font-heading mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl">{value}</p>
         <p className="mt-auto truncate pt-1 text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
           {sub ?? '\u00a0'}
         </p>
+        {clickable && cta ? <p className="mt-1 truncate text-xs font-medium text-primary">{cta} →</p> : null}
       </CardContent>
     </Card>
   )
@@ -49,16 +76,18 @@ interface InventorySummaryProps {
   movements?: InventoryMovement[]
   valuation?: InventoryValuation | null
   movementReport?: InventoryMovementReport | null
+  onOpenTab?: (tab: 'stock-in' | 'stock-out') => void
 }
 
 /**
- * Inventory Summary dashboard — KPI, charts, tables.
+ * Inventory Summary dashboard — KPI, tabel.
  */
 export default function InventorySummary({
   products = [],
   movements = [],
   valuation = null,
   movementReport = null,
+  onOpenTab,
 }: InventorySummaryProps) {
   const skuCount = valuation?.summary?.sku_count ?? products.length
   const totalQty =
@@ -149,13 +178,19 @@ export default function InventorySummary({
           label="Stock in"
           value={`${inQty} unit`}
           sub={`${fmtRp(Number(movementReport?.stock_in?.value || 0))} · ${movementReport?.stock_in?.count ?? 0} trx`}
-          hint="Barang masuk pada periode laporan yang dipilih."
+          hint="Barang masuk pada periode laporan yang dipilih. Ketuk kartu untuk input Stock In."
+          onClick={onOpenTab ? () => onOpenTab('stock-in') : undefined}
+          cta="Input Stock In"
+          testId={onOpenTab ? 'shortcut-stock-in' : undefined}
         />
         <Stat
           label="Stock out"
           value={`${outQty} unit`}
           sub={`${fmtRp(Number(movementReport?.stock_out?.value || 0))} · ${movementReport?.stock_out?.count ?? 0} trx`}
-          hint="Barang keluar pada periode laporan yang dipilih."
+          hint="Barang keluar pada periode laporan yang dipilih. Ketuk kartu untuk input Stock Out."
+          onClick={onOpenTab ? () => onOpenTab('stock-out') : undefined}
+          cta="Input Stock Out"
+          testId={onOpenTab ? 'shortcut-stock-out' : undefined}
         />
       </div>
 
