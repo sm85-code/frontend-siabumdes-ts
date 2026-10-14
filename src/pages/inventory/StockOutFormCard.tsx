@@ -71,7 +71,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
     for (const [id, qty] of need) {
       const product = products.find((p) => p.id === id)
       if (product && qty > Number(product.qty_on_hand)) {
-        onClientError(`${product.sku}: qty keluar (${qty}) melebihi stok (${product.qty_on_hand}).`)
+        onClientError(`${product.sku}: jumlah keluar (${qty}) melebihi stok (${product.qty_on_hand}).`)
         return
       }
     }

@@ -113,7 +113,7 @@ export const stockOutFormSchema = z
       if (!data.customer_id.trim()) {
         ctx.addIssue({
           code: 'custom',
-          message: 'Customer wajib dipilih',
+          message: 'Pelanggan wajib dipilih',
           path: ['customer_id'],
         })
       }
