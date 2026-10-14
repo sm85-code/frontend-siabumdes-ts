@@ -392,7 +392,7 @@ export default function CommercialDocuments() {
           setError("");
         }}
       />
-      <p className="flex items-center gap-1 text-sm text-muted-foreground">{hints[kind]}<HelpHint>Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</HelpHint></p>
+      <div className="flex items-center gap-1 text-sm text-muted-foreground"><HelpHint><p>{hints[kind]}</p><p>Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</p></HelpHint></div>
       <Card>
         <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
           {partnerSelect}

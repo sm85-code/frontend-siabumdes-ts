@@ -84,9 +84,6 @@ export default function AuditLogPage() {
       <div>
         <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
         <h1 className="font-heading page-h1 text-3xl font-bold">Audit Log</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Jejak aksi sensitif. Menampilkan {rows.length} entri terbaru.
-        </p>
       </div>
       <Card className="overflow-hidden p-0">
         {loading ? (

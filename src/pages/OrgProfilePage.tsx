@@ -1,4 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import HelpHint from '@/components/HelpHint'
 import api, { getApiError } from '@/api/client'
 import { useAuth, can } from '@/lib/auth'
 import { notify } from '@/lib/feedback'
@@ -193,11 +194,7 @@ export default function OrgProfilePage() {
     <div className="max-w-3xl space-y-6" data-testid="org-profile-page">
       <div>
         <p className="label mb-1">PENGATURAN</p>
-        <h1 className="font-heading page-h1 text-3xl font-bold">Profil BUMDes</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word
-          (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.
-        </p>
+        <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Profil BUMDes</h1><HelpHint label="Tentang Profil BUMDes"><p>Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.</p></HelpHint></div>
       </div>
 
       <Card>
@@ -335,14 +332,9 @@ export default function OrgProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-heading text-lg">Bagi Hasil</CardTitle>
+              <CardTitle className="font-heading flex items-center gap-1 text-lg">Bagi Hasil<HelpHint label="Tentang Bagi Hasil"><p>Proporsi ini dipakai saat Tutup Buku bulanan (jurnal alokasi laba) dan di Laporan Perubahan Ekuitas / ringkasan per-unit. Ubah di sini berlaku untuk penutupan bulan berikutnya — periode yang sudah ditutup tidak berubah.</p></HelpHint></CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-xs text-muted-foreground">
-                Proporsi ini dipakai saat Tutup Buku bulanan (jurnal alokasi laba) dan di Laporan
-                Perubahan Ekuitas / ringkasan per-unit. Ubah di sini berlaku untuk penutupan bulan
-                berikutnya -- periode yang sudah ditutup tidak berubah.
-              </p>
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -424,12 +416,9 @@ export default function OrgProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-heading text-lg">Kolom Tanda Tangan</CardTitle>
+              <CardTitle className="font-heading flex items-center gap-1 text-lg">Kolom Tanda Tangan<HelpHint label="Tentang Kolom Tanda Tangan"><p>Nama dikosongkan akan tampil sebagai titik-titik (belum diisi manual) di dokumen.</p></HelpHint></CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Nama dikosongkan akan tampil sebagai titik-titik (belum diisi manual) di dokumen.
-              </p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <Label className="label">
                   Jabatan Kiri

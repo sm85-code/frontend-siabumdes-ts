@@ -157,9 +157,6 @@ export default function LedgerPage() {
         <h1 className="font-heading page-h1 flex items-center gap-2 text-3xl font-bold">
           <BookOpen className="size-7" style={{ color: 'var(--primary-dark)' }} /> Buku Besar per Akun
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Tiap kelompok punya buku besar sendiri. Pilih kelompok terlebih dahulu, lalu pilih akun.
-        </p>
       </div>
 
       <Card className="grid grid-cols-1 items-start gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="ledger-filters">

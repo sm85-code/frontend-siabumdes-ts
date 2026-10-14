@@ -266,6 +266,8 @@ export default function TxTable({
                             <Button
                               data-testid={`edit-tx-${t.id}`}
                               onClick={() => onEdit(t)}
+                              title="Ubah transaksi"
+                              aria-label="Ubah transaksi"
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-primary hover:bg-primary/10 hover:text-primary"
@@ -277,6 +279,8 @@ export default function TxTable({
                             <Button
                               data-testid={`del-tx-${t.id}`}
                               onClick={() => onDelete(t.id)}
+                              title="Hapus transaksi"
+                              aria-label="Hapus transaksi"
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"

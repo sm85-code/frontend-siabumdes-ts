@@ -1,4 +1,5 @@
 import FormDialog from '@/components/FormDialog'
+import HelpHint from '@/components/HelpHint'
 import { Key, Lock, Pencil, Plus, Trash2 } from "lucide-react"
 import { ROLE_LABELS } from "@/config/roles"
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -262,10 +263,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
-          <h1 className="font-heading text-3xl font-bold page-h1">Kelola Pengguna</h1>
-          <p className="text-sm mt-1 text-muted-foreground">
-            Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.
-          </p>
+          <div className="flex items-center gap-1"><h1 className="font-heading text-3xl font-bold page-h1">Kelola Pengguna</h1><HelpHint label="Tentang Kelola Pengguna"><p>Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.</p></HelpHint></div>
         </div>
         <div className="flex gap-2">
           <Button data-testid="btn-new-user" onClick={() => { setFormError(''); createForm.reset(EMPTY_CREATE); setShow(true); }}>

@@ -4,10 +4,11 @@ import {
   FileSpreadsheet,
   FileUp,
   HardDrive,
+  MoreHorizontal,
   Plus,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getApiError } from '@/api/client'
 import { fetchDriveConnectUrl, fetchDriveStatus } from '@/api/admin'
@@ -27,6 +28,7 @@ import {
 import { useConfirm } from '@/components/ConfirmProvider'
 import PeriodFilter, { fmtRangeLabel, resolveRange } from '@/components/PeriodFilter'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Select,
@@ -97,6 +99,7 @@ export default function TransactionsPage() {
 
   const [formError, setFormError] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formKey, setFormKey] = useState(0)
   const [formDefaults, setFormDefaults] = useState<TxFormState>(emptyTxForm)
@@ -410,6 +413,19 @@ export default function TransactionsPage() {
     }
   }
 
+  const MenuItem = ({ testId, onClick, title, children }: { testId: string; onClick: () => void; title?: string; children: ReactNode }) => (
+    <button
+      type="button"
+      role="menuitem"
+      data-testid={testId}
+      title={title}
+      onClick={() => { setMenuOpen(false); onClick() }}
+      className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none [&_svg]:size-4"
+    >
+      {children}
+    </button>
+  )
+
   return (
     <div className="space-y-6" data-testid="transactions-page">
       {user?.blocked_periods && user.blocked_periods.length > 0 && (
@@ -441,73 +457,73 @@ export default function TransactionsPage() {
         <div>
           <p className="label mb-1">JOURNAL ENTRY</p>
           <h1 className="font-heading page-h1 text-3xl font-bold">Transaksi Keuangan</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Input transaksi cepat — laporan terbentuk otomatis. Pagination server-side.
-          </p>
         </div>
-        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          {user?.role === 'admin' && (
-            <Button
-              data-testid="btn-connect-drive"
-              onClick={() => void connectDrive()}
-              variant="outline"
-              className="flex-1 sm:flex-none"
-              title={driveStatus?.email ? `Terhubung: ${driveStatus.email}` : 'Belum terhubung'}
-            >
-              <HardDrive
-                className={driveStatus?.connected ? 'text-green-600' : 'text-amber-500'}
-              />
-              {driveStatus?.connected ? 'Drive Terhubung' : 'Hubungkan Drive'}
-            </Button>
-          )}
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           {canImport && (
-            <>
-              <Button
-                data-testid="btn-download-template"
-                onClick={() =>
-                  void downloadTxTemplate()
-                    .then((b) => triggerBlobDownload(b, 'Template-Transaksi-BUMDes.xlsx'))
-                    .catch(() => notify('Gagal download template'))
-                }
-                variant="outline"
-                className="flex-1 sm:flex-none"
-              >
-                <Download /> Download Template
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                data-testid="import-file-input"
-                onChange={(e) => void onFileChange(e)}
-              />
-              <Button
-                data-testid="btn-import-excel"
-                onClick={() => fileInputRef.current?.click()}
-                variant="outline"
-                className="flex-1 sm:flex-none"
-              >
-                <FileUp /> Impor Excel
-              </Button>
-            </>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              data-testid="import-file-input"
+              onChange={(e) => void onFileChange(e)}
+            />
           )}
           <Button
             data-testid="btn-export-tx-excel"
             onClick={() => void doExportExcel()}
             variant="outline"
-            className="flex-1 sm:flex-none"
+            size="icon"
+            title="Export Excel (periode ini)"
+            aria-label="Export Excel (periode ini)"
           >
-            <FileSpreadsheet /> Export Excel
+            <FileSpreadsheet />
           </Button>
-          <Button
-            data-testid="btn-export-tx-all"
-            onClick={() => void doExportAll()}
-            variant="outline"
-            className="flex-1 sm:flex-none"
-          >
-            <FileSpreadsheet /> Export Semua Data
-          </Button>
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                data-testid="btn-tx-more"
+                variant="outline"
+                size="icon"
+                title="Aksi lainnya"
+                aria-label="Aksi lainnya"
+              >
+                <MoreHorizontal />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-60 p-1" role="menu">
+              <MenuItem testId="btn-export-tx-all" onClick={() => void doExportAll()}>
+                <FileSpreadsheet /> Export Semua Data
+              </MenuItem>
+              {canImport && (
+                <>
+                  <MenuItem
+                    testId="btn-download-template"
+                    onClick={() =>
+                      void downloadTxTemplate()
+                        .then((b) => triggerBlobDownload(b, 'Template-Transaksi-BUMDes.xlsx'))
+                        .catch(() => notify('Gagal download template'))
+                    }
+                  >
+                    <Download /> Download Template
+                  </MenuItem>
+                  <MenuItem testId="btn-import-excel" onClick={() => fileInputRef.current?.click()}>
+                    <FileUp /> Impor Excel
+                  </MenuItem>
+                </>
+              )}
+              {user?.role === 'admin' && (
+                <MenuItem
+                  testId="btn-connect-drive"
+                  onClick={() => void connectDrive()}
+                  title={driveStatus?.email ? `Terhubung: ${driveStatus.email}` : 'Belum terhubung'}
+                >
+                  <HardDrive className={driveStatus?.connected ? 'text-green-600' : 'text-amber-500'} />
+                  {driveStatus?.connected ? 'Drive Terhubung' : 'Hubungkan Drive'}
+                </MenuItem>
+              )}
+            </PopoverContent>
+          </Popover>
           <Button
             data-testid="btn-new-tx"
             onClick={openCreate}
