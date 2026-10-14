@@ -243,9 +243,9 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
                 </Button>
               </div>
               <div className="grid grid-cols-3 gap-2 pl-7">
-                <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...register(`lines.${i}.quantity`)} />
+                <Controller control={control} name={`lines.${i}.quantity`} render={({ field }) => <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...field} />} />
                 {!isInternal && (
-                  <Input type="number" min="0" step="1" placeholder="Harga jual" aria-label="Harga jual" aria-invalid={Boolean(err?.sell_price)} {...register(`lines.${i}.sell_price`)} />
+                  <Controller control={control} name={`lines.${i}.sell_price`} render={({ field }) => <Input type="number" min="0" step="1" placeholder="Harga jual" aria-label="Harga jual" aria-invalid={Boolean(err?.sell_price)} {...field} />} />
                 )}
                 {!isInternal && (
                   <p className="self-center text-right text-sm">{fmtRp(Number(line?.quantity || 0) * Number(line?.sell_price || 0))}</p>
