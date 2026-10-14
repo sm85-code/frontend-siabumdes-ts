@@ -50,7 +50,7 @@ function Stat({
       onClick={onClick}
       onKeyDown={clickable ? onKeyDown : undefined}
     >
-      <CardContent className="flex h-full flex-col p-4">
+      <CardContent className="flex h-full flex-col p-4 lg:p-3">
         <div className="flex min-h-7 items-center gap-1">
           <p className="label truncate text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
           {hint ? (
@@ -59,12 +59,12 @@ function Stat({
             </span>
           ) : null}
         </div>
-        <p className="font-heading mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl">{value}</p>
+        <p className="font-heading mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl lg:text-lg">{value}</p>
         <p className="mt-auto truncate pt-1 text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
           {sub ?? '\u00a0'}
         </p>
         {clickable && cta ? (
-          <span className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm">
+          <span className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-sm lg:py-1 lg:text-xs font-semibold text-primary-foreground shadow-sm">
             <Plus className="size-4" aria-hidden />
             {cta}
           </span>
@@ -232,7 +232,7 @@ export default function InventorySummary({
 
   return (
     <div className="space-y-6" data-testid="inventory-summary">
-      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3" data-testid="inventory-stats">
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:gap-3" data-testid="inventory-stats">
         <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
         <Stat label="Total stok" value={totalQty} sub="unit" hint="Qty on hand seluruh SKU." />
         <Stat label="Nilai persediaan" value={fmtRp(totalValue)} sub="Qty × HPP" hint="Qty × HPP seluruh SKU." />
