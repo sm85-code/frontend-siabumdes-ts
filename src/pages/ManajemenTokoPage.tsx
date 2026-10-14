@@ -38,6 +38,9 @@ import {
 } from '@/lib/toko'
 
 const tableClass = 'toko-table [&_th]:h-auto [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-2'
+/** Lebar kolom sama untuk Pemasukan & Pengeluaran agar Minggu/Jumlah sejajar saat ditumpuk. */
+const TX_TABLE_MIN_WIDTH = 980
+const TX_COL = { no: 56, uraian: 200, week: 120, jumlah: 124 } as const
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
 const HINT_A11Y = 'Klik untuk input'
 const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Mbene Ingsi Transaksine. Hapus isian nominalnya dulu.'
@@ -149,9 +152,15 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-lg font-semibold">{title}</h2>
       </div>
-      <Card className="overflow-hidden p-0"><TableShell minWidth={980} label={`Tabel ${title}`}><Table className={tableClass}>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+        </colgroup>
         <TableHeader className={headerClass}><TableRow>
-          <TableHead className="w-14">No.</TableHead>
+          <TableHead>No.</TableHead>
           {sortHead('uraian', 'Uraian')}
           {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`, true)}</Fragment>)}
           {sortHead('jumlah', 'Jumlah', true)}
@@ -160,7 +169,9 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
           {display.map((row, idx) => (
             <TableRow key={row.key} data-testid={`toko-${jenis}-row`}>
               <TableCell>{idx + 1}</TableCell>
-              <TableCell>{row.uraian ?? <Hint onClick={onEmptyUraian} label={`Isi uraian ${title} baris ${idx + 1}`} />}</TableCell>
+              <TableCell className="min-w-0 truncate" title={row.uraian ?? undefined}>
+                {row.uraian ?? <Hint onClick={onEmptyUraian} label={`Isi uraian ${title} baris ${idx + 1}`} />}
+              </TableCell>
               {WEEKS.map((w) => {
                 const v = row[`w${w}`] as number | null
                 const open = () => {
