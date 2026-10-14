@@ -203,6 +203,11 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
 function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => Promise<unknown> | void }) {
   const [extra, setExtra] = useState(0)
   const pad = Math.max(DEFAULT_DATA_ROWS - items.length, 0) + extra
+  const { sorted, headerProps, sortIndicator } = useSort(items as unknown as Record<string, unknown>[])
+  const sortedItems = sorted as unknown as TokoItem[]
+  const sortHead = (key: string, label: string, cls = '') => (
+    <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${cls}`}>{label}{sortIndicator(key)}</TableHead>
+  )
   return (
     <>
       <div className="flex items-center justify-between gap-3">
@@ -211,10 +216,10 @@ function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => P
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={760} label="Tabel Data Transaksi"><Table className={tableClass}>
         <TableHeader className={headerClass}><TableRow>
-          <TableHead className="w-14">No.</TableHead><TableHead>Nama Transaksi</TableHead><TableHead className="w-48">Jenis Transaksi</TableHead><TableHead>Keterangan</TableHead><TableHead className="w-14" />
+          <TableHead className="w-14">No.</TableHead>{sortHead('name', 'Nama Transaksi')}{sortHead('jenis', 'Jenis Transaksi', 'w-48')}{sortHead('keterangan', 'Keterangan')}<TableHead className="w-14" />
         </TableRow></TableHeader>
         <TableBody>
-          {items.map((it, i) => <DataRow key={it.id} no={i + 1} item={it} onChanged={onChanged} />)}
+          {sortedItems.map((it, i) => <DataRow key={it.id} no={i + 1} item={it} onChanged={onChanged} />)}
           {Array.from({ length: pad }, (_, i) => (
             <DataRow key={`new-${items.length + i}`} no={items.length + i + 1} item={null}
               onChanged={async () => { setExtra((n) => Math.max(n - 1, 0)); await onChanged() }} />
