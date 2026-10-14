@@ -3,7 +3,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CoaSelect, KAS_ACCOUNT_CODE, UTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
+import HelpHint from '@/components/HelpHint'
+import { CoaSelect, KAS_ACCOUNT_CODE, PERSEDIAAN_ACCOUNT_CODE, UTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
 import { emptyStockInForm, stockInFormSchema, type StockInFormValues } from '@/schemas/inventory'
 import type { InventoryPartner, InventoryProduct } from '@/types'
 
@@ -36,6 +37,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
   })
 
   const paymentMethod = watch('payment_method')
+  const modalAwal = paymentMethod === 'modal_awal'
   const productOptions = products.map((p) => ({
     id: p.id,
     label: `${p.sku} — ${p.name} (stok ${p.qty_on_hand})`,
@@ -85,7 +87,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         {fieldErr(errors.product_id?.message)}
       </div>
       <div>
-        <label className="label">Mitra Pemasok</label>
+        <label className="label">Mitra Pemasok{modalAwal && ' (opsional)'}</label>
         <Controller
           control={control}
           name="vendor_id"
@@ -106,7 +108,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
           )}
         />
         {fieldErr(errors.vendor_id?.message)}
-        {vendors.length === 0 && (
+        {vendors.length === 0 && !modalAwal && (
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
             Belum ada mitra pemasok — tambahkan di tab Mitra Pemasok.
           </p>
@@ -152,7 +154,12 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         {fieldErr(errors.unit_cost?.message)}
       </div>
       <div>
-        <label className="label">Metode bayar</label>
+        <label className="label inline-flex items-center gap-1">
+          Sumber dana
+          <HelpHint label="Tentang Belanja Modal Awal">
+            <p>Belanja Modal Awal: barang dibeli dari modal yang sudah masuk kas. Jurnal otomatis Debit Persediaan, Kredit Kas UU05. Tidak masuk Utang dan Rekap Pembelian.</p>
+          </HelpHint>
+        </label>
         <Controller
           control={control}
           name="payment_method"
@@ -161,6 +168,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
               value={field.value}
               onValueChange={(method) => {
                 field.onChange(method)
+                if (method === 'modal_awal') setValue('debit_account_code', PERSEDIAAN_ACCOUNT_CODE)
                 setValue('credit_account_code', method === 'credit' ? UTANG_ACCOUNT_CODE : KAS_ACCOUNT_CODE, {
                   shouldValidate: true,
                 })
@@ -170,8 +178,9 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cash">Tunai</SelectItem>
-                <SelectItem value="credit">Kredit (Utang Usaha)</SelectItem>
+                <SelectItem value="cash">Kas unit</SelectItem>
+                <SelectItem value="credit">Utang pemasok</SelectItem>
+                <SelectItem value="modal_awal">Belanja Modal Awal</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -187,6 +196,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
           {fieldErr(errors.due_date?.message)}
         </div>
       )}
+      {!modalAwal && (<>
       <div>
         <label className="label">Akun debit (Persediaan)</label>
         <Controller
@@ -205,6 +215,7 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         />
         {fieldErr(errors.credit_account_code?.message)}
       </div>
+      </>)}
       <div className="flex justify-end sm:col-span-2">
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Menyimpan…' : 'Catat stock in'}

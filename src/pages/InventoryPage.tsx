@@ -221,6 +221,7 @@ export default function Inventory() {
         quantity: Number(values.quantity),
         unit_cost: Number(values.unit_cost),
         due_date: values.payment_method === "credit" ? values.due_date : null,
+        vendor_id: values.vendor_id || null,
         unit_usaha_id: meta?.unit_usaha_id,
       });
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
