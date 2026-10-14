@@ -273,6 +273,7 @@ export interface InventoryMovement {
   movement_date?: string | null
   finance_status?: string | null
   payment_method?: string | null
+  sale_value?: number | string | null
   [key: string]: unknown
 }
 
