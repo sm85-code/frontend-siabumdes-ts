@@ -45,8 +45,15 @@ export function useSort<T extends Record<string, unknown>>(
   const sorted = useMemo(() => {
     if (!sortKey) return rows
     const copy = [...rows]
-    copy.sort((a, b) => compareValues(a[sortKey], b[sortKey]))
-    return sortDir === 'desc' ? copy.reverse() : copy
+    const empty = (v: unknown) => v == null || (typeof v === 'string' && !v.trim())
+    const dir = sortDir === 'desc' ? -1 : 1
+    // Sel kosong selalu di bawah, baik asc maupun desc.
+    copy.sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey]
+      if (empty(av) || empty(bv)) return empty(av) === empty(bv) ? 0 : empty(av) ? 1 : -1
+      return dir * compareValues(av, bv)
+    })
+    return copy
   }, [rows, sortKey, sortDir])
 
   const headerProps = (key: string) => ({
