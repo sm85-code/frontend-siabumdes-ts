@@ -78,11 +78,11 @@ const today = () => new Date().toISOString().slice(0, 10);
 const TAB_GROUPS = [
   { id: "ringkasan", label: "Ringkasan", icon: PieChart, tabs: [{ id: "summary", label: "Ringkasan", icon: PieChart }] },
   { id: "persetokan", label: "Persetokan", icon: Package, tabs: [
-    { id: "kategori", label: "Kategori Produk", icon: Tags },
-    { id: "katalog", label: "Katalog Produk", icon: Package },
     { id: "stock-in", label: "Stock In", icon: ArrowDown },
     { id: "stock-out", label: "Stock Out", icon: ArrowUp },
     { id: "kelola", label: "Penyesuaian Stok", icon: SlidersHorizontal },
+    { id: "katalog", label: "Katalog Produk", icon: Package },
+    { id: "kategori", label: "Kategori Produk", icon: Tags },
   ] },
   { id: "data-orang", label: "Data Orang-Orang", icon: Users, tabs: [
     { id: "vendor", label: "Pemasok", icon: Truck },
@@ -434,6 +434,7 @@ export default function Inventory() {
           movements={movements}
           valuation={valuation}
           movementReport={movementReport}
+          onOpenTab={setTab}
         />
       )}
 
