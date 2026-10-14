@@ -95,26 +95,30 @@ function RekapTable({ title, hint, rows, empty, testId }: { title: string; hint:
           {title}
           <HelpHint>{hint}</HelpHint>
         </h3>
+        <p className="font-heading mt-1 text-xl font-bold tabular-nums" data-testid={`${testId}-total`}>{fmtRp(tot.value)}</p>
+        <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          {tot.qty.toLocaleString('id-ID')} unit · {tot.count} trx · {rows.length} SKU
+        </p>
       </div>
-      <TableShell minWidth={560}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Nama Produk</TableHead>
-              <TableHead className="num">Trx</TableHead>
-              <TableHead className="num">Qty</TableHead>
-              <TableHead className="num">Nilai</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 ? (
+      <div className="max-h-80 overflow-y-auto">
+        <TableShell minWidth={560}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{empty}</TableCell>
+                <TableHead>SKU</TableHead>
+                <TableHead>Nama Produk</TableHead>
+                <TableHead className="num">Trx</TableHead>
+                <TableHead className="num">Qty</TableHead>
+                <TableHead className="num">Nilai</TableHead>
               </TableRow>
-            ) : (
-              <>
-                {rows.map((r) => (
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{empty}</TableCell>
+                </TableRow>
+              ) : (
+                rows.map((r) => (
                   <TableRow key={r.key}>
                     <TableCell className="font-medium whitespace-nowrap">{r.sku}</TableCell>
                     <TableCell>{r.name}</TableCell>
@@ -122,18 +126,12 @@ function RekapTable({ title, hint, rows, empty, testId }: { title: string; hint:
                     <TableCell className="num">{r.qty.toLocaleString('id-ID')}</TableCell>
                     <TableCell className="num whitespace-nowrap">{fmtRp(r.value)}</TableCell>
                   </TableRow>
-                ))}
-                <TableRow className="font-semibold">
-                  <TableCell colSpan={2}>Total ({rows.length} SKU)</TableCell>
-                  <TableCell className="num">{tot.count}</TableCell>
-                  <TableCell className="num">{tot.qty.toLocaleString('id-ID')}</TableCell>
-                  <TableCell className="num whitespace-nowrap">{fmtRp(tot.value)}</TableCell>
-                </TableRow>
-              </>
-            )}
-          </TableBody>
-        </Table>
-      </TableShell>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableShell>
+      </div>
     </Card>
   )
 }
