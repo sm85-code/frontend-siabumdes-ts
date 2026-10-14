@@ -1,17 +1,19 @@
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { Plus, Trash2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import HelpHint from '@/components/HelpHint'
 import { CoaSelect, KAS_ACCOUNT_CODE, PERSEDIAAN_ACCOUNT_CODE, UTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
-import { emptyStockInForm, stockInFormSchema, type StockInFormValues } from '@/schemas/inventory'
+import { emptyStockInForm, emptyStockInLine, stockInFormSchema, type StockInFormValues } from '@/schemas/inventory'
 import type { InventoryPartner, InventoryProduct } from '@/types'
 
 interface Props {
   products: InventoryProduct[]
   vendors: InventoryPartner[]
-  onSubmit: (values: StockInFormValues) => void | Promise<void>
+  /** again=true: Simpan & input lagi (dialog tetap terbuka). */
+  onSubmit: (values: StockInFormValues, again: boolean) => void | Promise<void>
   onOpenCatalog?: () => void
 }
 
@@ -41,56 +43,27 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
 
   const paymentMethod = watch('payment_method')
   const modalAwal = paymentMethod === 'modal_awal'
-  const selected = products.find((p) => p.id === watch('product_id'))
-  const lockedCost = selected && Number(selected.qty_on_hand) > 0 && Number(selected.cost_price) > 0 ? Number(selected.cost_price) : null
+  const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
+  const lines = watch('lines')
+  const total = lines.reduce((sum, l) => sum + Number(l.quantity || 0) * Number(l.unit_cost || 0), 0)
+  const lockedCostOf = (p?: InventoryProduct) =>
+    p && Number(p.qty_on_hand) > 0 && Number(p.cost_price) > 0 ? Number(p.cost_price) : null
   const productOptions = products.map((p) => ({
     id: p.id,
     label: `${p.sku} — ${p.name} (stok ${p.qty_on_hand})`,
   }))
 
-  const submit = async (values: StockInFormValues) => {
-    await onSubmit(values)
-    reset(emptyStockInForm())
+  const submit = (again: boolean) => async (values: StockInFormValues) => {
+    await onSubmit(values, again)
+    // Simpan & input lagi: header (tanggal, pemasok, sumber dana) tetap, barang dikosongkan.
+    reset(again ? { ...values, invoice_number: '', lines: [emptyStockInLine()] } : emptyStockInForm())
   }
 
   return (
     <form
-      onSubmit={(e) => void handleSubmit(submit)(e).catch(() => {})}
+      onSubmit={(e) => void handleSubmit(submit(false))(e).catch(() => {})}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
-      <div>
-        <label className="label">Produk</label>
-        <Controller
-          control={control}
-          name="product_id"
-          render={({ field }) => (
-            <Select
-              value={field.value || '__none__'}
-              onValueChange={(v) => {
-                const id = v === '__none__' ? '' : v
-                const p = products.find((x) => x.id === id)
-                field.onChange(id)
-                setValue('unit_cost', p ? String(Number(p.cost_price) || 0) : '0', {
-                  shouldValidate: true,
-                })
-              }}
-            >
-              <SelectTrigger aria-invalid={Boolean(errors.product_id)}>
-                <SelectValue placeholder="— pilih —" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— pilih —</SelectItem>
-                {productOptions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {fieldErr(errors.product_id?.message)}
-      </div>
       <div>
         <label className="label">Mitra Pemasok{modalAwal && ' (opsional)'}</label>
         <Controller
@@ -132,47 +105,78 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
         </label>
         <Input id="si-invoice" {...register('invoice_number')} />
       </div>
-      <div>
-        <label className="label" htmlFor="si-qty">
-          Qty masuk
-        </label>
-        <Controller
-          control={control}
-          name="quantity"
-          render={({ field }) => (
-            <Input id="si-qty" type="number" min="1" step="1" aria-invalid={Boolean(errors.quantity)} {...field} />
-          )}
-        />
-        {fieldErr(errors.quantity?.message)}
-      </div>
-      <div>
-        <label className="label inline-flex items-center gap-1" htmlFor="si-cost">
-          HPP / unit (Rp)
+      <div className="sm:col-span-2 space-y-2">
+        <label className="label inline-flex items-center gap-1">
+          Barang
           <HelpHint label="Tentang HPP / unit">
             <p>Satu SKU satu harga beli. Selama SKU masih ada stok, HPP / unit terkunci. Harga beli berbeda: buat SKU baru di Katalog Produk.</p>
           </HelpHint>
         </label>
-        <Controller
-          control={control}
-          name="unit_cost"
-          render={({ field }) => (
-            <Input id="si-cost" type="number" min="0" step="1" readOnly={lockedCost !== null} aria-invalid={Boolean(errors.unit_cost)} {...field} />
-          )}
-        />
-        {lockedCost !== null && (
-          <p className="mt-1 text-xs" style={{ color: 'var(--status-warning, var(--text-muted))' }}>
-            Terkunci sesuai HPP SKU ini ({rupiah(lockedCost)}). Harga beli beda? Buat SKU baru untuk harga baru.
-            {onOpenCatalog && (
-              <>
-                {' '}
-                <button type="button" className="underline" onClick={onOpenCatalog}>
-                  Buka Katalog Produk
-                </button>
-              </>
-            )}
-          </p>
-        )}
-        {fieldErr(errors.unit_cost?.message)}
+        {fields.map((f, i) => {
+          const p = products.find((x) => x.id === lines[i]?.product_id)
+          const locked = lockedCostOf(p)
+          const err = errors.lines?.[i]
+          return (
+            <div key={f.id} className="rounded-md border p-2 space-y-2" data-testid="stock-in-line">
+              <div className="flex items-center gap-2">
+                <span className="text-xs w-5 shrink-0" style={{ color: 'var(--text-muted)' }}>{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <Controller
+                    control={control}
+                    name={`lines.${i}.product_id`}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || '__none__'}
+                        onValueChange={(v) => {
+                          const id = v === '__none__' ? '' : v
+                          const np = products.find((x) => x.id === id)
+                          field.onChange(id)
+                          setValue(`lines.${i}.unit_cost`, np ? String(Number(np.cost_price) || 0) : '0', { shouldValidate: true })
+                        }}
+                      >
+                        <SelectTrigger aria-invalid={Boolean(err?.product_id)}>
+                          <SelectValue placeholder="— produk —" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— produk —</SelectItem>
+                          {productOptions.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Hapus baris ${i + 1}`} disabled={fields.length === 1} onClick={() => remove(i)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pl-7">
+                <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...register(`lines.${i}.quantity`)} />
+                <Input type="number" min="0" step="1" placeholder="HPP/unit" aria-label="HPP/unit" readOnly={locked !== null} aria-invalid={Boolean(err?.unit_cost)} {...register(`lines.${i}.unit_cost`)} />
+                <p className="self-center text-right text-sm">{rupiah(Number(lines[i]?.quantity || 0) * Number(lines[i]?.unit_cost || 0))}</p>
+              </div>
+              {locked !== null && (
+                <p className="pl-7 text-xs" style={{ color: 'var(--status-warning, var(--text-muted))' }}>
+                  Terkunci {rupiah(locked)}. Harga beda? Buat SKU baru.
+                  {onOpenCatalog && (
+                    <>
+                      {' '}
+                      <button type="button" className="underline" onClick={onOpenCatalog}>Katalog</button>
+                    </>
+                  )}
+                </p>
+              )}
+              {fieldErr(err?.product_id?.message || err?.quantity?.message || err?.unit_cost?.message)}
+            </div>
+          )
+        })}
+        <div className="flex items-center justify-between">
+          <Button type="button" variant="outline" size="sm" onClick={() => append(emptyStockInLine())}>
+            <Plus className="h-4 w-4" /> Tambah baris
+          </Button>
+          <p className="text-sm">Total <strong>{rupiah(total)}</strong></p>
+        </div>
       </div>
       <div>
         <label className="label inline-flex items-center gap-1">
@@ -237,9 +241,12 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
         {fieldErr(errors.credit_account_code?.message)}
       </div>
       </>)}
-      <div className="flex justify-end sm:col-span-2">
+      <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+        <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => void handleSubmit(submit(true))().catch(() => {})}>
+          Simpan &amp; input lagi
+        </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Menyimpan…' : 'Catat stock in'}
+          {isSubmitting ? 'Menyimpan…' : 'Simpan'}
         </Button>
       </div>
     </form>

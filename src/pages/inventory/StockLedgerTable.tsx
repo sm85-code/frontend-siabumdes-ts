@@ -13,7 +13,7 @@ import { currentMonth, monthRange, searchRows, totals, type StockRow } from "@/l
 const BASE = "/v1/uu05_inventory";
 const PER_PAGE = 20;
 
-type Row = StockRow & { status?: string; kind?: string; reason?: string; notes?: string; hasRef: boolean };
+type Row = StockRow & { status?: string; kind?: string; reason?: string; notes?: string; hasRef: boolean; nota?: string; invoice?: string };
 
 export default function StockLedgerTable({
   kind,
@@ -47,6 +47,7 @@ export default function StockLedgerTable({
         id: String(d.id), date: String(d.movement_date ?? ""), sku: String(d.sku ?? ""), product: String(d.product_name ?? ""),
         qty: Number(d.quantity) || 0, value: Number(d.total_value) || 0, status: String(d.finance_status ?? ""),
         kind: String(d.movement_kind ?? ""), hasRef: Boolean(d.reference),
+        nota: String(d.nota_id ?? d.id), invoice: String(d.invoice_number ?? ""),
       }));
     }).catch((e) => alive && setErr(String((e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail ?? "Gagal memuat daftar")));
     return () => { alive = false; };
@@ -88,7 +89,7 @@ export default function StockLedgerTable({
             ) : shown.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap">{fmtDate(r.date)}</TableCell>
-                <TableCell><div>{r.product}</div><div className="text-xs" style={{ color: "var(--text-muted)" }}>{r.sku}</div></TableCell>
+                <TableCell><div>{r.product}</div><div className="text-xs" style={{ color: "var(--text-muted)" }}>{r.sku}{r.invoice ? ` · ${r.invoice}` : ""}</div></TableCell>
                 <TableCell className="num">{isAdj && r.qty > 0 ? `+${r.qty}` : r.qty}</TableCell>
                 {isAdj ? <TableCell><Badge variant="secondary">{r.reason}</Badge></TableCell> : <TableCell className="num">{fmtRp(r.value ?? 0)}</TableCell>}
                 <TableCell>
@@ -98,7 +99,7 @@ export default function StockLedgerTable({
                   </>}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {r.hasRef ? <Link to={`/transactions?reference=${encodeURIComponent(r.id)}`} className="underline" style={{ color: "var(--primary-dark)" }}>Lihat transaksi</Link> : "-"}
+                  {r.hasRef ? <Link to={`/transactions?reference=${encodeURIComponent(r.nota || r.id)}`} className="underline" style={{ color: "var(--primary-dark)" }}>Lihat transaksi</Link> : "-"}
                 </TableCell>
                 {onCancel && <TableCell><Button type="button" variant="outline" size="sm" onClick={() => onCancel(r.id)}>Batalkan</Button></TableCell>}
               </TableRow>

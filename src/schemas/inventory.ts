@@ -40,14 +40,20 @@ const nonzeroIntString = (requiredMsg: string, invalidMsg: string) =>
       return Number.isFinite(n) && Number.isInteger(n) && n !== 0
     }, { message: invalidMsg })
 
+export const stockInLineSchema = z.object({
+  product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
+  quantity: positiveIntString('Qty wajib diisi', 'Qty harus bilangan bulat ≥ 1'),
+  unit_cost: nonNegNumberString('HPP/unit wajib diisi', 'HPP/unit harus angka ≥ 0'),
+})
+export type StockInLineValues = z.infer<typeof stockInLineSchema>
+export const emptyStockInLine = (): StockInLineValues => ({ product_id: '', quantity: '1', unit_cost: '0' })
+
 export const stockInFormSchema = z
   .object({
-    product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
+    lines: z.array(stockInLineSchema).min(1, 'Minimal satu barang'),
     vendor_id: z.string().trim(),
     movement_date: z.string().trim().min(1, 'Tanggal wajib diisi'),
     invoice_number: z.string(),
-    quantity: positiveIntString('Qty masuk wajib diisi', 'Qty masuk harus bilangan bulat ≥ 1'),
-    unit_cost: nonNegNumberString('HPP/unit wajib diisi', 'HPP/unit harus angka ≥ 0'),
     payment_method: z.enum(['cash', 'credit', 'modal_awal'], { message: 'Sumber dana wajib dipilih' }),
     due_date: z.string(),
     debit_account_code: z.string().trim().min(1, 'Akun debit wajib dipilih'),
@@ -69,28 +75,32 @@ export const stockInFormSchema = z
 export type StockInFormValues = z.infer<typeof stockInFormSchema>
 
 export const emptyStockInForm = (): StockInFormValues => ({
-  product_id: '',
+  lines: [emptyStockInLine()],
   vendor_id: '',
   movement_date: today(),
   invoice_number: '',
-  quantity: '1',
-  unit_cost: '0',
   payment_method: 'cash',
   due_date: '',
   debit_account_code: PERSEDIAAN_ACCOUNT_CODE,
   credit_account_code: KAS_ACCOUNT_CODE,
 })
 
+export const stockOutLineSchema = z.object({
+  product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
+  quantity: positiveIntString('Qty wajib diisi', 'Qty harus bilangan bulat ≥ 1'),
+  sell_price: nonNegNumberString('Harga jual wajib diisi', 'Harga jual harus angka ≥ 0'),
+})
+export type StockOutLineValues = z.infer<typeof stockOutLineSchema>
+export const emptyStockOutLine = (): StockOutLineValues => ({ product_id: '', quantity: '1', sell_price: '0' })
+
 export const stockOutFormSchema = z
   .object({
     isInternal: z.boolean(),
-    product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
+    lines: z.array(stockOutLineSchema).min(1, 'Minimal satu barang'),
     customer_id: z.string(),
     movement_date: z.string().trim().min(1, 'Tanggal wajib diisi'),
-    quantity: positiveIntString('Qty keluar wajib diisi', 'Qty keluar harus bilangan bulat ≥ 1'),
     note: z.string(),
     invoice_number: z.string(),
-    sell_price: nonNegNumberString('Harga jual wajib diisi', 'Harga jual harus angka ≥ 0'),
     payment_method: z.enum(['cash', 'piutang'], { message: 'Metode bayar wajib dipilih' }),
     due_date: z.string(),
     debit_account_code: z.string().trim().min(1, 'Akun debit wajib dipilih'),
@@ -135,13 +145,11 @@ export type StockOutFormValues = z.infer<typeof stockOutFormSchema>
 
 export const emptyStockOutForm = (): StockOutFormValues => ({
   isInternal: false,
-  product_id: '',
+  lines: [emptyStockOutLine()],
   customer_id: '',
   movement_date: today(),
-  quantity: '1',
   note: '',
   invoice_number: '',
-  sell_price: '0',
   payment_method: 'cash',
   due_date: '',
   debit_account_code: HPP_ACCOUNT_CODE,

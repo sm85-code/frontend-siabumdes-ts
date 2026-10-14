@@ -217,10 +217,9 @@ export default function Inventory() {
 
   const submitStockIn = async (values: StockInFormValues) => {
     try {
-      await api.post(`${BASE}/stock-in`, {
+      await api.post(`${BASE}/stock-in-nota`, {
         ...values,
-        quantity: Number(values.quantity),
-        unit_cost: Number(values.unit_cost),
+        lines: values.lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), unit_cost: Number(l.unit_cost) })),
         due_date: values.payment_method === "credit" ? values.due_date : null,
         vendor_id: values.vendor_id || null,
         unit_usaha_id: meta?.unit_usaha_id,
@@ -236,8 +235,8 @@ export default function Inventory() {
     try {
       if (values.isInternal) {
         await api.post(`${BASE}/stock-out-internal`, {
-          product_id: values.product_id,
-          quantity: Number(values.quantity),
+          product_id: values.lines[0].product_id,
+          quantity: Number(values.lines[0].quantity),
           movement_date: values.movement_date,
           debit_account_code: values.debit_account_code,
           credit_account_code: values.credit_account_code,
@@ -245,10 +244,10 @@ export default function Inventory() {
           unit_usaha_id: meta?.unit_usaha_id,
         });
       } else {
-        await api.post(`${BASE}/stock-out`, {
-          ...values,
-          quantity: Number(values.quantity),
-          sell_price: Number(values.sell_price),
+        const { isInternal: _internal, note: _note, ...header } = values;
+        await api.post(`${BASE}/stock-out-nota`, {
+          ...header,
+          lines: values.lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), sell_price: Number(l.sell_price) })),
           due_date: values.payment_method === "piutang" ? values.due_date : null,
           unit_usaha_id: meta?.unit_usaha_id,
         });
@@ -275,7 +274,7 @@ export default function Inventory() {
   };
 
   const cancelMovement = async (id: string) => {
-    if (!window.confirm("Batalkan mutasi ini? Mutasi, transaksi pembelian/penjualan & jurnal terkait akan dihapus permanen.")) return;
+    if (!window.confirm("Batalkan nota ini? Semua barang di nota yang sama, transaksi pembelian/penjualan & jurnal terkait akan dihapus permanen.")) return;
     try {
       await api.post(`${BASE}/cancel-movement`, { stock_card_id: id });
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
@@ -453,7 +452,7 @@ export default function Inventory() {
             <p className="label mb-3 flex items-center gap-1">Penerimaan barang (Stock In / Pembelian)<HelpHint>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-in"); } }>Input Penerimaan Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-in" && <FormDialog title="Penerimaan Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
-              <StockInFormCard products={products} vendors={activeVendors} onOpenCatalog={() => { setOperation(null); setTab("katalog"); }} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
+              <StockInFormCard products={products} vendors={activeVendors} onOpenCatalog={() => { setOperation(null); setTab("katalog"); }} onSubmit={(v, again) => run(async () => { await submitStockIn(v); if (!again) setOperation(null); })} />
               <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
             </>}</FormDialog>}
           </CardContent>
@@ -469,7 +468,7 @@ export default function Inventory() {
             <p className="label mb-3 flex items-center gap-1">Pengeluaran barang (Stock Out / Penjualan)<HelpHint>Centang pemakaian internal untuk beban tanpa jurnal penjualan; tanpa centang = stock out penjualan (HPP + pendapatan, tunai/piutang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-out"); } }>Input Pengeluaran Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-out" && <FormDialog title="Pengeluaran Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
-              <StockOutFormCard products={products} customers={activeCustomers} onClientError={setError} onSubmit={v => run(async () => { await submitStockOut(v); setOperation(null); })} />
+              <StockOutFormCard products={products} customers={activeCustomers} onClientError={setError} onSubmit={(v, again) => run(async () => { await submitStockOut(v); if (!again) setOperation(null); })} />
               <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
             </>}</FormDialog>}
           </CardContent>

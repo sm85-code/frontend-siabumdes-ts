@@ -1,4 +1,5 @@
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { Plus, Trash2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -8,6 +9,7 @@ import { fmtRp } from '@/api/client'
 import { CoaSelect, KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
 import {
   emptyStockOutForm,
+  emptyStockOutLine,
   stockOutFormSchema,
   stockOutInternalDebit,
   stockOutSaleDebit,
@@ -18,7 +20,8 @@ import type { InventoryPartner, InventoryProduct } from '@/types'
 interface Props {
   products: InventoryProduct[]
   customers: InventoryPartner[]
-  onSubmit: (values: StockOutFormValues) => void | Promise<void>
+  /** again=true: Simpan & input lagi (dialog tetap terbuka). */
+  onSubmit: (values: StockOutFormValues, again: boolean) => void | Promise<void>
   /** Same oversell guard as before — set page-level error string. */
   onClientError: (msg: string) => void
 }
@@ -47,32 +50,38 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
 
   const isInternal = watch('isInternal')
   const paymentMethod = watch('payment_method')
-  const productId = watch('product_id')
-  const quantity = watch('quantity')
-  const sellPrice = watch('sell_price')
+  const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
+  const lines = watch('lines')
 
   const productOptions = products.map((p) => ({
     id: p.id,
     label: `${p.sku} — ${p.name} (stok ${p.qty_on_hand})`,
   }))
 
-  const selected = products.find((p) => p.id === productId)
-  const hppPreview = Number(quantity || 0) * Number(selected?.cost_price || 0)
-  const salePreview = Number(quantity || 0) * Number(sellPrice || 0)
+  const used = isInternal ? lines.slice(0, 1) : lines
+  const hppPreview = used.reduce(
+    (sum, l) => sum + Number(l.quantity || 0) * Number(products.find((p) => p.id === l.product_id)?.cost_price || 0), 0)
+  const salePreview = used.reduce((sum, l) => sum + Number(l.quantity || 0) * Number(l.sell_price || 0), 0)
 
-  const submit = async (values: StockOutFormValues) => {
-    const product = products.find((p) => p.id === values.product_id)
-    if (product && Number(values.quantity) > Number(product.qty_on_hand)) {
-      onClientError(`Qty keluar (${values.quantity}) melebihi stok tersedia (${product.qty_on_hand}).`)
-      return
+  const submit = (again: boolean) => async (values: StockOutFormValues) => {
+    const rows = values.isInternal ? values.lines.slice(0, 1) : values.lines
+    // Qty per produk dijumlah (produk sama bisa muncul di beberapa baris).
+    const need = new Map<string, number>()
+    rows.forEach((l) => need.set(l.product_id, (need.get(l.product_id) || 0) + Number(l.quantity)))
+    for (const [id, qty] of need) {
+      const product = products.find((p) => p.id === id)
+      if (product && qty > Number(product.qty_on_hand)) {
+        onClientError(`${product.sku}: qty keluar (${qty}) melebihi stok (${product.qty_on_hand}).`)
+        return
+      }
     }
-    await onSubmit(values)
-    reset(emptyStockOutForm())
+    await onSubmit({ ...values, lines: rows }, again)
+    reset(again ? { ...values, invoice_number: '', note: '', lines: [emptyStockOutLine()] } : emptyStockOutForm())
   }
 
   return (
     <form
-      onSubmit={(e) => void handleSubmit(submit)(e).catch(() => {})}
+      onSubmit={(e) => void handleSubmit(submit(false))(e).catch(() => {})}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
     >
       <label
@@ -98,39 +107,6 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         />
         Pemakaian / transfer internal (bukan penjualan ke pihak luar)
       </label>
-      <div>
-        <label className="label">Produk</label>
-        <Controller
-          control={control}
-          name="product_id"
-          render={({ field }) => (
-            <Select
-              value={field.value || '__none__'}
-              onValueChange={(v) => {
-                const id = v === '__none__' ? '' : v
-                const p = products.find((x) => x.id === id)
-                field.onChange(id)
-                setValue('sell_price', p ? String(Number(p.sell_price) || 0) : '0', {
-                  shouldValidate: true,
-                })
-              }}
-            >
-              <SelectTrigger aria-invalid={Boolean(errors.product_id)}>
-                <SelectValue placeholder="— pilih —" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— pilih —</SelectItem>
-                {productOptions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {fieldErr(errors.product_id?.message)}
-      </div>
       {!isInternal && (
         <div>
           <label className="label">Customer</label>
@@ -171,19 +147,6 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <Input id="so-date" type="date" aria-invalid={Boolean(errors.movement_date)} {...register('movement_date')} />
         {fieldErr(errors.movement_date?.message)}
       </div>
-      <div>
-        <label className="label" htmlFor="so-qty">
-          Qty keluar
-        </label>
-        <Controller
-          control={control}
-          name="quantity"
-          render={({ field }) => (
-            <Input id="so-qty" type="number" min="1" step="1" aria-invalid={Boolean(errors.quantity)} {...field} />
-          )}
-        />
-        {fieldErr(errors.quantity?.message)}
-      </div>
       {isInternal ? (
         <div className="sm:col-span-2">
           <label className="label" htmlFor="so-note">
@@ -198,26 +161,6 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
               No. Invoice
             </label>
             <Input id="so-invoice" {...register('invoice_number')} />
-          </div>
-          <div>
-            <label className="label" htmlFor="so-sell">
-              Harga jual / unit (Rp)
-            </label>
-            <Controller
-              control={control}
-              name="sell_price"
-              render={({ field }) => (
-                <Input
-                  id="so-sell"
-                  type="number"
-                  min="0"
-                  step="1"
-                  aria-invalid={Boolean(errors.sell_price)}
-                  {...field}
-                />
-              )}
-            />
-            {fieldErr(errors.sell_price?.message)}
           </div>
           <div>
             <label className="label">Metode bayar</label>
@@ -259,6 +202,68 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
           )}
         </>
       )}
+      <div className="sm:col-span-2 space-y-2">
+        <label className="label">Barang</label>
+        {fields.map((f, i) => {
+          const err = errors.lines?.[i]
+          const line = lines[i]
+          return (
+            <div key={f.id} className="rounded-md border p-2 space-y-2" data-testid="stock-out-line">
+              <div className="flex items-center gap-2">
+                <span className="text-xs w-5 shrink-0" style={{ color: 'var(--text-muted)' }}>{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <Controller
+                    control={control}
+                    name={`lines.${i}.product_id`}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || '__none__'}
+                        onValueChange={(v) => {
+                          const id = v === '__none__' ? '' : v
+                          const p = products.find((x) => x.id === id)
+                          field.onChange(id)
+                          setValue(`lines.${i}.sell_price`, p ? String(Number(p.sell_price) || 0) : '0', { shouldValidate: true })
+                        }}
+                      >
+                        <SelectTrigger aria-invalid={Boolean(err?.product_id)}>
+                          <SelectValue placeholder="— produk —" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— produk —</SelectItem>
+                          {productOptions.map((o) => (
+                            <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <Button type="button" variant="ghost" size="icon" aria-label={`Hapus baris ${i + 1}`} disabled={fields.length === 1} onClick={() => remove(i)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pl-7">
+                <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...register(`lines.${i}.quantity`)} />
+                {!isInternal && (
+                  <Input type="number" min="0" step="1" placeholder="Harga jual" aria-label="Harga jual" aria-invalid={Boolean(err?.sell_price)} {...register(`lines.${i}.sell_price`)} />
+                )}
+                {!isInternal && (
+                  <p className="self-center text-right text-sm">{fmtRp(Number(line?.quantity || 0) * Number(line?.sell_price || 0))}</p>
+                )}
+              </div>
+              {fieldErr(err?.product_id?.message || err?.quantity?.message || err?.sell_price?.message)}
+            </div>
+          )
+        })}
+        {!isInternal && (
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" size="sm" onClick={() => append(emptyStockOutLine())}>
+              <Plus className="h-4 w-4" /> Tambah baris
+            </Button>
+            <p className="text-sm">Total <strong>{fmtRp(salePreview)}</strong></p>
+          </div>
+        )}
+      </div>
       <div>
         <label className="label">{isInternal ? 'Akun debit (Beban)' : 'Akun debit (HPP)'}</label>
         <Controller
@@ -311,9 +316,12 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
           </p>
         )}
       </Card>
-      <div className="flex justify-end sm:col-span-2">
+      <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">
+        <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => void handleSubmit(submit(true))().catch(() => {})}>
+          Simpan &amp; input lagi
+        </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Menyimpan…' : 'Catat stock out'}
+          {isSubmitting ? 'Menyimpan…' : 'Simpan'}
         </Button>
       </div>
     </form>
