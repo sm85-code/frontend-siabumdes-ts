@@ -249,7 +249,7 @@ export default function InventorySummary({
         <Stat
           label="Stock out"
           value={`${outQty} unit`}
-          sub={`${fmtRp(Number(movementReport?.stock_out?.value || 0))} · ${movementReport?.stock_out?.count ?? 0} trx`}
+          sub={`${fmtRp(Number(movementReport?.stock_out?.sale_value ?? movementReport?.stock_out?.value ?? 0))} · ${movementReport?.stock_out?.count ?? 0} trx`}
           hint="Barang keluar pada periode laporan yang dipilih. Ketuk kartu untuk input Stock Out."
           onClick={onOpenTab ? () => onOpenTab('stock-out') : undefined}
           cta="Input Stock Out"
