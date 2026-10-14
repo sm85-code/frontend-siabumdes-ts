@@ -151,7 +151,7 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
                     {canWrite && (
                       <TableCell className="border-0 bg-transparent">
                         {locked
-                          ? <span className="inline-flex" title={LOCKED} aria-label={LOCKED} tabIndex={0}><Button variant="ghost" size="icon" disabled aria-hidden><Trash2 className="size-4" /></Button></span>
+                          ? <Button variant="ghost" size="icon" className="opacity-40" aria-label={`Hapus baris ${i + 1} terkunci: ${LOCKED}`} title={LOCKED} onClick={(e) => { e.stopPropagation(); onError(LOCKED); }}><Trash2 className="size-4" /></Button>
                           : <Button variant="ghost" size="icon" aria-label={`Hapus baris ${i + 1}`} title="Hapus baris" onClick={(e) => { e.stopPropagation(); void remove(r); }}><Trash2 className="size-4" /></Button>}
                       </TableCell>
                     )}
