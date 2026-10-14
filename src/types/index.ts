@@ -324,7 +324,7 @@ export interface InventoryValuation {
 
 export interface InventoryMovementReport {
   stock_in?: { qty?: number; value?: number; count?: number }
-  stock_out?: { qty?: number; value?: number; count?: number }
+  stock_out?: { qty?: number; value?: number; sale_value?: number | string; count?: number }
   [key: string]: unknown
 }
 
