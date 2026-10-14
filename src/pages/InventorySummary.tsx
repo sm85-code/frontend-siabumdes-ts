@@ -257,7 +257,7 @@ export default function InventorySummary({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6">
         <RekapTable
           title="Rekap Pembelian / Stock In"
           hint="Barang masuk dari pembelian reguler (kas/utang) per SKU. Tidak termasuk Belanja Modal Awal."
