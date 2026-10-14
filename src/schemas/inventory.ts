@@ -43,17 +43,20 @@ const nonzeroIntString = (requiredMsg: string, invalidMsg: string) =>
 export const stockInFormSchema = z
   .object({
     product_id: z.string().trim().min(1, 'Produk wajib dipilih'),
-    vendor_id: z.string().trim().min(1, 'Mitra pemasok wajib dipilih'),
+    vendor_id: z.string().trim(),
     movement_date: z.string().trim().min(1, 'Tanggal wajib diisi'),
     invoice_number: z.string(),
     quantity: positiveIntString('Qty masuk wajib diisi', 'Qty masuk harus bilangan bulat ≥ 1'),
     unit_cost: nonNegNumberString('HPP/unit wajib diisi', 'HPP/unit harus angka ≥ 0'),
-    payment_method: z.enum(['cash', 'credit'], { message: 'Metode bayar wajib dipilih' }),
+    payment_method: z.enum(['cash', 'credit', 'modal_awal'], { message: 'Sumber dana wajib dipilih' }),
     due_date: z.string(),
     debit_account_code: z.string().trim().min(1, 'Akun debit wajib dipilih'),
     credit_account_code: z.string().trim().min(1, 'Akun kredit wajib dipilih'),
   })
   .superRefine((data, ctx) => {
+    if (data.payment_method !== 'modal_awal' && !data.vendor_id) {
+      ctx.addIssue({ code: 'custom', message: 'Mitra pemasok wajib dipilih', path: ['vendor_id'] })
+    }
     if (data.payment_method === 'credit' && !data.due_date.trim()) {
       ctx.addIssue({
         code: 'custom',
