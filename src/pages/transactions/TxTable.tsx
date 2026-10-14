@@ -135,7 +135,7 @@ export default function TxTable({
                 Tanggal{sortState.sortIndicator('date')}
               </TableHead>
               {activeGroup !== 'BUMDES' && <TableHead>Unit</TableHead>}
-              <TableHead {...sortState.headerProps('description')}>
+              <TableHead {...sortState.headerProps('description')} className={`min-w-48 sm:min-w-56 ${sortState.headerProps('description').className ?? ''}`}>
                 Keterangan{sortState.sortIndicator('description')}
               </TableHead>
               <TableHead {...sortState.headerProps('debit_account_code')}>
@@ -193,7 +193,7 @@ export default function TxTable({
                         <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>
                       </TableCell>
                     )}
-                    <TableCell className="min-w-56 max-w-sm whitespace-normal break-words">
+                    <TableCell className="min-w-48 max-w-xs whitespace-normal break-words sm:min-w-56 sm:max-w-sm">
                       {inventoryLabels[t.reference]?.description || t.description}
                       {inventoryLabels[t.reference]?.document_id && <Link className="mt-1 block text-xs text-primary underline" to={`/inventory?document=${inventoryLabels[t.reference].document_id}`}>{inventoryLabels[t.reference].document_number}</Link>}
                     </TableCell>
