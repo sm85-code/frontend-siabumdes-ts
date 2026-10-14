@@ -583,6 +583,7 @@ export default function TransactionsPage() {
         </>}</FormDialog>
       )}
 
+      {!refFilter && (
       <Card data-testid="tx-filters">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-start gap-4">
@@ -633,11 +634,12 @@ export default function TransactionsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <TxTable
         rows={items}
         loading={loading}
-        activeGroup={activeGroup}
+        activeGroup={refFilter ? 'terkait stok' : activeGroup}
         periodLabel={periodLabel}
         total={pageData?.total ?? items.length}
         offset={offset}
