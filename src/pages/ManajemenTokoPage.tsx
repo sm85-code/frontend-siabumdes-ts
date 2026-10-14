@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
+import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, Database, Plus, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
@@ -38,17 +39,16 @@ import {
 
 const tableClass = 'toko-table [&_th]:h-auto [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-2'
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
-const HINT = '-'
 const HINT_A11Y = 'Klik untuk input'
 const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Mbene Ingsi Transaksine. Hapus isian nominalnya dulu.'
 const JENIS_LABEL: Record<TokoJenis, string> = { pemasukan: 'Pemasukan', pengeluaran: 'Pengeluaran' }
 
-/** Placeholder samar untuk sel kosong; teks tampil "-", aksesibilitas lewat aria-label/title. */
+/** Placeholder samar untuk sel kosong; aksesibilitas lewat aria-label/title. */
 function Hint({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button type="button" onClick={onClick} aria-label={label || HINT_A11Y} title={HINT_A11Y}
-      className="text-muted-foreground/60 no-underline hover:text-muted-foreground text-sm">
-      {HINT}
+      className="no-underline hover:text-muted-foreground">
+      <EmptyCellDash />
     </button>
   )
 }
@@ -255,13 +255,13 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
     <TableRow data-testid="toko-data-row">
       <TableCell>{no}</TableCell>
       <TableCell>
-        <Input aria-label={`Nama Transaksi baris ${no}`} title={HINT_A11Y} value={name} disabled={busy} placeholder={HINT}
+        <Input aria-label={`Nama Transaksi baris ${no}`} title={HINT_A11Y} value={name} disabled={busy} placeholder={EMPTY_CELL_DASH}
           className="placeholder:text-muted-foreground/60"
           onChange={(e) => setName(e.target.value)} onBlur={() => void persist({ name, jenis, keterangan })} />
       </TableCell>
       <TableCell>
         <Select value={jenis} onValueChange={(v) => { const j = v as TokoJenis; setJenis(j); void persist({ name, jenis: j, keterangan }) }} disabled={busy}>
-          <SelectTrigger aria-label={`Jenis Transaksi baris ${no}`} title={HINT_A11Y} className="h-11 w-full px-3"><SelectValue placeholder={<span className="text-muted-foreground/60">{HINT}</span>} /></SelectTrigger>
+          <SelectTrigger aria-label={`Jenis Transaksi baris ${no}`} title={HINT_A11Y} className="h-11 w-full px-3"><SelectValue placeholder={<span className="text-muted-foreground/60">{EMPTY_CELL_DASH}</span>} /></SelectTrigger>
           <SelectContent position="popper" align="start" sideOffset={4}
             className="toko-table w-(--radix-select-trigger-width) min-w-(--radix-select-trigger-width) p-1">
             <SelectItem value="pemasukan" className="min-h-11 px-3 text-sm">Pemasukan</SelectItem>
@@ -270,7 +270,7 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
         </Select>
       </TableCell>
       <TableCell>
-        <Input aria-label={`Keterangan baris ${no}`} title={HINT_A11Y} value={keterangan} disabled={busy} placeholder={HINT}
+        <Input aria-label={`Keterangan baris ${no}`} title={HINT_A11Y} value={keterangan} disabled={busy} placeholder={EMPTY_CELL_DASH}
           className="placeholder:text-muted-foreground/60"
           onChange={(e) => setKeterangan(e.target.value)} onBlur={() => void persist({ name, jenis, keterangan })} />
       </TableCell>
