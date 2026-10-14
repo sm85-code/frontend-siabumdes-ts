@@ -45,7 +45,7 @@ const TX_TABLE_MIN_WIDTH = 980
 const TX_COL = { no: 56, uraian: 200, week: 120, jumlah: 124 } as const
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
 const HINT_A11Y = 'Klik untuk input'
-const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Mbene Ingsi Transaksine. Hapus isian nominalnya dulu.'
+const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Perduitan #1. Hapus isian nominalnya dulu.'
 const JENIS_LABEL: Record<TokoJenis, string> = { pemasukan: 'Pemasukan', pengeluaran: 'Pengeluaran' }
 
 /** Placeholder samar untuk sel kosong; aksesibilitas lewat aria-label/title. */
@@ -93,14 +93,14 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Ingseni Datane Disit sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
+      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'data', label: 'Ingseni Datane Disit', icon: Database }, { id: 'transaksi', label: 'Mbene Ingsi Transaksine', icon: ClipboardList }, { id: 'otomatis', label: 'Gie Mah Mbuh Apa', icon: Receipt }] as const).map((t) => {
+        {([{ id: 'data', label: 'Bahan Perduitan', icon: Database }, { id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -117,7 +117,7 @@ export default function ManajemenTokoPage() {
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
-                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Ingseni Datane Disit untuk menambah uraian.') }} />
+                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Bahan Perduitan untuk menambah uraian.') }} />
             ))}
           </section>
           <section hidden={tab !== 'otomatis'} role="tabpanel" id="toko-panel-otomatis" aria-labelledby="toko-tab-otomatis" className="min-w-0 space-y-6">
@@ -289,7 +289,7 @@ function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => P
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <HelpHint label="Tentang tab Ingseni Datane Disit">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
+        <HelpHint label="Tentang tab Bahan Perduitan">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={760} label="Tabel Data Transaksi"><Table className={tableClass}>
@@ -341,7 +341,7 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
 
   const remove = async () => {
     if (!item) return
-    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Ingseni Datane Disit.`, confirmLabel: 'Hapus' }))) return
+    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Bahan Perduitan.`, confirmLabel: 'Hapus' }))) return
     try { await api.delete(`/v1/toko/items/${item.id}`); await onChanged() } catch (e) { notify(getApiError(e), { type: 'error' }) }
   }
 
