@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { InventoryCategory, InventoryProduct } from "@/types";
 import { DEFAULT_CATALOG_ROWS, buildSku, isRowComplete, shouldAppendRow, skuPrefix, type CatalogRow } from "@/lib/catalog";
 
-const BASE = "/api/v1/inventory";
+const BASE = "/v1/uu05_inventory";
 const LOCKED = "Produk sudah memiliki stok/riwayat mutasi: kategori, HPP, dan hapus terkunci.";
 const COL_NO = "w-12";
 const COL_NAME = "min-w-48";
