@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Database, Plus, Trash2 } from 'lucide-react'
+import { ClipboardList, Database, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
 import { useAuth } from '@/lib/auth'
 import { useUnitsQuery } from '@/hooks/useUnits'
@@ -24,6 +24,8 @@ import {
   DEFAULT_TX_ROWS,
   WEEKS,
   buildTxRows,
+  buildTradeRows,
+  type TradeRecord,
   currentPeriod,
   defaultWeekDate,
   isFreeWeek,
@@ -63,7 +65,7 @@ export default function ManajemenTokoPage() {
   const { data: units, isLoading: unitsLoading } = useUnitsQuery(true)
   const unit = units?.find((u) => u.code === TOKO_UNIT_CODE)
   const allowed = user?.role !== 'pengelola' || (!!unit && user.unit_usaha_id === unit.id)
-  const [tab, setTab] = useState<'transaksi' | 'data'>('data')
+  const [tab, setTab] = useState<'transaksi' | 'data' | 'otomatis'>('data')
   const [period, setPeriod] = useState(currentPeriod)
   const [cell, setCell] = useState<CellTarget | null>(null)
   const queryClient = useQueryClient()
@@ -98,7 +100,7 @@ export default function ManajemenTokoPage() {
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'data', label: 'Ingseni Datane Disit', icon: Database }, { id: 'transaksi', label: 'Mbene Ingsi Transaksine', icon: ClipboardList }] as const).map((t) => {
+        {([{ id: 'data', label: 'Ingseni Datane Disit', icon: Database }, { id: 'transaksi', label: 'Mbene Ingsi Transaksine', icon: ClipboardList }, { id: 'otomatis', label: 'Gie Mah Mbuh Apa', icon: Receipt }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -118,12 +120,88 @@ export default function ManajemenTokoPage() {
                 onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Ingseni Datane Disit untuk menambah uraian.') }} />
             ))}
           </section>
+          <section hidden={tab !== 'otomatis'} role="tabpanel" id="toko-panel-otomatis" aria-labelledby="toko-tab-otomatis" className="min-w-0 space-y-6">
+            {tab === 'otomatis' && <AutoTables period={period} />}
+          </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
             <DataTable items={items} onChanged={refresh} />
           </section>
         </>
       )}
       {cell && <EntryDialog target={cell} period={period} onClose={() => setCell(null)} onSaved={async () => { setCell(null); await refresh() }} />}
+    </div>
+  )
+}
+
+const INV = '/v1/uu05_inventory'
+type SaleRec = { id: string; customer_name: string | null; total_amount: string; created_at: string | null }
+type PurchaseRec = { id: string; vendor_name: string | null; payment_method: string; total_amount: string; created_at: string | null }
+
+function AutoTables({ period }: { period: string }) {
+  const sales = useQuery({ queryKey: ['toko', 'auto-sales'], queryFn: async () => (await api.get<SaleRec[]>(`${INV}/sales`, { params: { limit: 500 } })).data })
+  const purchases = useQuery({ queryKey: ['toko', 'auto-purchases'], queryFn: async () => (await api.get<PurchaseRec[]>(`${INV}/purchases`, { params: { limit: 500 } })).data })
+  const inRows = useMemo(() => buildTradeRows((sales.data ?? []).map((s): TradeRecord => ({ ...s, name: s.customer_name })), period), [sales.data, period])
+  const outRows = useMemo(() => buildTradeRows((purchases.data ?? []).filter((p) => p.payment_method !== 'modal_awal')
+    .map((p): TradeRecord => ({ ...p, name: p.vendor_name })), period), [purchases.data, period])
+  const error = sales.error || purchases.error
+  if (error) return <p role="alert">{getApiError(error)}</p>
+  if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat transaksi..." />
+  return (
+    <>
+      <AutoTable title="Pemasukan" label="Customer" rows={inRows} />
+      <AutoTable title="Pengeluaran" label="Pemasok" rows={outRows} />
+    </>
+  )
+}
+
+function AutoTable({ title, label, rows }: { title: string; label: string; rows: TxRow[] }) {
+  const { sorted, headerProps, sortIndicator } = useSort<TxRow>(rows)
+  const padCount = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
+  const display = [...sorted, ...Array.from({ length: padCount }, (_, i) => emptyTxRow(`empty-${i}`))]
+  const totals = txTotals(rows)
+  const sortHead = (key: string, text: string, right = false) => (
+    <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${right ? 'text-right' : ''}`}>
+      {text}{sortIndicator(key)}
+    </TableHead>
+  )
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <h2 className="font-heading text-lg font-semibold">{title}</h2>
+        <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {title === 'Pemasukan' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
+      </div>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+        </colgroup>
+        <TableHeader className={headerClass}><TableRow>
+          <TableHead>No.</TableHead>
+          {sortHead('uraian', 'Uraian')}
+          {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`, true)}</Fragment>)}
+          {sortHead('jumlah', 'Jumlah', true)}
+        </TableRow></TableHeader>
+        <TableBody>
+          {display.map((row, idx) => (
+            <TableRow key={row.key}>
+              <TableCell>{idx + 1}</TableCell>
+              <TableCell className="min-w-0 truncate" title={row.uraian ?? undefined}>{row.uraian ?? <EmptyCellDash />}</TableCell>
+              {WEEKS.map((w) => {
+                const v = row[`w${w}`] as number | null
+                return <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">{v == null ? <EmptyCellDash /> : fmtNumber(v)}</TableCell>
+              })}
+              <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">{row.jumlah == null ? '' : fmtNumber(row.jumlah)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2}>Total</TableCell>
+          {WEEKS.map((w) => <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">{fmtNumber(totals[`w${w}` as 'w1'])}</TableCell>)}
+          <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtNumber(totals.jumlah)}</TableCell>
+        </TableRow></tfoot>
+      </Table></TableShell></Card>
     </div>
   )
 }

@@ -98,3 +98,35 @@ export function txTotals(rows: TxRow[]) {
 export function fmtNumber(n: number): string {
   return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(n)
 }
+
+export type TradeRecord = { id: string; name: string | null; total_amount: string; created_at: string | null }
+
+/** Minggu ke-n periode: Senin–Sabtu mulai Senin pertama bulan (Minggu ikut minggu sebelumnya). */
+export function tradeWeek(period: string, d: Date): number | null {
+  const [y, m] = period.split('-').map(Number)
+  const first = new Date(y, m - 1, 1)
+  first.setDate(1 + ((8 - first.getDay()) % 7))
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diff = Math.round((day.getTime() - first.getTime()) / 86400000)
+  if (diff < 0) return null
+  const w = Math.floor(diff / 7) + 1
+  return w <= WEEKS.length ? w : null
+}
+
+/** Agregasi per nama (customer/pemasok) per minggu periode. */
+export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] {
+  const map = new Map<string, TxRow>()
+  for (const r of records) {
+    if (!r.created_at) continue
+    const w = tradeWeek(period, new Date(r.created_at))
+    if (!w) continue
+    const name = r.name?.trim() || '-'
+    const row = map.get(name) ?? { key: name, item: null, uraian: name, w1: null, w2: null, w3: null, w4: null, w5: null, jumlah: 0, entries: {} }
+    const k = `w${w}` as 'w1'
+    const v = parseMoney(r.total_amount)
+    row[k] = (row[k] ?? 0) + v
+    row.jumlah = (row.jumlah ?? 0) + v
+    map.set(name, row)
+  }
+  return [...map.values()].sort((a, b) => (a.uraian ?? '').localeCompare(b.uraian ?? ''))
+}
