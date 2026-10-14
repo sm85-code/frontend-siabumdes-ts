@@ -134,8 +134,8 @@ export default function ManajemenTokoPage() {
 }
 
 const INV = '/v1/uu05_inventory'
-type SaleRec = { id: string; customer_name: string | null; total_amount: string; created_at: string | null }
-type PurchaseRec = { id: string; vendor_name: string | null; payment_method: string; total_amount: string; created_at: string | null }
+type SaleRec = { id: string; customer_name: string | null; total_amount: string; created_at: string | null; transaction_date?: string | null }
+type PurchaseRec = { id: string; vendor_name: string | null; payment_method: string; total_amount: string; created_at: string | null; transaction_date?: string | null }
 
 function AutoTables({ period }: { period: string }) {
   const sales = useQuery({ queryKey: ['toko', 'auto-sales'], queryFn: async () => (await api.get<SaleRec[]>(`${INV}/sales`, { params: { limit: 500 } })).data })
