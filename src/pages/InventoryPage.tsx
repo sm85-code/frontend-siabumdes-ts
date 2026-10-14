@@ -86,7 +86,7 @@ const TAB_GROUPS = [
   ] },
   { id: "data-orang", label: "Data Orang-Orang", icon: Users, tabs: [
     { id: "vendor", label: "Pemasok", icon: Truck },
-    { id: "customer", label: "Customer", icon: Users },
+    { id: "customer", label: "Pelanggan", icon: Users },
   ] },
   { id: "perutangan", label: "Perutangan", icon: Wallet, tabs: [
     { id: "utang", label: "Utang", icon: Wallet },
@@ -143,7 +143,7 @@ export default function Inventory() {
       setProducts(Array.isArray(p.data) ? p.data : []);
       setCategories(Array.isArray(c.data) ? c.data : []);
     } catch (e) {
-      setError(formatApiError(e, "Gagal memuat inventory"));
+      setError(formatApiError(e, "Gagal memuat data stok"));
     } finally {
       setLoading(false);
     }
@@ -175,7 +175,7 @@ export default function Inventory() {
       setPurchases(Array.isArray(pu.data) ? pu.data : []);
       setSales(Array.isArray(sa.data) ? sa.data : []);
     } catch (e) {
-      setError(formatApiError(e, "Gagal memuat mitra pemasok/customer"));
+      setError(formatApiError(e, "Gagal memuat mitra pemasok/pelanggan"));
     }
   }, []);
 
@@ -209,7 +209,7 @@ export default function Inventory() {
 
   if (!canAccessRole) return <Navigate to="/dashboard" replace />;
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><Spinner column size={48} label="Memuat inventory…" /></div>;
+    return <div className="flex items-center justify-center min-h-[60vh]"><Spinner column size={48} label="Memuat data stok…" /></div>;
   }
   if (meta && user?.role === "pengelola" && user.unit_usaha_id !== meta.unit_usaha_id) {
     return <Navigate to="/dashboard" replace />;
@@ -348,7 +348,7 @@ export default function Inventory() {
       closeCustomerForm();
       await loadTrade();
     } catch (err) {
-      setError(formatApiError(err, "Gagal menyimpan customer"));
+      setError(formatApiError(err, "Gagal menyimpan pelanggan"));
     }
   };
 
@@ -409,7 +409,7 @@ export default function Inventory() {
         </Card>
       )}
 
-      <div className="flex gap-2 flex-wrap" role="tablist" aria-label="Tab inventory">
+      <div className="flex gap-2 flex-wrap" role="tablist" aria-label="Tab stok">
         {TAB_GROUPS.map((g) => {
           const Icon = g.icon;
           const active = activeGroup.id === g.id;
