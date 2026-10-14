@@ -76,10 +76,10 @@ function Stat({
 
 type RekapRow = { key: string; sku: string; name: string; qty: number; value: number; count: number }
 
-function rekapBy(movements: InventoryMovement[], direction: 'in' | 'out'): RekapRow[] {
+function rekapBy(movements: InventoryMovement[], direction: 'in' | 'out', keep: (m: InventoryMovement) => boolean = () => true): RekapRow[] {
   const map = new Map<string, RekapRow>()
   for (const m of movements) {
-    if (m.direction !== direction || m.finance_status === 'cancelled') continue
+    if (m.direction !== direction || m.finance_status === 'cancelled' || !keep(m)) continue
     const key = String(m.product_id || m.sku || m.id)
     const r = map.get(key) ?? { key, sku: m.sku || '-', name: m.product_name || '-', qty: 0, value: 0, count: 0 }
     r.qty += num(m.quantity)
@@ -222,7 +222,9 @@ export default function InventorySummary({
     </TableHead>
   )
 
-  const rekapIn = useMemo(() => rekapBy(movements, 'in'), [movements])
+  const isModalAwal = (m: InventoryMovement) => m.payment_method === 'modal_awal'
+  const rekapIn = useMemo(() => rekapBy(movements, 'in', (m) => !isModalAwal(m)), [movements])
+  const rekapModal = useMemo(() => rekapBy(movements, 'in', isModalAwal), [movements])
   const rekapOut = useMemo(() => rekapBy(movements, 'out'), [movements])
 
   const outQty = movementReport?.stock_out?.qty ?? 0
@@ -255,13 +257,20 @@ export default function InventorySummary({
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <RekapTable
           title="Rekap Pembelian / Stock In"
-          hint="Total barang masuk per SKU (tidak termasuk yang dibatalkan)."
+          hint="Barang masuk dari pembelian reguler (kas/utang) per SKU. Tidak termasuk Belanja Modal Awal."
           rows={rekapIn}
           empty="Belum ada stock in."
           testId="rekap-stock-in"
+        />
+        <RekapTable
+          title="Rekap Belanja Modal Awal"
+          hint="Barang masuk yang dibeli dari modal awal, per SKU."
+          rows={rekapModal}
+          empty="Belum ada belanja modal awal."
+          testId="rekap-modal-awal"
         />
         <RekapTable
           title="Rekap Penjualan / Stock Out"
@@ -273,11 +282,17 @@ export default function InventorySummary({
       </div>
 
       <Card className="overflow-hidden p-0" data-testid="inventory-all-sku">
-        <div className="flex flex-wrap items-center gap-2 p-4 pb-2">
-          <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">
-            Daftar seluruh SKU
-            <HelpHint>Semua produk di katalog, termasuk stok 0. Nilai persediaan = Stok × HPP.</HelpHint>
-          </h3>
+        <div className="flex flex-wrap items-start gap-2 p-4 pb-2">
+          <div>
+            <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">
+              Daftar seluruh SKU
+              <HelpHint>Semua produk di katalog, termasuk stok 0. Nilai persediaan = Stok × HPP.</HelpHint>
+            </h3>
+            <p className="font-heading mt-1 text-xl font-bold tabular-nums">{fmtRp(allSkuTotal)}</p>
+            <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+              {allSku.reduce((s, r) => s + r.qty, 0).toLocaleString('id-ID')} unit · {allSku.length} SKU
+            </p>
+          </div>
           <Input
             type="search"
             aria-label="Cari SKU/produk/kategori"
@@ -287,9 +302,10 @@ export default function InventorySummary({
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+        <div className="max-h-80 overflow-y-auto">
         <TableShell minWidth={760}>
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
                 <SortHead k="sku" label="SKU" />
                 <SortHead k="name" label="Nama Produk" />
@@ -307,8 +323,7 @@ export default function InventorySummary({
                   </TableCell>
                 </TableRow>
               ) : (
-                <>
-                  {allSku.map(({ p, qty, hpp, value }) => (
+                allSku.map(({ p, qty, hpp, value }) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium whitespace-nowrap">{p.sku}</TableCell>
                       <TableCell>{p.name}</TableCell>
@@ -319,16 +334,12 @@ export default function InventorySummary({
                       <TableCell className="num whitespace-nowrap">{fmtRp(hpp)}</TableCell>
                       <TableCell className="num whitespace-nowrap">{fmtRp(value)}</TableCell>
                     </TableRow>
-                  ))}
-                  <TableRow className="font-semibold">
-                    <TableCell colSpan={5}>Total ({allSku.length} SKU)</TableCell>
-                    <TableCell className="num whitespace-nowrap">{fmtRp(allSkuTotal)}</TableCell>
-                  </TableRow>
-                </>
+                ))
               )}
             </TableBody>
           </Table>
         </TableShell>
+        </div>
       </Card>
     </div>
   )
