@@ -39,7 +39,7 @@ import {
 const tableClass = 'toko-table [&_th]:h-auto [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-2'
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
 const HINT = 'klik untuk input'
-const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Transaksi. Hapus isian nominalnya dulu.'
+const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Mbene Ingsi Transaksine. Hapus isian nominalnya dulu.'
 const JENIS_LABEL: Record<TokoJenis, string> = { pemasukan: 'Pemasukan', pengeluaran: 'Pengeluaran' }
 
 /** Teks petunjuk samar, miring, tanpa garis bawah untuk sel kosong. */
@@ -59,7 +59,7 @@ export default function ManajemenTokoPage() {
   const { data: units, isLoading: unitsLoading } = useUnitsQuery(true)
   const unit = units?.find((u) => u.code === TOKO_UNIT_CODE)
   const allowed = user?.role !== 'pengelola' || (!!unit && user.unit_usaha_id === unit.id)
-  const [tab, setTab] = useState<'transaksi' | 'data'>('transaksi')
+  const [tab, setTab] = useState<'transaksi' | 'data'>('data')
   const [period, setPeriod] = useState(currentPeriod)
   const [cell, setCell] = useState<CellTarget | null>(null)
   const queryClient = useQueryClient()
@@ -87,14 +87,14 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Data sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
+      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Ingseni Datane Disit sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'transaksi', label: 'Transaksi', icon: ClipboardList }, { id: 'data', label: 'Data', icon: Database }] as const).map((t) => {
+        {([{ id: 'data', label: 'Ingseni Datane Disit', icon: Database }, { id: 'transaksi', label: 'Mbene Ingsi Transaksine', icon: ClipboardList }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -111,7 +111,7 @@ export default function ManajemenTokoPage() {
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
-                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Data untuk menambah uraian.') }} />
+                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Ingseni Datane Disit untuk menambah uraian.') }} />
             ))}
           </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
@@ -194,7 +194,7 @@ function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => P
   return (
     <>
       <div className="flex items-center justify-between gap-3">
-        <HelpHint label="Tentang tab Data">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
+        <HelpHint label="Tentang tab Ingseni Datane Disit">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={760} label="Tabel Data Transaksi"><Table className={tableClass}>
@@ -246,7 +246,7 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
 
   const remove = async () => {
     if (!item) return
-    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Data.`, confirmLabel: 'Hapus' }))) return
+    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Ingseni Datane Disit.`, confirmLabel: 'Hapus' }))) return
     try { await api.delete(`/v1/toko/items/${item.id}`); await onChanged() } catch (e) { notify(getApiError(e), { type: 'error' }) }
   }
 
