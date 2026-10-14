@@ -152,8 +152,8 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
                 </Button>
               </div>
               <div className="grid grid-cols-3 gap-2 pl-7">
-                <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...register(`lines.${i}.quantity`)} />
-                <Input type="number" min="0" step="1" placeholder="HPP/unit" aria-label="HPP/unit" readOnly={locked !== null} aria-invalid={Boolean(err?.unit_cost)} {...register(`lines.${i}.unit_cost`)} />
+                <Controller control={control} name={`lines.${i}.quantity`} render={({ field }) => <Input type="number" min="1" step="1" placeholder="Qty" aria-label="Qty" aria-invalid={Boolean(err?.quantity)} {...field} />} />
+                <Controller control={control} name={`lines.${i}.unit_cost`} render={({ field }) => <Input type="number" min="0" step="1" placeholder="HPP/unit" aria-label="HPP/unit" readOnly={locked !== null} aria-invalid={Boolean(err?.unit_cost)} {...field} />} />
                 <p className="self-center text-right text-sm">{rupiah(Number(lines[i]?.quantity || 0) * Number(lines[i]?.unit_cost || 0))}</p>
               </div>
               {locked !== null && (

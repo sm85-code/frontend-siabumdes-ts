@@ -77,12 +77,12 @@ export default function NumericInput({
         validity(input, next)
         if (value === undefined) setLocal(next)
         // Consumers (including Controller) receive the unformatted value, never the display string.
-        onChange?.({ ...event, target: { ...event.target, value: next }, currentTarget: { ...input, value: next } })
+        onChange?.({ ...event, target: { ...event.target, name: input.name, value: next }, currentTarget: { ...input, name: input.name, value: next } })
       }}
       onBlur={(event) =>
         onBlur?.({
           ...event,
-          target: { ...event.target, value: raw },
+          target: { ...event.target, name: event.currentTarget.name, value: raw },
           currentTarget: { ...event.currentTarget, value: raw },
         })
       }
