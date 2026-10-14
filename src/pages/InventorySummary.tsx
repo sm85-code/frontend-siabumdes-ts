@@ -83,7 +83,7 @@ function rekapBy(movements: InventoryMovement[], direction: 'in' | 'out', keep: 
     const key = String(m.product_id || m.sku || m.id)
     const r = map.get(key) ?? { key, sku: m.sku || '-', name: m.product_name || '-', qty: 0, value: 0, count: 0 }
     r.qty += num(m.quantity)
-    r.value += num(m.total_value)
+    r.value += num(direction === 'out' && m.sale_value != null ? m.sale_value : m.total_value)
     r.count += 1
     map.set(key, r)
   }
@@ -274,7 +274,7 @@ export default function InventorySummary({
         />
         <RekapTable
           title="Rekap Penjualan / Stock Out"
-          hint="Total barang keluar per SKU (tidak termasuk yang dibatalkan)."
+          hint="Barang keluar per SKU, nilai = harga jual (pemakaian internal pakai HPP)."
           rows={rekapOut}
           empty="Belum ada stock out."
           testId="rekap-stock-out"
