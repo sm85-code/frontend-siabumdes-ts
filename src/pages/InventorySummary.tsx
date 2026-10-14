@@ -20,22 +20,25 @@ const num = (v: unknown) => Number(v || 0)
 function Stat({
   label,
   value,
+  sub,
   hint,
 }: {
   label: string
   value: ReactNode
-  hint?: string
+  sub?: ReactNode
+  hint?: ReactNode
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="label mb-1">{label}</p>
-        <p className="font-heading text-2xl font-bold">{value}</p>
-        {hint ? (
-          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            {hint}
-          </p>
-        ) : null}
+    <Card className="h-full" data-testid="inventory-stat">
+      <CardContent className="flex h-full flex-col p-4">
+        <div className="flex min-h-7 items-center gap-1">
+          <p className="label truncate text-xs" style={{ color: 'var(--text-muted)' }}>{label}</p>
+          {hint ? <HelpHint label={`Info ${label}`}>{hint}</HelpHint> : null}
+        </div>
+        <p className="font-heading mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl">{value}</p>
+        <p className="mt-auto truncate pt-1 text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          {sub ?? '\u00a0'}
+        </p>
       </CardContent>
     </Card>
   )
@@ -137,34 +140,23 @@ export default function InventorySummary({
 
   return (
     <div className="space-y-6" data-testid="inventory-summary">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="SKU aktif" value={skuCount} hint="Jumlah produk di katalog" />
-        <Stat label="Total stok" value={totalQty} hint="Qty on hand seluruh SKU" />
-        <Stat label="Nilai persediaan" value={fmtRp(totalValue)} hint="Qty × HPP" />
-        <Stat label="Stok tipis" value={lowStock.length} hint="SKU dengan qty ≤ 5" />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card>
-          <CardContent className="p-4">
-            <p className="label mb-1">Stock in (periode laporan)</p>
-            <p className="font-heading text-xl font-bold">{inQty} unit</p>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {fmtRp(Number(movementReport?.stock_in?.value || 0))} ·{' '}
-              {movementReport?.stock_in?.count ?? 0} transaksi
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="label mb-1">Stock out (periode laporan)</p>
-            <p className="font-heading text-xl font-bold">{outQty} unit</p>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {fmtRp(Number(movementReport?.stock_out?.value || 0))} ·{' '}
-              {movementReport?.stock_out?.count ?? 0} transaksi
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3" data-testid="inventory-stats">
+        <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
+        <Stat label="Total stok" value={totalQty} sub="unit" hint="Qty on hand seluruh SKU." />
+        <Stat label="Nilai persediaan" value={fmtRp(totalValue)} sub="Qty × HPP" hint="Qty × HPP seluruh SKU." />
+        <Stat label="Stok tipis" value={lowStock.length} sub="SKU" hint="SKU dengan qty ≤ 5." />
+        <Stat
+          label="Stock in"
+          value={`${inQty} unit`}
+          sub={`${fmtRp(Number(movementReport?.stock_in?.value || 0))} · ${movementReport?.stock_in?.count ?? 0} trx`}
+          hint="Barang masuk pada periode laporan yang dipilih."
+        />
+        <Stat
+          label="Stock out"
+          value={`${outQty} unit`}
+          sub={`${fmtRp(Number(movementReport?.stock_out?.value || 0))} · ${movementReport?.stock_out?.count ?? 0} trx`}
+          hint="Barang keluar pada periode laporan yang dipilih."
+        />
       </div>
 
       <Card className="overflow-hidden p-0" data-testid="inventory-all-sku">
