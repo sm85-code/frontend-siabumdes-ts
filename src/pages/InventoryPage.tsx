@@ -452,7 +452,7 @@ export default function Inventory() {
             <p className="label mb-3 flex items-center gap-1">Penerimaan barang (Stock In / Pembelian)<HelpHint>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-in"); } }>Input Penerimaan Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-in" && <FormDialog title="Penerimaan Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
-              <StockInFormCard products={products} vendors={activeVendors} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
+              <StockInFormCard products={products} vendors={activeVendors} onOpenCatalog={() => { setOperation(null); setTab("katalog"); }} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
               <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
             </>}</FormDialog>}
           </CardContent>
