@@ -2,7 +2,7 @@ import FormDialog from '@/components/FormDialog'
 import HelpHint from "@/components/HelpHint";
 import { ArrowDown, FileText, Tags, ArrowUp, HandCoins, Package, Pencil, PieChart, SlidersHorizontal, Truck, Users, Wallet } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import api, { fmtRp, fmtDate } from "@/api/client";
 import { useAuth, can } from "@/lib/auth";
 import type {
@@ -29,6 +29,7 @@ import CategoryTable from "@/pages/inventory/CategoryTable";
 import StockInFormCard from "@/pages/inventory/StockInFormCard";
 import StockOutFormCard from "@/pages/inventory/StockOutFormCard";
 import AdjustFormCard from "@/pages/inventory/AdjustFormCard";
+import StockLedgerTable from "@/pages/inventory/StockLedgerTable";
 import PartnerFormCard from "@/pages/inventory/PartnerFormCard";
 import {
   emptyPartnerFormValues,
@@ -452,12 +453,12 @@ export default function Inventory() {
             <p className="label mb-3 flex items-center gap-1">Penerimaan barang (Stock In / Pembelian)<HelpHint>Stock in menghasilkan transaksi stok masuk sekaligus transaksi Pembelian (tunai atau kredit/utang).</HelpHint></p>
             {canWrite ? <Button onClick={() => { setError(""); setOperation("stock-in"); } }>Input Penerimaan Barang</Button> : <p className="text-sm">Role Anda read-only.</p>}
             {canWrite && operation === "stock-in" && <FormDialog title="Penerimaan Barang" error={error} onClose={() => setOperation(null)}>{({ cancel, run }) => <>
-              <StockInFormCard products={products} vendors={activeVendors} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
+              <StockInFormCard products={products} vendors={activeVendors} onOpenCatalog={() => { setOperation(null); setTab("katalog"); }} onSubmit={v => run(async () => { await submitStockIn(v); setOperation(null); })} />
               <Button className="mt-4" type="button" variant="outline" onClick={cancel}>Batal</Button>
             </>}</FormDialog>}
           </CardContent>
           </Card>
-          <MovementTable rows={movements.filter((m) => m.direction === "in" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
+          <StockLedgerTable kind="in" refreshKey={movements} onCancel={canWrite ? cancelMovement : undefined} />
         </div>
       )}
 
@@ -473,7 +474,7 @@ export default function Inventory() {
             </>}</FormDialog>}
           </CardContent>
           </Card>
-          <MovementTable rows={movements.filter((m) => m.direction === "out" && m.finance_status !== "cancelled")} onCancel={canWrite ? cancelMovement : undefined} />
+          <StockLedgerTable kind="out" refreshKey={movements} onCancel={canWrite ? cancelMovement : undefined} />
         </div>
       )}
 
@@ -490,43 +491,7 @@ export default function Inventory() {
           </CardContent>
           </Card>
 
-          <Card className="p-0 overflow-hidden">
-            <TableShell minWidth={720}>
-            <Table>
-              <TableHeader><TableRow><TableHead>Tanggal</TableHead><TableHead>SKU</TableHead><TableHead>Produk</TableHead><TableHead className="num">Delta</TableHead><TableHead>Alasan</TableHead><TableHead>Catatan</TableHead><TableHead>Ref</TableHead>{canWrite && <TableHead />}</TableRow></TableHeader>
-              <TableBody>
-                {adjustments.length === 0 ? (
-                  <TableRow><TableCell colSpan={canWrite ? 8 : 7} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada penyesuaian.</TableCell></TableRow>
-                ) : adjustments.map((a) => (
-                  <TableRow key={a.id}>
-                    <TableCell>{fmtDate(a.adjustment_date)}</TableCell>
-                    <TableCell>{a.sku}</TableCell>
-                    <TableCell>{a.product_name}</TableCell>
-                    <TableCell className="num">{Number(a.quantity_delta) > 0 ? `+${a.quantity_delta}` : a.quantity_delta}</TableCell>
-                    <TableCell><Badge variant="secondary">{a.reason}</Badge></TableCell>
-                    <TableCell>{a.notes || "-"}</TableCell>
-                    <TableCell className="text-xs">
-                      <Link
-                        to={`/transactions?reference=${encodeURIComponent(a.id)}`}
-                        className="underline"
-                        style={{ color: "var(--primary-dark)" }}
-                      >
-                        Lihat transaksi
-                      </Link>
-                    </TableCell>
-                    {canWrite && (
-                      <TableCell>
-                        <Button type="button" variant="outline" size="sm" onClick={() => cancelAdjustment(a.id)}>
-                          Batalkan
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            </TableShell>
-          </Card>
+          <StockLedgerTable kind="adjust" refreshKey={adjustments} onCancel={canWrite ? cancelAdjustment : undefined} />
         </div>
       )}
 
@@ -695,66 +660,5 @@ export default function Inventory() {
       )}
 
     </div>
-  );
-}
-
-
-function MovementTable({
-  rows,
-  onCancel,
-}: {
-  rows: InventoryMovement[]
-  onCancel?: (id: string) => void
-}) {
-  return (
-    <Card className="p-0 overflow-hidden">
-      <TableShell minWidth={720}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Tanggal</TableHead><TableHead>SKU</TableHead><TableHead>Produk</TableHead><TableHead className="num">Qty</TableHead>
-            <TableHead className="num">Nilai</TableHead><TableHead>Status</TableHead><TableHead>Ref</TableHead>{onCancel && <TableHead />}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow><TableCell colSpan={8} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada mutasi.</TableCell></TableRow>
-          ) : rows.map((m) => (
-            <TableRow key={m.id}>
-              <TableCell>{fmtDate(m.movement_date)}</TableCell>
-              <TableCell>{m.sku}</TableCell>
-              <TableCell>{m.product_name}</TableCell>
-              <TableCell className="num">{m.quantity}</TableCell>
-              <TableCell className="num">{fmtRp(Number(m.total_value))}</TableCell>
-              <TableCell>
-                <Badge variant="secondary">{m.finance_status}</Badge>
-                {m.movement_kind === "internal_use" && <Badge variant="outline" className="ml-1">Internal</Badge>}
-              </TableCell>
-              <TableCell className="text-xs">
-                {m.reference ? (
-                  <Link
-                    to={`/transactions?reference=${encodeURIComponent(m.id)}`}
-                    className="underline"
-                    style={{ color: "var(--primary-dark)" }}
-                  >
-                    Lihat transaksi
-                  </Link>
-                ) : (
-                  "-"
-                )}
-              </TableCell>
-              {onCancel && (
-                <TableCell>
-                  {m.finance_status !== "cancelled" && (
-                    <Button type="button" variant="outline" size="sm" onClick={() => onCancel(m.id)}>Batalkan</Button>
-                  )}
-                </TableCell>
-              )}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </TableShell>
-    </Card>
   );
 }

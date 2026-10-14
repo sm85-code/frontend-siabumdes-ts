@@ -12,7 +12,10 @@ interface Props {
   products: InventoryProduct[]
   vendors: InventoryPartner[]
   onSubmit: (values: StockInFormValues) => void | Promise<void>
+  onOpenCatalog?: () => void
 }
+
+const rupiah = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
 
 function fieldErr(msg?: string) {
   return msg ? (
@@ -22,7 +25,7 @@ function fieldErr(msg?: string) {
   ) : null
 }
 
-export default function StockInFormCard({ products, vendors, onSubmit }: Props) {
+export default function StockInFormCard({ products, vendors, onSubmit, onOpenCatalog }: Props) {
   const {
     register,
     control,
@@ -38,6 +41,8 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
 
   const paymentMethod = watch('payment_method')
   const modalAwal = paymentMethod === 'modal_awal'
+  const selected = products.find((p) => p.id === watch('product_id'))
+  const lockedCost = selected && Number(selected.qty_on_hand) > 0 && Number(selected.cost_price) > 0 ? Number(selected.cost_price) : null
   const productOptions = products.map((p) => ({
     id: p.id,
     label: `${p.sku} — ${p.name} (stok ${p.qty_on_hand})`,
@@ -141,16 +146,32 @@ export default function StockInFormCard({ products, vendors, onSubmit }: Props) 
         {fieldErr(errors.quantity?.message)}
       </div>
       <div>
-        <label className="label" htmlFor="si-cost">
+        <label className="label inline-flex items-center gap-1" htmlFor="si-cost">
           HPP / unit (Rp)
+          <HelpHint label="Tentang HPP / unit">
+            <p>Satu SKU satu harga beli. Selama SKU masih ada stok, HPP / unit terkunci. Harga beli berbeda: buat SKU baru di Katalog Produk.</p>
+          </HelpHint>
         </label>
         <Controller
           control={control}
           name="unit_cost"
           render={({ field }) => (
-            <Input id="si-cost" type="number" min="0" step="1" aria-invalid={Boolean(errors.unit_cost)} {...field} />
+            <Input id="si-cost" type="number" min="0" step="1" readOnly={lockedCost !== null} aria-invalid={Boolean(errors.unit_cost)} {...field} />
           )}
         />
+        {lockedCost !== null && (
+          <p className="mt-1 text-xs" style={{ color: 'var(--status-warning, var(--text-muted))' }}>
+            Terkunci sesuai HPP SKU ini ({rupiah(lockedCost)}). Harga beli beda? Buat SKU baru untuk harga baru.
+            {onOpenCatalog && (
+              <>
+                {' '}
+                <button type="button" className="underline" onClick={onOpenCatalog}>
+                  Buka Katalog Produk
+                </button>
+              </>
+            )}
+          </p>
+        )}
         {fieldErr(errors.unit_cost?.message)}
       </div>
       <div>
