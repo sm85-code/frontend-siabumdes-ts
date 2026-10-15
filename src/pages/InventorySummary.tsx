@@ -265,7 +265,16 @@ export default function InventorySummary({
     const d = String(m.movement_date ?? '').slice(0, 10)
     return d >= range.date_from && d <= range.date_to
   }), [moves, range])
-  const rekapModal = useMemo(() => rekapBy(list, 'in', isModalAwal), [list])
+  // Rekap Belanja Modal Awal: selalu seluruh riwayat (tidak ikut filter bulan).
+  const [allIn, setAllIn] = useState<InventoryMovement[]>([])
+  useEffect(() => {
+    let alive = true
+    api.get('/v1/uu05_inventory/movements', { params: { direction: 'in', limit: 2000 } })
+      .then((r) => { if (alive) setAllIn(Array.isArray(r.data) ? r.data : []) })
+      .catch(() => { if (alive) setAllIn([]) })
+    return () => { alive = false }
+  }, [products, movements])
+  const rekapModal = useMemo(() => rekapBy(allIn, 'in', isModalAwal), [allIn])
   const rekapReguler = useMemo(() => rekapBy(list, 'in', (m) => !isModalAwal(m)), [list])
   const rekapOut = useMemo(() => rekapBy(list, 'out'), [list])
   const rep = report ?? movementReport
@@ -278,7 +287,7 @@ export default function InventorySummary({
         <label htmlFor="ringkasan-bulan" className="text-sm font-medium">Bulan</label>
         <Input id="ringkasan-bulan" type="month" className="w-44" value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)} />
-        <HelpHint label="Tentang filter bulan">Kartu Stock in/out dan tabel Rekap mengikuti tanggal transaksi di bulan ini. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
+        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
       </div>
       <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:gap-3" data-testid="inventory-stats">
         <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
@@ -322,7 +331,7 @@ export default function InventorySummary({
         />
         <RekapTable
           title="Rekap Belanja Modal Awal"
-          hint="Riwayat barang masuk yang dibeli dari modal awal, per SKU."
+          hint="Seluruh riwayat barang masuk dari modal awal per SKU (tidak ikut filter bulan)."
           rows={rekapModal}
           empty="Belum ada belanja modal awal."
           testId="rekap-modal-awal"
