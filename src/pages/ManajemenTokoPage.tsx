@@ -2,8 +2,9 @@ import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Database, Plus, Receipt, Trash2 } from 'lucide-react'
+import { ClipboardList, Database, Download, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
+import { triggerBlobDownload } from '@/api/transactions'
 import { useAuth } from '@/lib/auth'
 import { useUnitsQuery } from '@/hooks/useUnits'
 import { notify } from '@/lib/feedback'
@@ -148,13 +149,30 @@ function AutoTables({ period }: { period: string }) {
   if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat transaksi..." />
   return (
     <>
-      <AutoTable title="Pemasukan" label="Customer" rows={inRows} />
-      <AutoTable title="Pengeluaran" label="Pemasok" rows={outRows} />
+      <AutoTable title="Pemasukan" label="Customer" doc="invoice" rows={inRows} />
+      <AutoTable title="Pengeluaran" label="Pemasok" doc="po" rows={outRows} />
     </>
   )
 }
 
-function AutoTable({ title, label, rows }: { title: string; label: string; rows: TxRow[] }) {
+const DOC_COL = 110
+
+function AutoTable({ title, label, doc, rows }: { title: string; label: string; doc: 'invoice' | 'po'; rows: TxRow[] }) {
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const docLabel = doc === 'invoice' ? 'Invoice' : 'PO'
+  const download = async (row: TxRow) => {
+    const ids = (row.ids as string[] | undefined) ?? []
+    if (!ids.length) return
+    setBusyKey(row.key)
+    try {
+      const res = await api.post(`${INV}/documents/transactions-pdf`, { kind: doc, source_ids: ids }, { responseType: 'blob' })
+      triggerBlobDownload(res.data, `${docLabel}-${(row.uraian ?? '').replace(/[^\w-]+/g, '_')}.pdf`)
+    } catch (e) {
+      notify(getApiError(e), { type: 'error' })
+    } finally {
+      setBusyKey(null)
+    }
+  }
   const { sorted, headerProps, sortIndicator } = useSort<TxRow>(rows)
   const padCount = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
   const display = [...sorted, ...Array.from({ length: padCount }, (_, i) => emptyTxRow(`empty-${i}`))]
@@ -170,18 +188,20 @@ function AutoTable({ title, label, rows }: { title: string; label: string; rows:
         <h2 className="font-heading text-lg font-semibold">{title}</h2>
         <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {title === 'Pemasukan' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
       </div>
-      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
         <colgroup>
           <col style={{ width: TX_COL.no }} />
           <col style={{ width: TX_COL.uraian }} />
           {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
           <col style={{ width: TX_COL.jumlah }} />
+          <col style={{ width: DOC_COL }} />
         </colgroup>
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
           {sortHead('uraian', 'Uraian')}
           {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`, true)}</Fragment>)}
           {sortHead('jumlah', 'Jumlah', true)}
+          <TableHead className="text-center">{docLabel}</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {display.map((row, idx) => (
@@ -193,6 +213,14 @@ function AutoTable({ title, label, rows }: { title: string; label: string; rows:
                 return <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">{v == null ? <EmptyCellDash /> : fmtNumber(v)}</TableCell>
               })}
               <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">{row.jumlah == null ? '' : fmtNumber(row.jumlah)}</TableCell>
+              <TableCell className="text-center">
+                {row.uraian && row.uraian !== '-' ? (
+                  <Button type="button" size="sm" variant="outline" disabled={busyKey !== null}
+                    title={`Unduh ${docLabel} ${row.uraian}`} onClick={() => void download(row)}>
+                    <Download size={14} />Tagihan
+                  </Button>
+                ) : <EmptyCellDash />}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -200,6 +228,7 @@ function AutoTable({ title, label, rows }: { title: string; label: string; rows:
           <TableCell colSpan={2}>Total</TableCell>
           {WEEKS.map((w) => <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">{fmtNumber(totals[`w${w}` as 'w1'])}</TableCell>)}
           <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtNumber(totals.jumlah)}</TableCell>
+          <TableCell />
         </TableRow></tfoot>
       </Table></TableShell></Card>
     </div>
