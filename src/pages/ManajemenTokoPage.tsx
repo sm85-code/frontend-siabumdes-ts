@@ -233,7 +233,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           {lines.map((l) => (
             <TableRow key={l.label} className={l.strong ? 'border-t bg-muted/50 font-semibold' : undefined}>
               <TableCell>{l.no ?? ''}</TableCell>
-              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words" title={l.label}>{l.label}</TableCell>
               {keys.map((k) => (
                 <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{started.has(k) ? money(l.v[k]) : <EmptyCellDash />}</TableCell>
               ))}
@@ -366,7 +366,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
           {lines.map((l) => (
             <TableRow key={l.label} className={l.kind === 'total' ? 'border-t bg-muted/50 font-semibold' : l.kind === 'head' ? 'font-semibold' : undefined}>
               <TableCell>{l.no ?? ''}</TableCell>
-              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.warn ? `${l.label} (perlu diverifikasi dengan saldo kas riil)` : l.label}><span className={l.warn ? 'text-destructive' : undefined}>{l.label}</span></TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words" title={l.warn ? `${l.label} (perlu diverifikasi dengan saldo kas riil)` : l.label}><span className={l.warn ? 'text-destructive' : undefined}>{l.label}</span></TableCell>
               {all.map((k) => (
                 <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">
                   {l.kind === 'head' ? '' : l.v && started.has(k) ? (l.warn ? <span className="font-semibold text-destructive">{money(l.v[k])}</span> : cell(l.v[k])) : <EmptyCellDash />}
