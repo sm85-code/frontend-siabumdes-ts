@@ -206,6 +206,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
+  const started = startedWeeks(period)
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
@@ -231,7 +232,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
               <TableCell>{l.no ?? ''}</TableCell>
               <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
               {keys.map((k) => (
-                <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{money(l.v[k])}</TableCell>
+                <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{started.has(k) ? money(l.v[k]) : <EmptyCellDash />}</TableCell>
               ))}
             </TableRow>
           ))}
@@ -239,7 +240,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2}>LABA/RUGI BERSIH</TableCell>
           {keys.map((k) => (
-            <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{money(laba[k])}</TableCell>
+            <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{started.has(k) ? money(laba[k]) : <EmptyCellDash />}</TableCell>
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
@@ -248,6 +249,8 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
+/** Piutang Lainnya tetap (dipinjamkan dari kas). */
+const PIUTANG_LAINNYA = 9_200_000
 type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string }
 type NeracaResp = { modal: string; positions: NeracaPos[] }
 
@@ -259,7 +262,24 @@ function weekEnd(period: string, w: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** Minggu yang sudah dimulai (Senin <= hari ini, waktu lokal). */
+function startedWeeks(period: string): Set<string> {
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const set = new Set<string>()
+  WEEKS.forEach((w) => {
+    const [y, m, d] = weekEnd(period, w).split('-').map(Number)
+    const start = new Date(y, m - 1, d - 6)
+    const iso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+    if (iso <= today) set.add(`w${w}`)
+  })
+  if (set.size) set.add('jumlah')
+  return set
+}
+
 function Neraca({ period }: { period: string }) {
+  const started = startedWeeks(period)
+  const lastKey = (['w5', 'w4', 'w3', 'w2', 'w1'] as const).find((k) => started.has(k)) ?? 'w5'
   const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
   // Akhir periode lalu = sehari sebelum Senin Minggu ke-1.
   const lastPrev = useMemo(() => {
@@ -280,11 +300,12 @@ function Neraca({ period }: { period: string }) {
   const [prev, ...pos] = q.data.positions
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
-  const kas = blank(), stokV = blank(), piutang = blank(), utang = blank(), lalu = blank(), lr = blank()
+  const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank()
   const labaLalu = parseMoney(prev.laba)
   keys.forEach((k, i) => {
     const p = pos[i]
-    kas[k] = parseMoney(p.kas)
+    kas[k] = parseMoney(p.kas) - PIUTANG_LAINNYA
+    piutangLain[k] = PIUTANG_LAINNYA
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
     utang[k] = parseMoney(p.utang)
@@ -292,11 +313,11 @@ function Neraca({ period }: { period: string }) {
     lr[k] = parseMoney(p.laba) - labaLalu
   })
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
-  for (const v of [kas, stokV, piutang, utang, lalu, lr]) v.jumlah = v.w5
+  for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr]) v.jumlah = v[lastKey]
   const modal: WeekVals = { w1: MODAL_BUMDES, w2: MODAL_BUMDES, w3: MODAL_BUMDES, w4: MODAL_BUMDES, w5: MODAL_BUMDES, jumlah: MODAL_BUMDES }
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const sum = (...vs: WeekVals[]): WeekVals => Object.fromEntries(all.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
-  const totalAset = sum(kas, stokV, piutang)
+  const totalAset = sum(kas, stokV, piutang, piutangLain)
   const totalUtang = sum(utang)
   const totalEkuitas = sum(modal, lalu, lr)
   const totalPasiva = sum(totalUtang, totalEkuitas)
@@ -306,7 +327,7 @@ function Neraca({ period }: { period: string }) {
     { no: 1, label: 'Kas / Bank', v: kas },
     { no: 2, label: 'Stok Barang', v: stokV },
     { no: 3, label: 'Piutang Penjualan', v: piutang },
-    { no: 4, label: 'Piutang Lainnya' },
+    { no: 4, label: 'Piutang Lainnya', v: piutangLain },
     { label: 'TOTAL ASET', v: totalAset, kind: 'total' },
     { label: 'KEWAJIBAN/UTANG', kind: 'head' },
     { no: 5, label: 'Utang Usaha', v: utang },
@@ -323,7 +344,7 @@ function Neraca({ period }: { period: string }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <h2 className="font-heading text-lg font-semibold">Neraca</h2>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok.</HelpHint>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -345,7 +366,7 @@ function Neraca({ period }: { period: string }) {
               <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
               {all.map((k) => (
                 <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">
-                  {l.kind === 'head' ? '' : l.v ? cell(l.v[k]) : <EmptyCellDash />}
+                  {l.kind === 'head' ? '' : l.v && started.has(k) ? cell(l.v[k]) : <EmptyCellDash />}
                 </TableCell>
               ))}
             </TableRow>
@@ -353,11 +374,12 @@ function Neraca({ period }: { period: string }) {
         </TableBody>
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2} className="whitespace-normal break-words">TOTAL KEWAJIBAN/UTANG + EKUITAS</TableCell>
-          {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{cell(totalPasiva[k])}</TableCell>)}
+          {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{started.has(k) ? cell(totalPasiva[k]) : <EmptyCellDash />}</TableCell>)}
         </TableRow>
         <TableRow className="border-0 bg-card font-normal hover:bg-card">
           <TableCell colSpan={2} className="text-sm">Cek Selisih Neraca =</TableCell>
           {all.map((k) => {
+            if (!started.has(k)) return <TableCell key={k} />
             const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
             return <TableCell key={k} className={`text-right text-sm whitespace-nowrap ${ok ? '' : 'font-semibold text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
           })}
