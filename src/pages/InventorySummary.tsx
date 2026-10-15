@@ -92,6 +92,10 @@ function rekapBy(movements: InventoryMovement[], direction: 'in' | 'out', keep: 
 }
 
 function RekapTable({ title, hint, rows, empty, testId }: { title: string; hint: string; rows: RekapRow[]; empty: string; testId: string }) {
+  const { sorted, headerProps, sortIndicator } = useSort(rows, 'value', 'desc')
+  const head = (k: string, label: string, numeric = false) => (
+    <TableHead {...headerProps(k)} className={`cursor-pointer select-none whitespace-nowrap${numeric ? ' num' : ''}`}>{label}{sortIndicator(k)}</TableHead>
+  )
   const tot = rows.reduce((s, r) => ({ qty: s.qty + r.qty, value: s.value + r.value, count: s.count + r.count }), { qty: 0, value: 0, count: 0 })
   return (
     <Card className="overflow-hidden p-0" data-testid={testId}>
@@ -110,21 +114,23 @@ function RekapTable({ title, hint, rows, empty, testId }: { title: string; hint:
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Nama Produk</TableHead>
-                <TableHead className="num">Trx</TableHead>
-                <TableHead className="num">Qty</TableHead>
-                <TableHead className="num">Nilai</TableHead>
+                <TableHead>No.</TableHead>
+                {head('sku', 'SKU')}
+                {head('name', 'Nama Produk')}
+                {head('count', 'Trx', true)}
+                {head('qty', 'Qty', true)}
+                {head('value', 'Nilai', true)}
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{empty}</TableCell>
+                  <TableCell colSpan={6} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{empty}</TableCell>
                 </TableRow>
               ) : (
-                rows.map((r) => (
+                sorted.map((r, i) => (
                   <TableRow key={r.key}>
+                    <TableCell>{i + 1}</TableCell>
                     <TableCell className="font-medium whitespace-nowrap">{r.sku}</TableCell>
                     <TableCell>{r.name}</TableCell>
                     <TableCell className="num">{r.count}</TableCell>
@@ -278,7 +284,18 @@ export default function InventorySummary({
   )
 
   const isModalAwal = (m: InventoryMovement) => m.payment_method === 'modal_awal'
-  const rekapModal = useMemo(() => rekapBy(movements, 'in', isModalAwal), [movements])
+  // Riwayat belanja lengkap (bukan hanya 50 mutasi terbaru).
+  const [inMoves, setInMoves] = useState<InventoryMovement[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.get('/v1/uu05_inventory/movements', { params: { direction: 'in', limit: 2000 } })
+      .then((r) => { if (alive) setInMoves(Array.isArray(r.data) ? r.data : []) })
+      .catch(() => { if (alive) setInMoves(null) })
+    return () => { alive = false }
+  }, [movements])
+  const belanja = inMoves ?? movements
+  const rekapModal = useMemo(() => rekapBy(belanja, 'in', isModalAwal), [belanja])
+  const rekapReguler = useMemo(() => rekapBy(belanja, 'in', (m) => !isModalAwal(m)), [belanja])
   const [sisa, setSisa] = useState<{ reguler: SisaRow[]; modal_awal: SisaRow[] } | null>(null)
   useEffect(() => {
     let alive = true
@@ -320,7 +337,14 @@ export default function InventorySummary({
 
       <div className="grid grid-cols-1 gap-6">
         <SisaTable
-          title="Sisa Stok (Belanja Reguler melalui Stock In)"
+          title="Sisa Stok (Belanja Modal Awal)"
+          hint="Stok tersedia saat ini yang berasal dari Belanja Modal Awal. Barang keluar dihitung FIFO: memakai stok masuk terlama dulu."
+          rows={sisa?.modal_awal ?? []}
+          empty="Tidak ada sisa stok dari belanja modal awal."
+          testId="sisa-modal-awal"
+        />
+        <SisaTable
+          title="Sisa Stok (Belanja Reguler)"
           hint="Stok tersedia saat ini yang berasal dari pembelian reguler (kas/utang). Barang keluar dihitung FIFO: memakai stok masuk terlama dulu."
           rows={sisa?.reguler ?? []}
           empty="Tidak ada sisa stok dari belanja reguler."
@@ -328,17 +352,17 @@ export default function InventorySummary({
         />
         <RekapTable
           title="Rekap Belanja Modal Awal"
-          hint="Barang masuk yang dibeli dari modal awal, per SKU."
+          hint="Riwayat barang masuk yang dibeli dari modal awal, per SKU."
           rows={rekapModal}
           empty="Belum ada belanja modal awal."
           testId="rekap-modal-awal"
         />
-        <SisaTable
-          title="Sisa Stok (Belanja Modal Awal)"
-          hint="Stok tersedia saat ini yang berasal dari Belanja Modal Awal. Barang keluar dihitung FIFO: memakai stok masuk terlama dulu."
-          rows={sisa?.modal_awal ?? []}
-          empty="Tidak ada sisa stok dari belanja modal awal."
-          testId="sisa-modal-awal"
+        <RekapTable
+          title="Rekap Belanja Reguler"
+          hint="Riwayat barang masuk dari pembelian reguler (kas/utang), per SKU. Tidak termasuk Belanja Modal Awal."
+          rows={rekapReguler}
+          empty="Belum ada belanja reguler."
+          testId="rekap-reguler"
         />
       </div>
 
@@ -368,6 +392,7 @@ export default function InventorySummary({
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-card">
               <TableRow>
+                <TableHead>No.</TableHead>
                 <SortHead k="sku" label="SKU" />
                 <SortHead k="name" label="Nama Produk" />
                 <SortHead k="category" label="Kategori" />
@@ -379,13 +404,14 @@ export default function InventorySummary({
             <TableBody>
               {allSku.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                  <TableCell colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>
                     {products.length === 0 ? 'Belum ada produk.' : 'Tidak ada yang cocok.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                allSku.map(({ p, qty, hpp, value }) => (
+                allSku.map(({ p, qty, hpp, value }, i) => (
                     <TableRow key={p.id}>
+                      <TableCell>{i + 1}</TableCell>
                       <TableCell className="font-medium whitespace-nowrap">{p.sku}</TableCell>
                       <TableCell>{p.name}</TableCell>
                       <TableCell>{p.category_name || '-'}</TableCell>
