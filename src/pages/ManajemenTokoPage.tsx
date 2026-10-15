@@ -396,8 +396,8 @@ function AutoTables({ period }: { period: string }) {
   if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat transaksi..." />
   return (
     <>
-      <AutoTable title="Pemasukan" label="Customer" doc="invoice" period={period} rows={inRows} />
-      <AutoTable title="Pengeluaran" label="Pemasok" doc="po" period={period} rows={outRows} />
+      <AutoTable title="Daftar Invoice untuk Pelanggan (Stock Out)" label="Customer" doc="invoice" period={period} rows={inRows} />
+      <AutoTable title="Daftar Purchase Order untuk Pemasok (Stock In)" label="Pemasok" doc="po" period={period} rows={outRows} />
     </>
   )
 }
@@ -437,7 +437,7 @@ function AutoTable({ title, label, doc, period, rows }: { title: string; label: 
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <h2 className="font-heading text-lg font-semibold">{title}</h2>
-        <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {title === 'Pemasukan' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
+        <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {doc === 'invoice' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
         <colgroup>
