@@ -173,7 +173,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   const beli = txTotals(outRows)
   const totalOut = add(umum, beli)
   const laba = sub(totalIn, totalOut)
-  type Line = { no?: number; label: string; v: WeekVals; strong?: boolean; profit?: boolean }
+  type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
     { no: 1, label: 'Pemasukan Saldo Penjual', v: saldo },
     { no: 2, label: 'Pemasukan Penjualan Barang (Stock Out)', v: jual },
@@ -182,7 +182,6 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { no: 4, label: 'Pengeluaran Umum', v: umum },
     { no: 5, label: 'Pengeluaran Pembelian Barang (Stock In)', v: beli },
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
-    { label: 'LABA BERSIH', v: laba, strong: true, profit: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
   return (
@@ -191,10 +190,10 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
         <h2 className="font-heading text-lg font-semibold">Laporan Laba Rugi</h2>
         <HelpHint label="Tentang Laporan Laba Rugi">Dihitung dari Perduitan #1 dan #2 pada periode terpilih. Nilai negatif ditampilkan merah dalam kurung.</HelpHint>
       </div>
-      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + 80} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
           <col style={{ width: TX_COL.no }} />
-          <col style={{ width: TX_COL.uraian + 80 }} />
+          <col style={{ width: TX_COL.uraian }} />
           {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
           <col style={{ width: TX_COL.jumlah }} />
         </colgroup>
@@ -202,19 +201,25 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           <TableHead>No.</TableHead>
           <TableHead>Uraian</TableHead>
           {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right">Jumlah</TableHead>
+          <TableHead className="text-right whitespace-nowrap">Jumlah</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {lines.map((l) => (
-            <TableRow key={l.label} className={l.strong ? `font-semibold ${l.profit ? 'border-t-2 bg-muted/60' : 'bg-muted/40'}` : undefined}>
+            <TableRow key={l.label} className={l.strong ? 'border-t bg-muted/50 font-semibold' : undefined}>
               <TableCell>{l.no ?? ''}</TableCell>
-              <TableCell className="whitespace-normal">{l.label}</TableCell>
+              <TableCell className="min-w-0 truncate" title={l.label}>{l.label}</TableCell>
               {keys.map((k) => (
                 <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{money(l.v[k])}</TableCell>
               ))}
             </TableRow>
           ))}
         </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2}>LABA BERSIH</TableCell>
+          {keys.map((k) => (
+            <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{money(laba[k])}</TableCell>
+          ))}
+        </TableRow></tfoot>
       </Table></TableShell></Card>
     </div>
   )
