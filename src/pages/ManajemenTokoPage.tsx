@@ -375,16 +375,16 @@ function Neraca({ period }: { period: string }) {
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2} className="whitespace-normal break-words">TOTAL KEWAJIBAN/UTANG + EKUITAS</TableCell>
           {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{started.has(k) ? cell(totalPasiva[k]) : <EmptyCellDash />}</TableCell>)}
+        </TableRow>
+        <TableRow className="bg-card font-normal hover:bg-card">
+          <TableCell colSpan={2} className="font-semibold">Status Neraca</TableCell>
+          {all.map((k) => {
+            if (!started.has(k)) return <TableCell key={k} />
+            const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
+            return <TableCell key={k} className={`text-right whitespace-nowrap font-semibold ${ok ? 'text-emerald-600' : 'text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
+          })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className="font-semibold">Status Neraca</span>
-        {all.map((k) => {
-          if (!started.has(k)) return null
-          const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
-          return <span key={k} className="whitespace-nowrap">{k === 'jumlah' ? 'Jumlah' : `Minggu ke-${k.slice(1)}`}: <span className={ok ? 'font-semibold text-emerald-600' : 'font-semibold text-destructive'}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</span></span>
-        })}
-      </div>
     </div>
   )
 }
