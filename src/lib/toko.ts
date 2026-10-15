@@ -122,7 +122,8 @@ export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] 
     const w = tradeWeek(period, d)
     if (!w) continue
     const name = r.name?.trim() || '-'
-    const row = map.get(name) ?? { key: name, item: null, uraian: name, w1: null, w2: null, w3: null, w4: null, w5: null, jumlah: 0, entries: {} }
+    const row = map.get(name) ?? { key: name, item: null, uraian: name, w1: null, w2: null, w3: null, w4: null, w5: null, jumlah: 0, entries: {}, ids: [] as string[] }
+    ;(row.ids as string[]).push(r.id)
     const k = `w${w}` as 'w1'
     const v = parseMoney(r.total_amount)
     row[k] = (row[k] ?? 0) + v
