@@ -207,6 +207,9 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
   const started = startedWeeks(period)
+  // Minggu yang Laba Rugi-nya sudah berisi (ada nilai ≠ 0) — Neraca hanya tampil untuk minggu ini.
+  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && lines.some((l) => l.v[k as keyof WeekVals] !== 0)))
+  if (filled.size) filled.add('jumlah')
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
@@ -244,7 +247,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <Neraca period={period} />
+      <Neraca period={period} shown={filled} />
     </div>
   )
 }
@@ -277,8 +280,8 @@ function startedWeeks(period: string): Set<string> {
   return set
 }
 
-function Neraca({ period }: { period: string }) {
-  const started = startedWeeks(period)
+function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
+  const started = shown
   const lastKey = (['w5', 'w4', 'w3', 'w2', 'w1'] as const).find((k) => started.has(k)) ?? 'w5'
   const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
   // Akhir periode lalu = sehari sebelum Senin Minggu ke-1.
