@@ -1,5 +1,6 @@
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { fmtRp } from '@/api/client'
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import api, { fmtRp } from '@/api/client'
+import { useSort } from '@/lib/useSort'
 import TableShell from '@/components/TableShell'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
@@ -140,6 +141,60 @@ function RekapTable({ title, hint, rows, empty, testId }: { title: string; hint:
   )
 }
 
+type SisaRow = { product_id: string; sku: string; name: string; unit: string; qty: number; hpp: string | number; value: string | number }
+
+function SisaTable({ title, hint, rows, empty, testId }: { title: string; hint: string; rows: SisaRow[]; empty: string; testId: string }) {
+  const data = useMemo(() => rows.map((r) => ({ ...r, hpp: num(r.hpp), value: num(r.value) })), [rows])
+  const { sorted, headerProps, sortIndicator } = useSort(data, 'value', 'desc')
+  const total = data.reduce((s, r) => s + r.value, 0)
+  const head = (k: string, label: string, numeric = false) => (
+    <TableHead {...headerProps(k)} className={`cursor-pointer select-none whitespace-nowrap${numeric ? ' num' : ''}`}>{label}{sortIndicator(k)}</TableHead>
+  )
+  return (
+    <Card className="overflow-hidden p-0" data-testid={testId}>
+      <div className="p-4 pb-2">
+        <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">{title}<HelpHint>{hint}</HelpHint></h3>
+        <p className="font-heading mt-1 text-xl font-bold tabular-nums" data-testid={`${testId}-total`}>{fmtRp(total)}</p>
+        <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+          {data.reduce((s, r) => s + r.qty, 0).toLocaleString('id-ID')} unit · {data.length} SKU
+        </p>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        <TableShell minWidth={640}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>No.</TableHead>
+                {head('sku', 'SKU')}
+                {head('name', 'Nama Produk')}
+                {head('qty', 'Sisa Qty', true)}
+                {head('unit', 'Satuan')}
+                {head('hpp', 'HPP', true)}
+                {head('value', 'Nilai', true)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>{empty}</TableCell></TableRow>
+              ) : sorted.map((r, i) => (
+                <TableRow key={r.product_id}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{r.sku}</TableCell>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className="num">{r.qty.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>{r.unit}</TableCell>
+                  <TableCell className="num whitespace-nowrap">{fmtRp(r.hpp)}</TableCell>
+                  <TableCell className="num whitespace-nowrap">{fmtRp(r.value)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableShell>
+      </div>
+    </Card>
+  )
+}
+
 interface InventorySummaryProps {
   products?: InventoryProduct[]
   movements?: InventoryMovement[]
@@ -223,9 +278,15 @@ export default function InventorySummary({
   )
 
   const isModalAwal = (m: InventoryMovement) => m.payment_method === 'modal_awal'
-  const rekapIn = useMemo(() => rekapBy(movements, 'in', (m) => !isModalAwal(m)), [movements])
   const rekapModal = useMemo(() => rekapBy(movements, 'in', isModalAwal), [movements])
-  const rekapOut = useMemo(() => rekapBy(movements, 'out'), [movements])
+  const [sisa, setSisa] = useState<{ reguler: SisaRow[]; modal_awal: SisaRow[] } | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.get('/v1/uu05_inventory/reports/remaining-by-source')
+      .then((r) => { if (alive) setSisa(r.data) })
+      .catch(() => { if (alive) setSisa({ reguler: [], modal_awal: [] }) })
+    return () => { alive = false }
+  }, [products])
 
   const outQty = movementReport?.stock_out?.qty ?? 0
   const inQty = movementReport?.stock_in?.qty ?? 0
@@ -258,12 +319,12 @@ export default function InventorySummary({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <RekapTable
-          title="Rekap Pembelian / Stock In"
-          hint="Barang masuk dari pembelian reguler (kas/utang) per SKU. Tidak termasuk Belanja Modal Awal."
-          rows={rekapIn}
-          empty="Belum ada stock in."
-          testId="rekap-stock-in"
+        <SisaTable
+          title="Sisa Stok (Belanja Reguler melalui Stock In)"
+          hint="Stok tersedia saat ini yang berasal dari pembelian reguler (kas/utang). Barang keluar dihitung FIFO: memakai stok masuk terlama dulu."
+          rows={sisa?.reguler ?? []}
+          empty="Tidak ada sisa stok dari belanja reguler."
+          testId="sisa-reguler"
         />
         <RekapTable
           title="Rekap Belanja Modal Awal"
@@ -272,12 +333,12 @@ export default function InventorySummary({
           empty="Belum ada belanja modal awal."
           testId="rekap-modal-awal"
         />
-        <RekapTable
-          title="Rekap Penjualan / Stock Out"
-          hint="Barang keluar per SKU, nilai = harga jual (pemakaian internal pakai HPP)."
-          rows={rekapOut}
-          empty="Belum ada stock out."
-          testId="rekap-stock-out"
+        <SisaTable
+          title="Sisa Stok (Belanja Modal Awal)"
+          hint="Stok tersedia saat ini yang berasal dari Belanja Modal Awal. Barang keluar dihitung FIFO: memakai stok masuk terlama dulu."
+          rows={sisa?.modal_awal ?? []}
+          empty="Tidak ada sisa stok dari belanja modal awal."
+          testId="sisa-modal-awal"
         />
       </div>
 
