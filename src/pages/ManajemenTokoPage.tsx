@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Database, Download, Plus, Receipt, Trash2 } from 'lucide-react'
+import { ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
 import { triggerBlobDownload } from '@/api/transactions'
 import { useAuth } from '@/lib/auth'
@@ -68,7 +68,7 @@ export default function ManajemenTokoPage() {
   const { data: units, isLoading: unitsLoading } = useUnitsQuery(true)
   const unit = units?.find((u) => u.code === TOKO_UNIT_CODE)
   const allowed = user?.role !== 'pengelola' || (!!unit && user.unit_usaha_id === unit.id)
-  const [tab, setTab] = useState<'transaksi' | 'data' | 'otomatis'>('data')
+  const [tab, setTab] = useState<'transaksi' | 'data' | 'otomatis' | 'labarugi'>('data')
   const [period, setPeriod] = useState(currentPeriod)
   const [cell, setCell] = useState<CellTarget | null>(null)
   const queryClient = useQueryClient()
@@ -103,7 +103,7 @@ export default function ManajemenTokoPage() {
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'data', label: 'Bahan Perduitan', icon: Database }, { id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }] as const).map((t) => {
+        {([{ id: 'data', label: 'Bahan Perduitan', icon: Database }, { id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }, { id: 'labarugi', label: 'Perduitan #3', icon: FileBarChart }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -126,6 +126,9 @@ export default function ManajemenTokoPage() {
           <section hidden={tab !== 'otomatis'} role="tabpanel" id="toko-panel-otomatis" aria-labelledby="toko-tab-otomatis" className="min-w-0 space-y-6">
             {tab === 'otomatis' && <AutoTables period={period} />}
           </section>
+          <section hidden={tab !== 'labarugi'} role="tabpanel" id="toko-panel-labarugi" aria-labelledby="toko-tab-labarugi" className="min-w-0 space-y-6">
+            {tab === 'labarugi' && <LabaRugi period={period} items={items} entries={entries} />}
+          </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
             <DataTable items={items} onChanged={refresh} />
           </section>
@@ -140,12 +143,90 @@ const INV = '/v1/uu05_inventory'
 type SaleRec = { id: string; customer_name: string | null; total_amount: string; created_at: string | null; transaction_date?: string | null }
 type PurchaseRec = { id: string; vendor_name: string | null; payment_method: string; total_amount: string; created_at: string | null; transaction_date?: string | null }
 
-function AutoTables({ period }: { period: string }) {
+function useTradeRows(period: string) {
   const sales = useQuery({ queryKey: ['toko', 'auto-sales'], queryFn: async () => (await api.get<SaleRec[]>(`${INV}/sales`, { params: { limit: 500 } })).data })
   const purchases = useQuery({ queryKey: ['toko', 'auto-purchases'], queryFn: async () => (await api.get<PurchaseRec[]>(`${INV}/purchases`, { params: { limit: 500 } })).data })
   const inRows = useMemo(() => buildTradeRows((sales.data ?? []).map((s): TradeRecord => ({ ...s, name: s.customer_name })), period), [sales.data, period])
   const outRows = useMemo(() => buildTradeRows((purchases.data ?? []).filter((p) => p.payment_method !== 'modal_awal')
     .map((p): TradeRecord => ({ ...p, name: p.vendor_name })), period), [purchases.data, period])
+  return { sales, purchases, inRows, outRows }
+}
+
+type WeekVals = { w1: number; w2: number; w3: number; w4: number; w5: number; jumlah: number }
+const isLainnya = (r: TxRow) => (r.uraian ?? '').trim().toUpperCase() === 'LAINNYA'
+
+function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[]; entries: TokoEntry[] }) {
+  const { sales, purchases, inRows, outRows } = useTradeRows(period)
+  const p1In = useMemo(() => buildTxRows(items, entries, 'pemasukan'), [items, entries])
+  const p1Out = useMemo(() => buildTxRows(items, entries, 'pengeluaran'), [items, entries])
+  const error = sales.error || purchases.error
+  if (error) return <p role="alert">{getApiError(error)}</p>
+  if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat laporan..." />
+  const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
+  const add = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] + b[k]])) as WeekVals
+  const sub = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] - b[k]])) as WeekVals
+  const saldo = txTotals(p1In.filter((r) => !isLainnya(r)))
+  const jual = txTotals(inRows)
+  const lain = txTotals(p1In.filter(isLainnya))
+  const totalIn = add(add(saldo, jual), lain)
+  const umum = txTotals(p1Out)
+  const beli = txTotals(outRows)
+  const totalOut = add(umum, beli)
+  const laba = sub(totalIn, totalOut)
+  type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
+  const lines: Line[] = [
+    { no: 1, label: 'Pemasukan Saldo Penjual', v: saldo },
+    { no: 2, label: 'Pemasukan Penjualan Barang (Stock Out)', v: jual },
+    { no: 3, label: 'Pemasukan Lainnya', v: lain },
+    { label: 'TOTAL PEMASUKAN', v: totalIn, strong: true },
+    { no: 4, label: 'Pengeluaran Umum', v: umum },
+    { no: 5, label: 'Pengeluaran Pembelian Barang (Stock In)', v: beli },
+    { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
+  ]
+  const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <h2 className="font-heading text-lg font-semibold">Laporan Laba Rugi</h2>
+        <HelpHint label="Tentang Laporan Laba Rugi">Dihitung dari Perduitan #1 dan #2 pada periode terpilih. Nilai negatif ditampilkan merah dalam kurung.</HelpHint>
+      </div>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+        </colgroup>
+        <TableHeader className={headerClass}><TableRow>
+          <TableHead>No.</TableHead>
+          <TableHead>Uraian</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowrap">Jumlah</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {lines.map((l) => (
+            <TableRow key={l.label} className={l.strong ? 'border-t bg-muted/50 font-semibold' : undefined}>
+              <TableCell>{l.no ?? ''}</TableCell>
+              <TableCell className="min-w-0 truncate" title={l.label}>{l.label}</TableCell>
+              {keys.map((k) => (
+                <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{money(l.v[k])}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2}>LABA BERSIH</TableCell>
+          {keys.map((k) => (
+            <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{money(laba[k])}</TableCell>
+          ))}
+        </TableRow></tfoot>
+      </Table></TableShell></Card>
+    </div>
+  )
+}
+
+function AutoTables({ period }: { period: string }) {
+  const { sales, purchases, inRows, outRows } = useTradeRows(period)
   const error = sales.error || purchases.error
   if (error) return <p role="alert">{getApiError(error)}</p>
   if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat transaksi..." />
