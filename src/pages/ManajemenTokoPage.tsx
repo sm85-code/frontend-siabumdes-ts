@@ -249,7 +249,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-/** Piutang Lainnya tetap (dipinjamkan dari kas). */
+/** Piutang Lainnya tetap (aset; tanpa penyeimbang). */
 const PIUTANG_LAINNYA = 9_200_000
 type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string }
 type NeracaResp = { modal: string; positions: NeracaPos[] }
@@ -304,7 +304,7 @@ function Neraca({ period }: { period: string }) {
   const labaLalu = parseMoney(prev.laba)
   keys.forEach((k, i) => {
     const p = pos[i]
-    kas[k] = parseMoney(p.kas) - PIUTANG_LAINNYA
+    kas[k] = parseMoney(p.kas)
     piutangLain[k] = PIUTANG_LAINNYA
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
@@ -380,8 +380,14 @@ function Neraca({ period }: { period: string }) {
           <TableCell colSpan={2} className="text-sm">Cek Selisih Neraca =</TableCell>
           {all.map((k) => {
             if (!started.has(k)) return <TableCell key={k} />
-            const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
-            return <TableCell key={k} className={`text-right text-sm whitespace-nowrap ${ok ? '' : 'font-semibold text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
+            const diff = totalAset[k] - totalPasiva[k]
+            const ok = Math.abs(diff) < 0.5
+            return (
+              <TableCell key={k} className={`text-right text-sm whitespace-nowrap ${ok ? '' : 'font-semibold text-destructive'}`}>
+                <div className="tabular-nums">{money(ok ? 0 : diff)}</div>
+                <div>{ok ? 'Seimbang' : 'Tidak Seimbang'}</div>
+              </TableCell>
+            )
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
