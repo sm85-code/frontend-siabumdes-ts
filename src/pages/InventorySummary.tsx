@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import HelpHint from '@/components/HelpHint'
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import type {
   InventoryMovement,
   InventoryMovementReport,
@@ -14,7 +14,6 @@ import type {
   InventoryValuation,
 } from '@/types'
 
-type SortKey = 'sku' | 'name' | 'category' | 'qty' | 'hpp' | 'value'
 const num = (v: unknown) => Number(v || 0)
 
 function Stat({
@@ -233,83 +232,50 @@ export default function InventorySummary({
     [products],
   )
 
-  const [q, setQ] = useState('')
-  const [sortKey, setSortKey] = useState<SortKey>('sku')
-  const [sortAsc, setSortAsc] = useState(true)
-
-  const allSku = useMemo(() => {
-    const term = q.trim().toLowerCase()
-    const rows = products
-      .map((p) => {
-        const qty = num(p.qty_on_hand)
-        const hpp = num(p.cost_price)
-        return { p, qty, hpp, value: qty * hpp }
-      })
-      .filter(({ p }) =>
-        !term ||
-        [p.sku, p.name, p.category_name].some((x) => String(x || '').toLowerCase().includes(term)),
-      )
-    const get = (r: (typeof rows)[number]): string | number => {
-      switch (sortKey) {
-        case 'sku': return r.p.sku || ''
-        case 'name': return r.p.name || ''
-        case 'category': return r.p.category_name || ''
-        case 'qty': return r.qty
-        case 'hpp': return r.hpp
-        default: return r.value
-      }
-    }
-    rows.sort((a, b) => {
-      const x = get(a), y = get(b)
-      const c = typeof x === 'number' && typeof y === 'number'
-        ? x - y
-        : String(x).localeCompare(String(y), 'id', { numeric: true })
-      return sortAsc ? c : -c
-    })
-    return rows
-  }, [products, q, sortKey, sortAsc])
-  const allSkuTotal = allSku.reduce((s, r) => s + r.value, 0)
-
-  const toggleSort = (k: SortKey) => {
-    if (k === sortKey) setSortAsc(!sortAsc)
-    else { setSortKey(k); setSortAsc(k === 'sku' || k === 'name' || k === 'category') }
-  }
-  const SortHead = ({ k, label, numeric }: { k: SortKey; label: string; numeric?: boolean }) => (
-    <TableHead className={numeric ? 'num' : undefined} aria-sort={sortKey === k ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="inline-flex items-center gap-1 font-inherit" onClick={() => toggleSort(k)}>
-        {label}
-        {sortKey === k ? (sortAsc ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : <ArrowUpDown className="size-3 opacity-40" />}
-      </button>
-    </TableHead>
-  )
-
   const isModalAwal = (m: InventoryMovement) => m.payment_method === 'modal_awal'
-  // Riwayat belanja lengkap (bukan hanya 50 mutasi terbaru).
-  const [inMoves, setInMoves] = useState<InventoryMovement[] | null>(null)
-  useEffect(() => {
-    let alive = true
-    api.get('/v1/uu05_inventory/movements', { params: { direction: 'in', limit: 2000 } })
-      .then((r) => { if (alive) setInMoves(Array.isArray(r.data) ? r.data : []) })
-      .catch(() => { if (alive) setInMoves(null) })
-    return () => { alive = false }
-  }, [movements])
-  const belanja = inMoves ?? movements
-  const rekapModal = useMemo(() => rekapBy(belanja, 'in', isModalAwal), [belanja])
-  const rekapReguler = useMemo(() => rekapBy(belanja, 'in', (m) => !isModalAwal(m)), [belanja])
+  // Filter bulan: berlaku untuk kartu Stock in/out dan semua tabel di Ringkasan.
+  const [month, setMonth] = useState(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const range = useMemo(() => {
+    const [y, m] = month.split('-').map(Number)
+    const last = new Date(y, m, 0).getDate()
+    return { date_from: `${month}-01`, date_to: `${month}-${String(last).padStart(2, '0')}` }
+  }, [month])
+  const [moves, setMoves] = useState<InventoryMovement[] | null>(null)
+  const [report, setReport] = useState<InventoryMovementReport | null>(null)
   const [sisa, setSisa] = useState<{ reguler: SisaRow[]; modal_awal: SisaRow[] } | null>(null)
   useEffect(() => {
     let alive = true
-    api.get('/v1/uu05_inventory/reports/remaining-by-source')
+    const base = '/v1/uu05_inventory'
+    api.get(`${base}/movements`, { params: { ...range, limit: 2000 } })
+      .then((r) => { if (alive) setMoves(Array.isArray(r.data) ? r.data : []) })
+      .catch(() => { if (alive) setMoves([]) })
+    api.get(`${base}/reports/movements`, { params: range })
+      .then((r) => { if (alive) setReport(r.data) })
+      .catch(() => { if (alive) setReport(null) })
+    api.get(`${base}/reports/remaining-by-source`, { params: { as_of: range.date_to } })
       .then((r) => { if (alive) setSisa(r.data) })
       .catch(() => { if (alive) setSisa({ reguler: [], modal_awal: [] }) })
     return () => { alive = false }
-  }, [products])
-
-  const outQty = movementReport?.stock_out?.qty ?? 0
-  const inQty = movementReport?.stock_in?.qty ?? 0
+  }, [range, products, movements])
+  const list = useMemo(() => moves ?? [], [moves])
+  const rekapModal = useMemo(() => rekapBy(list, 'in', isModalAwal), [list])
+  const rekapReguler = useMemo(() => rekapBy(list, 'in', (m) => !isModalAwal(m)), [list])
+  const rekapOut = useMemo(() => rekapBy(list, 'out'), [list])
+  const rep = report ?? movementReport
+  const outQty = rep?.stock_out?.qty ?? 0
+  const inQty = rep?.stock_in?.qty ?? 0
 
   return (
     <div className="space-y-6" data-testid="inventory-summary">
+      <div className="flex items-center gap-2">
+        <label htmlFor="ringkasan-bulan" className="text-sm font-medium">Bulan</label>
+        <Input id="ringkasan-bulan" type="month" className="w-44" value={month}
+          onChange={(e) => e.target.value && setMonth(e.target.value)} />
+        <HelpHint label="Tentang filter bulan">Kartu Stock in/out dan tabel Rekap mengikuti tanggal transaksi di bulan ini. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
+      </div>
       <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:gap-3" data-testid="inventory-stats">
         <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
         <Stat label="Total stok" value={totalQty} sub="unit" hint="Qty on hand seluruh SKU." />
@@ -318,7 +284,7 @@ export default function InventorySummary({
         <Stat
           label="Stock in"
           value={`${inQty} unit`}
-          sub={`${fmtRp(Number(movementReport?.stock_in?.value || 0))} · ${movementReport?.stock_in?.count ?? 0} trx`}
+          sub={`${fmtRp(Number(rep?.stock_in?.value || 0))} · ${rep?.stock_in?.count ?? 0} trx`}
           hint="Barang masuk pada periode laporan yang dipilih. Ketuk kartu untuk input Stock In."
           onClick={onOpenTab ? () => onOpenTab('stock-in') : undefined}
           cta="Input Stock In"
@@ -327,7 +293,7 @@ export default function InventorySummary({
         <Stat
           label="Stock out"
           value={`${outQty} unit`}
-          sub={`${fmtRp(Number(movementReport?.stock_out?.sale_value ?? movementReport?.stock_out?.value ?? 0))} · ${movementReport?.stock_out?.count ?? 0} trx`}
+          sub={`${fmtRp(Number(rep?.stock_out?.sale_value ?? rep?.stock_out?.value ?? 0))} · ${rep?.stock_out?.count ?? 0} trx`}
           hint="Barang keluar pada periode laporan yang dipilih. Ketuk kartu untuk input Stock Out."
           onClick={onOpenTab ? () => onOpenTab('stock-out') : undefined}
           cta="Input Stock Out"
@@ -366,68 +332,13 @@ export default function InventorySummary({
         />
       </div>
 
-      <Card className="overflow-hidden p-0" data-testid="inventory-all-sku">
-        <div className="flex flex-wrap items-start gap-2 p-4 pb-2">
-          <div>
-            <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">
-              Daftar seluruh SKU
-              <HelpHint>Semua produk di katalog, termasuk stok 0. Nilai persediaan = Stok × HPP.</HelpHint>
-            </h3>
-            <p className="font-heading mt-1 text-xl font-bold tabular-nums">{fmtRp(allSkuTotal)}</p>
-            <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-              {allSku.reduce((s, r) => s + r.qty, 0).toLocaleString('id-ID')} unit · {allSku.length} SKU
-            </p>
-          </div>
-          <Input
-            type="search"
-            aria-label="Cari SKU/produk/kategori"
-            placeholder="Cari SKU/produk/kategori"
-            className="ml-auto w-full sm:w-64"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-        </div>
-        <div className="max-h-80 overflow-y-auto">
-        <TableShell minWidth={760}>
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
-              <TableRow>
-                <TableHead>No.</TableHead>
-                <SortHead k="sku" label="SKU" />
-                <SortHead k="name" label="Nama Produk" />
-                <SortHead k="category" label="Kategori" />
-                <SortHead k="qty" label="Stok" numeric />
-                <SortHead k="hpp" label="HPP" numeric />
-                <SortHead k="value" label="Nilai Persediaan" numeric />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {allSku.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>
-                    {products.length === 0 ? 'Belum ada produk.' : 'Tidak ada yang cocok.'}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                allSku.map(({ p, qty, hpp, value }, i) => (
-                    <TableRow key={p.id}>
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell className="font-medium whitespace-nowrap">{p.sku}</TableCell>
-                      <TableCell>{p.name}</TableCell>
-                      <TableCell>{p.category_name || '-'}</TableCell>
-                      <TableCell className={`num whitespace-nowrap ${qty === 0 ? 'text-destructive' : ''}`}>
-                        {qty.toLocaleString('id-ID')} {p.unit_of_measure || ''}
-                      </TableCell>
-                      <TableCell className="num whitespace-nowrap">{fmtRp(hpp)}</TableCell>
-                      <TableCell className="num whitespace-nowrap">{fmtRp(value)}</TableCell>
-                    </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableShell>
-        </div>
-      </Card>
+      <RekapTable
+        title="Rekap Penjualan / Stock Out"
+        hint="Barang keluar per SKU, nilai = harga jual (pemakaian internal pakai HPP)."
+        rows={rekapOut}
+        empty="Belum ada stock out."
+        testId="rekap-stock-out"
+      />
     </div>
   )
 }
