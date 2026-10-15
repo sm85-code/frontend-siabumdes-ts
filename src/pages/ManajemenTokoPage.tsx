@@ -375,7 +375,6 @@ function Neraca({ period }: { period: string }) {
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2} className="whitespace-normal break-words">TOTAL KEWAJIBAN/UTANG + EKUITAS</TableCell>
           {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{started.has(k) ? cell(totalPasiva[k]) : <EmptyCellDash />}</TableCell>)}
-        </TableRow>
         </TableRow></tfoot>
       </Table></TableShell></Card>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
