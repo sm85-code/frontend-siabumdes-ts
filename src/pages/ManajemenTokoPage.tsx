@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth'
 import { useUnitsQuery } from '@/hooks/useUnits'
 import { notify } from '@/lib/feedback'
 import { useSort } from '@/lib/useSort'
+import type { InventoryMovement } from '@/types'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { TOKO_UNIT_CODE } from '@/config/roles'
 import TableShell from '@/components/TableShell'
@@ -28,6 +29,7 @@ import {
   buildTxRows,
   buildTradeRows,
   tradeWeekLabel,
+  tradeWeek,
   type TradeRecord,
   currentPeriod,
   defaultWeekDate,
@@ -156,12 +158,22 @@ type WeekVals = { w1: number; w2: number; w3: number; w4: number; w5: number; ju
 const isLainnya = (r: TxRow) => (r.uraian ?? '').trim().toUpperCase() === 'LAINNYA'
 
 function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[]; entries: TokoEntry[] }) {
-  const { sales, purchases, inRows, outRows } = useTradeRows(period)
+  const { sales, purchases, inRows } = useTradeRows(period)
+  // HPP penjualan: Stock Out jenis penjualan (bukan pemakaian internal), per minggu movement_date.
+  const range = useMemo(() => {
+    const [y, m] = period.split('-').map(Number)
+    const pad = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { date_from: pad(new Date(y, m - 1, 1)), date_to: pad(new Date(y, m, 14)) }
+  }, [period])
+  const cogs = useQuery({
+    queryKey: ['toko', 'hpp-out', range],
+    queryFn: async () => (await api.get<InventoryMovement[]>(`${INV}/movements`, { params: { direction: 'out', limit: 2000, ...range } })).data,
+  })
   const p1In = useMemo(() => buildTxRows(items, entries, 'pemasukan'), [items, entries])
   const p1Out = useMemo(() => buildTxRows(items, entries, 'pengeluaran'), [items, entries])
-  const error = sales.error || purchases.error
+  const error = sales.error || purchases.error || cogs.error
   if (error) return <p role="alert">{getApiError(error)}</p>
-  if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat laporan..." />
+  if (sales.isLoading || purchases.isLoading || cogs.isLoading) return <Spinner label="Memuat laporan..." />
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const add = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] + b[k]])) as WeekVals
   const sub = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] - b[k]])) as WeekVals
@@ -170,8 +182,16 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   const lain = txTotals(p1In.filter(isLainnya))
   const totalIn = add(add(saldo, jual), lain)
   const umum = txTotals(p1Out)
-  const beli = txTotals(outRows)
-  const totalOut = add(umum, beli)
+  const hpp: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
+  for (const mv of cogs.data ?? []) {
+    if (mv.movement_kind && mv.movement_kind !== 'sale') continue
+    const w = mv.movement_date ? tradeWeek(period, new Date(`${String(mv.movement_date).slice(0, 10)}T00:00:00`)) : null
+    if (!w) continue
+    const v = parseMoney(String(mv.total_value ?? 0))
+    hpp[`w${w}` as 'w1'] += v
+    hpp.jumlah += v
+  }
+  const totalOut = add(umum, hpp)
   const laba = sub(totalIn, totalOut)
   type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
@@ -180,7 +200,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { no: 3, label: 'Pemasukan Lainnya', v: lain },
     { label: 'TOTAL PEMASUKAN', v: totalIn, strong: true },
     { no: 4, label: 'Pengeluaran Umum', v: umum },
-    { no: 5, label: 'Pengeluaran Pembelian Barang (Stock In)', v: beli },
+    { no: 5, label: 'Pengeluaran HPP Penjualan Barang', v: hpp },
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
@@ -188,7 +208,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <h2 className="font-heading text-lg font-semibold">Laporan Laba Rugi</h2>
-        <HelpHint label="Tentang Laporan Laba Rugi">Dihitung dari Perduitan #1 dan #2 pada periode terpilih. Nilai negatif ditampilkan merah dalam kurung.</HelpHint>
+        <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, dan HPP barang terjual (Stock Out penjualan). Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -207,7 +227,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           {lines.map((l) => (
             <TableRow key={l.label} className={l.strong ? 'border-t bg-muted/50 font-semibold' : undefined}>
               <TableCell>{l.no ?? ''}</TableCell>
-              <TableCell className="min-w-0 truncate" title={l.label}>{l.label}</TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
               {keys.map((k) => (
                 <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${l.v[k] < 0 ? ' text-destructive' : ''}`}>{money(l.v[k])}</TableCell>
               ))}
@@ -215,7 +235,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableBody>
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
-          <TableCell colSpan={2}>LABA BERSIH</TableCell>
+          <TableCell colSpan={2}>LABA/RUGI BERSIH</TableCell>
           {keys.map((k) => (
             <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{money(laba[k])}</TableCell>
           ))}
