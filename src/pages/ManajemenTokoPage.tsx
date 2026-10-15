@@ -321,12 +321,12 @@ function Neraca({ period }: { period: string }) {
   const totalUtang = sum(utang)
   const totalEkuitas = sum(modal, lalu, lr)
   const totalPasiva = sum(totalUtang, totalEkuitas)
-  type Line = { no?: number; label: string; v?: WeekVals; kind?: 'head' | 'total' }
+  type Line = { no?: number; label: string; v?: WeekVals; kind?: 'head' | 'total'; warn?: boolean }
   const lines: Line[] = [
     { label: 'ASET', kind: 'head' },
-    { no: 1, label: 'Kas / Bank', v: kas },
+    { no: 1, label: 'Kas / Bank', v: kas, warn: true },
     { no: 2, label: 'Stok Barang', v: stokV },
-    { no: 3, label: 'Piutang Penjualan', v: piutang },
+    { no: 3, label: 'Piutang Usaha', v: piutang },
     { no: 4, label: 'Piutang Lainnya', v: piutangLain },
     { label: 'TOTAL ASET', v: totalAset, kind: 'total' },
     { label: 'KEWAJIBAN/UTANG', kind: 'head' },
@@ -344,7 +344,7 @@ function Neraca({ period }: { period: string }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <h2 className="font-heading text-lg font-semibold">Neraca</h2>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok.</HelpHint>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -363,10 +363,10 @@ function Neraca({ period }: { period: string }) {
           {lines.map((l) => (
             <TableRow key={l.label} className={l.kind === 'total' ? 'border-t bg-muted/50 font-semibold' : l.kind === 'head' ? 'font-semibold' : undefined}>
               <TableCell>{l.no ?? ''}</TableCell>
-              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.warn ? `${l.label} (perlu diverifikasi dengan saldo kas riil)` : l.label}><span className={l.warn ? 'text-destructive' : undefined}>{l.label}</span></TableCell>
               {all.map((k) => (
                 <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">
-                  {l.kind === 'head' ? '' : l.v && started.has(k) ? cell(l.v[k]) : <EmptyCellDash />}
+                  {l.kind === 'head' ? '' : l.v && started.has(k) ? (l.warn ? <span className="font-semibold text-destructive">{money(l.v[k])}</span> : cell(l.v[k])) : <EmptyCellDash />}
                 </TableCell>
               ))}
             </TableRow>
@@ -375,16 +375,16 @@ function Neraca({ period }: { period: string }) {
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2} className="whitespace-normal break-words">TOTAL KEWAJIBAN/UTANG + EKUITAS</TableCell>
           {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{started.has(k) ? cell(totalPasiva[k]) : <EmptyCellDash />}</TableCell>)}
-        </TableRow>
-        <TableRow className="border-0 bg-card font-normal hover:bg-card">
-          <TableCell colSpan={2} className="text-sm">Cek Selisih Neraca =</TableCell>
-          {all.map((k) => {
-            if (!started.has(k)) return <TableCell key={k} />
-            const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
-            return <TableCell key={k} className={`text-right text-sm whitespace-nowrap ${ok ? '' : 'font-semibold text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
-          })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span className="font-semibold">Status Neraca</span>
+        {all.map((k) => {
+          if (!started.has(k)) return null
+          const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
+          return <span key={k} className="whitespace-nowrap">{k === 'jumlah' ? 'Jumlah' : `Minggu ke-${k.slice(1)}`}: <span className={ok ? 'font-semibold text-emerald-600' : 'font-semibold text-destructive'}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</span></span>
+        })}
+      </div>
     </div>
   )
 }
