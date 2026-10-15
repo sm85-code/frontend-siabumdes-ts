@@ -260,7 +260,11 @@ export default function InventorySummary({
       .catch(() => { if (alive) setSisa({ reguler: [], modal_awal: [] }) })
     return () => { alive = false }
   }, [range, products, movements])
-  const list = useMemo(() => moves ?? [], [moves])
+  // Pengaman: pastikan hanya mutasi bertanggal (movement_date) di bulan terpilih.
+  const list = useMemo(() => (moves ?? []).filter((m) => {
+    const d = String(m.movement_date ?? '').slice(0, 10)
+    return d >= range.date_from && d <= range.date_to
+  }), [moves, range])
   const rekapModal = useMemo(() => rekapBy(list, 'in', isModalAwal), [list])
   const rekapReguler = useMemo(() => rekapBy(list, 'in', (m) => !isModalAwal(m)), [list])
   const rekapOut = useMemo(() => rekapBy(list, 'out'), [list])
