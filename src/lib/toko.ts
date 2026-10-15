@@ -113,6 +113,19 @@ export function tradeWeek(period: string, d: Date): number | null {
   return w <= WEEKS.length ? w : null
 }
 
+/** Label minggu periode, mis. "Minggu 1 : 5 - 10 Oktober 2026" (Senin–Sabtu). */
+export function tradeWeekLabel(period: string, w: number): string {
+  const [y, m] = period.split('-').map(Number)
+  const start = new Date(y, m - 1, 1)
+  start.setDate(1 + ((8 - start.getDay()) % 7) + (w - 1) * 7)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 5)
+  const mon = (d: Date) => d.toLocaleDateString('id-ID', { month: 'long' })
+  const left = start.getMonth() === end.getMonth() ? `${start.getDate()}`
+    : start.getFullYear() === end.getFullYear() ? `${start.getDate()} ${mon(start)}` : `${start.getDate()} ${mon(start)} ${start.getFullYear()}`
+  return `Minggu ${w} : ${left} - ${end.getDate()} ${mon(end)} ${end.getFullYear()}`
+}
+
 /** Agregasi per nama (customer/pemasok) per minggu periode. */
 export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] {
   const map = new Map<string, TxRow>()
@@ -124,6 +137,8 @@ export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] 
     const name = r.name?.trim() || '-'
     const row = map.get(name) ?? { key: name, item: null, uraian: name, w1: null, w2: null, w3: null, w4: null, w5: null, jumlah: 0, entries: {}, ids: [] as string[] }
     ;(row.ids as string[]).push(r.id)
+    const byWeek = ((row.idsByWeek as Record<number, string[]> | undefined) ?? (row.idsByWeek = {})) as Record<number, string[]>
+    ;(byWeek[w] ??= []).push(r.id)
     const k = `w${w}` as 'w1'
     const v = parseMoney(r.total_amount)
     row[k] = (row[k] ?? 0) + v

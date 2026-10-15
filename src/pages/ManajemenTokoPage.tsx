@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -26,6 +27,7 @@ import {
   WEEKS,
   buildTxRows,
   buildTradeRows,
+  tradeWeekLabel,
   type TradeRecord,
   currentPeriod,
   defaultWeekDate,
@@ -149,24 +151,28 @@ function AutoTables({ period }: { period: string }) {
   if (sales.isLoading || purchases.isLoading) return <Spinner label="Memuat transaksi..." />
   return (
     <>
-      <AutoTable title="Pemasukan" label="Customer" doc="invoice" rows={inRows} />
-      <AutoTable title="Pengeluaran" label="Pemasok" doc="po" rows={outRows} />
+      <AutoTable title="Pemasukan" label="Customer" doc="invoice" period={period} rows={inRows} />
+      <AutoTable title="Pengeluaran" label="Pemasok" doc="po" period={period} rows={outRows} />
     </>
   )
 }
 
 const DOC_COL = 110
 
-function AutoTable({ title, label, doc, rows }: { title: string; label: string; doc: 'invoice' | 'po'; rows: TxRow[] }) {
+function AutoTable({ title, label, doc, period, rows }: { title: string; label: string; doc: 'invoice' | 'po'; period: string; rows: TxRow[] }) {
   const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [openKey, setOpenKey] = useState<string | null>(null)
   const docLabel = doc === 'invoice' ? 'Invoice' : 'PO'
-  const download = async (row: TxRow) => {
-    const ids = (row.ids as string[] | undefined) ?? []
+  const download = async (row: TxRow, week: number | null) => {
+    const ids = week == null ? ((row.ids as string[] | undefined) ?? [])
+      : ((row.idsByWeek as Record<number, string[]> | undefined)?.[week] ?? [])
     if (!ids.length) return
+    setOpenKey(null)
     setBusyKey(row.key)
     try {
       const res = await api.post(`${INV}/documents/transactions-pdf`, { kind: doc, source_ids: ids }, { responseType: 'blob' })
-      triggerBlobDownload(res.data, `${docLabel}-${(row.uraian ?? '').replace(/[^\w-]+/g, '_')}.pdf`)
+      const suffix = week == null ? period : `${period}-minggu${week}`
+      triggerBlobDownload(res.data, `${docLabel}-${(row.uraian ?? '').replace(/[^\w-]+/g, '_')}-${suffix}.pdf`)
     } catch (e) {
       notify(getApiError(e), { type: 'error' })
     } finally {
@@ -215,10 +221,23 @@ function AutoTable({ title, label, doc, rows }: { title: string; label: string; 
               <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">{row.jumlah == null ? '' : fmtNumber(row.jumlah)}</TableCell>
               <TableCell className="text-center">
                 {row.uraian && row.uraian !== '-' ? (
-                  <Button type="button" size="sm" variant="outline" disabled={busyKey !== null}
-                    title={`Unduh ${docLabel} ${row.uraian}`} onClick={() => void download(row)}>
-                    <Download size={14} />Tagihan
-                  </Button>
+                  <Popover open={openKey === row.key} onOpenChange={(o) => setOpenKey(o ? row.key : null)}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" size="sm" variant="outline" disabled={busyKey !== null} title={`Unduh ${docLabel} ${row.uraian}`}>
+                        <Download size={14} />Unduh PDF
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-auto p-1">
+                      <div className="flex flex-col" role="menu" aria-label={`Periode ${docLabel}`}>
+                        {WEEKS.filter((w) => (row.idsByWeek as Record<number, string[]> | undefined)?.[w]?.length).map((w) => (
+                          <Button key={w} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                            onClick={() => void download(row, w)}>{tradeWeekLabel(period, w)}</Button>
+                        ))}
+                        <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                          onClick={() => void download(row, null)}>Semua minggu</Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 ) : <EmptyCellDash />}
               </TableCell>
             </TableRow>
