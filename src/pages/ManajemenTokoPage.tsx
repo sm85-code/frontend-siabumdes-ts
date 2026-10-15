@@ -248,6 +248,8 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
+/** Piutang Lainnya tetap (dipinjamkan dari kas). */
+const PIUTANG_LAINNYA = 9_200_000
 type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string }
 type NeracaResp = { modal: string; positions: NeracaPos[] }
 
@@ -280,11 +282,12 @@ function Neraca({ period }: { period: string }) {
   const [prev, ...pos] = q.data.positions
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
-  const kas = blank(), stokV = blank(), piutang = blank(), utang = blank(), lalu = blank(), lr = blank()
+  const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank()
   const labaLalu = parseMoney(prev.laba)
   keys.forEach((k, i) => {
     const p = pos[i]
-    kas[k] = parseMoney(p.kas)
+    kas[k] = parseMoney(p.kas) - PIUTANG_LAINNYA
+    piutangLain[k] = PIUTANG_LAINNYA
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
     utang[k] = parseMoney(p.utang)
@@ -292,11 +295,11 @@ function Neraca({ period }: { period: string }) {
     lr[k] = parseMoney(p.laba) - labaLalu
   })
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
-  for (const v of [kas, stokV, piutang, utang, lalu, lr]) v.jumlah = v.w5
+  for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr]) v.jumlah = v.w5
   const modal: WeekVals = { w1: MODAL_BUMDES, w2: MODAL_BUMDES, w3: MODAL_BUMDES, w4: MODAL_BUMDES, w5: MODAL_BUMDES, jumlah: MODAL_BUMDES }
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const sum = (...vs: WeekVals[]): WeekVals => Object.fromEntries(all.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
-  const totalAset = sum(kas, stokV, piutang)
+  const totalAset = sum(kas, stokV, piutang, piutangLain)
   const totalUtang = sum(utang)
   const totalEkuitas = sum(modal, lalu, lr)
   const totalPasiva = sum(totalUtang, totalEkuitas)
@@ -306,7 +309,7 @@ function Neraca({ period }: { period: string }) {
     { no: 1, label: 'Kas / Bank', v: kas },
     { no: 2, label: 'Stok Barang', v: stokV },
     { no: 3, label: 'Piutang Penjualan', v: piutang },
-    { no: 4, label: 'Piutang Lainnya' },
+    { no: 4, label: 'Piutang Lainnya', v: piutangLain },
     { label: 'TOTAL ASET', v: totalAset, kind: 'total' },
     { label: 'KEWAJIBAN/UTANG', kind: 'head' },
     { no: 5, label: 'Utang Usaha', v: utang },
