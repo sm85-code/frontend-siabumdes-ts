@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
 import { triggerBlobDownload } from '@/api/transactions'
@@ -183,15 +183,16 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   const totalIn = add(add(saldo, jual), lain)
   const umum = txTotals(p1Out)
   const hpp: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
+  const internal: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
   for (const mv of cogs.data ?? []) {
-    if (mv.movement_kind && mv.movement_kind !== 'sale') continue
     const w = mv.movement_date ? tradeWeek(period, new Date(`${String(mv.movement_date).slice(0, 10)}T00:00:00`)) : null
     if (!w) continue
     const v = parseMoney(String(mv.total_value ?? 0))
-    hpp[`w${w}` as 'w1'] += v
-    hpp.jumlah += v
+    const target = mv.movement_kind && mv.movement_kind !== 'sale' ? internal : hpp
+    target[`w${w}` as 'w1'] += v
+    target.jumlah += v
   }
-  const totalOut = add(umum, hpp)
+  const totalOut = add(add(umum, hpp), internal)
   const laba = sub(totalIn, totalOut)
   type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
@@ -201,6 +202,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PEMASUKAN', v: totalIn, strong: true },
     { no: 4, label: 'Pengeluaran Umum', v: umum },
     { no: 5, label: 'Pengeluaran HPP Penjualan Barang', v: hpp },
+    { no: 6, label: 'Pengeluaran Pemakaian Internal', v: internal },
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
@@ -241,13 +243,13 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <Neraca period={period} saldo={saldo} laba={laba} />
+      <Neraca period={period} />
     </div>
   )
 }
 
-const MODAL_BUMDES = 30_000_000
-type SisaResp = { reguler: { value: string | number }[]; modal_awal: { value: string | number }[] }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string }
+type NeracaResp = { modal: string; positions: NeracaPos[] }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
 function weekEnd(period: string, w: number): string {
@@ -257,59 +259,61 @@ function weekEnd(period: string, w: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function Neraca({ period, saldo, laba }: { period: string; saldo: WeekVals; laba: WeekVals }) {
+function Neraca({ period }: { period: string }) {
   const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
-  const modalIn = useQuery({
-    queryKey: ['toko', 'modal-awal-in'],
-    queryFn: async () => (await api.get<InventoryMovement[]>(`${INV}/movements`, { params: { direction: 'in', limit: 2000 } })).data,
+  // Akhir periode lalu = sehari sebelum Senin Minggu ke-1.
+  const lastPrev = useMemo(() => {
+    const [y, m] = period.split('-').map(Number)
+    const d = new Date(y, m - 1, 1)
+    d.setDate(((8 - d.getDay()) % 7))
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }, [period])
+  const q = useQuery({
+    queryKey: ['toko', 'neraca', lastPrev, ends],
+    queryFn: async () => (await api.get<NeracaResp>('/v1/toko/neraca', {
+      params: { dates: [lastPrev, ...ends] }, paramsSerializer: { indexes: null },
+    })).data,
   })
-  const stok = useQueries({
-    queries: ends.map((end) => ({
-      queryKey: ['toko', 'sisa', end],
-      queryFn: async () => (await api.get<SisaResp>(`${INV}/reports/remaining-by-source`, { params: { as_of: end } })).data,
-    })),
-  })
-  const err = modalIn.error || stok.find((q) => q.error)?.error
-  if (err) return <p role="alert">{getApiError(err)}</p>
-  if (modalIn.isLoading || stok.some((q) => q.isLoading)) return <Spinner label="Memuat neraca..." />
+  if (q.error) return <p role="alert">{getApiError(q.error)}</p>
+  if (q.isLoading || !q.data) return <Spinner label="Memuat neraca..." />
+  const MODAL_BUMDES = parseMoney(q.data.modal)
+  const [prev, ...pos] = q.data.positions
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
-  const kas = blank(), stokV = blank(), lr = blank()
-  let cumSaldo = 0, cumLaba = 0
+  const kas = blank(), stokV = blank(), piutang = blank(), utang = blank(), lalu = blank(), lr = blank()
+  const labaLalu = parseMoney(prev.laba)
   keys.forEach((k, i) => {
-    cumSaldo += saldo[k]
-    cumLaba += laba[k]
-    const belanjaModal = (modalIn.data ?? [])
-      .filter((m) => m.payment_method === 'modal_awal' && String(m.movement_date ?? '').slice(0, 10) <= ends[i])
-      .reduce((t, m) => t + parseMoney(String(m.total_value ?? 0)), 0)
-    kas[k] = MODAL_BUMDES - belanjaModal + cumSaldo
-    const r = stok[i].data
-    stokV[k] = r ? [...r.reguler, ...r.modal_awal].reduce((t, x) => t + parseMoney(String(x.value)), 0) : 0
-    lr[k] = cumLaba
+    const p = pos[i]
+    kas[k] = parseMoney(p.kas)
+    stokV[k] = parseMoney(p.stok)
+    piutang[k] = parseMoney(p.piutang)
+    utang[k] = parseMoney(p.utang)
+    lalu[k] = labaLalu
+    lr[k] = parseMoney(p.laba) - labaLalu
   })
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
-  for (const v of [kas, stokV, lr]) v.jumlah = v.w5
+  for (const v of [kas, stokV, piutang, utang, lalu, lr]) v.jumlah = v.w5
   const modal: WeekVals = { w1: MODAL_BUMDES, w2: MODAL_BUMDES, w3: MODAL_BUMDES, w4: MODAL_BUMDES, w5: MODAL_BUMDES, jumlah: MODAL_BUMDES }
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const sum = (...vs: WeekVals[]): WeekVals => Object.fromEntries(all.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
-  const totalAset = sum(kas, stokV)
-  const totalUtang = blank()
-  const totalEkuitas = sum(modal, lr)
+  const totalAset = sum(kas, stokV, piutang)
+  const totalUtang = sum(utang)
+  const totalEkuitas = sum(modal, lalu, lr)
   const totalPasiva = sum(totalUtang, totalEkuitas)
   type Line = { no?: number; label: string; v?: WeekVals; kind?: 'head' | 'total' }
   const lines: Line[] = [
     { label: 'ASET', kind: 'head' },
     { no: 1, label: 'Kas / Bank', v: kas },
     { no: 2, label: 'Stok Barang', v: stokV },
-    { no: 3, label: 'Piutang Penjualan' },
+    { no: 3, label: 'Piutang Penjualan', v: piutang },
     { no: 4, label: 'Piutang Lainnya' },
     { label: 'TOTAL ASET', v: totalAset, kind: 'total' },
     { label: 'KEWAJIBAN/UTANG', kind: 'head' },
-    { no: 5, label: 'Utang Usaha' },
+    { no: 5, label: 'Utang Usaha', v: utang },
     { label: 'TOTAL KEWAJIBAN/UTANG', v: totalUtang, kind: 'total' },
     { label: 'EKUITAS', kind: 'head' },
     { no: 6, label: 'Modal BUMDes', v: modal },
-    { no: 7, label: 'Laba/Rugi Periode Lalu' },
+    { no: 7, label: 'Laba/Rugi Periode Lalu', v: lalu },
     { no: 8, label: 'Laba/Rugi Periode Berjalan', v: lr },
     { label: 'TOTAL EKUITAS', v: totalEkuitas, kind: 'total' },
   ]
@@ -319,7 +323,7 @@ function Neraca({ period, saldo, laba }: { period: string; saldo: WeekVals; laba
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <h2 className="font-heading text-lg font-semibold">Neraca</h2>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir. Modal BUMDes Rp 30.000.000.</HelpHint>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
