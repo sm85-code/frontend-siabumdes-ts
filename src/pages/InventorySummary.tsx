@@ -200,6 +200,54 @@ function SisaTable({ title, hint, rows, empty, testId }: { title: string; hint: 
   )
 }
 
+const LOW_STOCK = 5
+
+function LowStockTable({ products }: { products: InventoryProduct[] }) {
+  const data = useMemo(() => products
+    .map((p) => ({ id: p.id, sku: p.sku || '-', name: p.name || '-', qty: num(p.qty_on_hand), unit: p.unit_of_measure || '' }))
+    .filter((r) => r.qty <= LOW_STOCK), [products])
+  const { sorted, headerProps, sortIndicator } = useSort(data, 'qty', 'asc')
+  const head = (k: string, label: string, numeric = false) => (
+    <TableHead {...headerProps(k)} className={`cursor-pointer select-none whitespace-nowrap${numeric ? ' num' : ''}`}>{label}{sortIndicator(k)}</TableHead>
+  )
+  return (
+    <Card className="overflow-hidden p-0" data-testid="stok-tipis">
+      <div className="p-4 pb-2">
+        <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">Stok Tipis<HelpHint>SKU dengan stok ≤ {LOW_STOCK} saat ini (tidak ikut filter bulan).</HelpHint></h3>
+        <p className="font-heading mt-1 text-xl font-bold tabular-nums" data-testid="stok-tipis-total">{data.length} SKU</p>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        <TableShell minWidth={520}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>No.</TableHead>
+                {head('sku', 'SKU')}
+                {head('name', 'Nama Produk')}
+                {head('qty', 'Stok', true)}
+                {head('unit', 'Satuan')}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>Tidak ada stok tipis.</TableCell></TableRow>
+              ) : sorted.map((r, i) => (
+                <TableRow key={r.id}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{r.sku}</TableCell>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className={`num ${r.qty === 0 ? 'text-destructive' : ''}`}>{r.qty.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>{r.unit}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableShell>
+      </div>
+    </Card>
+  )
+}
+
 interface InventorySummaryProps {
   products?: InventoryProduct[]
   movements?: InventoryMovement[]
@@ -228,7 +276,7 @@ export default function InventorySummary({
   )
 
   const lowStockCount = useMemo(
-    () => products.filter((p) => Number(p.qty_on_hand || 0) <= 5).length,
+    () => products.filter((p) => Number(p.qty_on_hand || 0) <= LOW_STOCK).length,
     [products],
   )
 
@@ -260,8 +308,21 @@ export default function InventorySummary({
       .catch(() => { if (alive) setSisa({ reguler: [], modal_awal: [] }) })
     return () => { alive = false }
   }, [range, products, movements])
-  const list = useMemo(() => moves ?? [], [moves])
-  const rekapModal = useMemo(() => rekapBy(list, 'in', isModalAwal), [list])
+  // Pengaman: pastikan hanya mutasi bertanggal (movement_date) di bulan terpilih.
+  const list = useMemo(() => (moves ?? []).filter((m) => {
+    const d = String(m.movement_date ?? '').slice(0, 10)
+    return d >= range.date_from && d <= range.date_to
+  }), [moves, range])
+  // Rekap Belanja Modal Awal: selalu seluruh riwayat (tidak ikut filter bulan).
+  const [allIn, setAllIn] = useState<InventoryMovement[]>([])
+  useEffect(() => {
+    let alive = true
+    api.get('/v1/uu05_inventory/movements', { params: { direction: 'in', limit: 2000 } })
+      .then((r) => { if (alive) setAllIn(Array.isArray(r.data) ? r.data : []) })
+      .catch(() => { if (alive) setAllIn([]) })
+    return () => { alive = false }
+  }, [products, movements])
+  const rekapModal = useMemo(() => rekapBy(allIn, 'in', isModalAwal), [allIn])
   const rekapReguler = useMemo(() => rekapBy(list, 'in', (m) => !isModalAwal(m)), [list])
   const rekapOut = useMemo(() => rekapBy(list, 'out'), [list])
   const rep = report ?? movementReport
@@ -274,7 +335,7 @@ export default function InventorySummary({
         <label htmlFor="ringkasan-bulan" className="text-sm font-medium">Bulan</label>
         <Input id="ringkasan-bulan" type="month" className="w-44" value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)} />
-        <HelpHint label="Tentang filter bulan">Kartu Stock in/out dan tabel Rekap mengikuti tanggal transaksi di bulan ini. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
+        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
       </div>
       <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:gap-3" data-testid="inventory-stats">
         <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
@@ -318,7 +379,7 @@ export default function InventorySummary({
         />
         <RekapTable
           title="Rekap Belanja Modal Awal"
-          hint="Riwayat barang masuk yang dibeli dari modal awal, per SKU."
+          hint="Seluruh riwayat barang masuk dari modal awal per SKU (tidak ikut filter bulan)."
           rows={rekapModal}
           empty="Belum ada belanja modal awal."
           testId="rekap-modal-awal"
@@ -339,6 +400,7 @@ export default function InventorySummary({
         empty="Belum ada stock out."
         testId="rekap-stock-out"
       />
+      <LowStockTable products={products} />
     </div>
   )
 }
