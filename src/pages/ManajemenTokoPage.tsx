@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
 import { triggerBlobDownload } from '@/api/transactions'
@@ -239,6 +239,124 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           {keys.map((k) => (
             <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${laba[k] < 0 ? ' text-destructive' : ''}`}>{money(laba[k])}</TableCell>
           ))}
+        </TableRow></tfoot>
+      </Table></TableShell></Card>
+      <Neraca period={period} saldo={saldo} laba={laba} />
+    </div>
+  )
+}
+
+const MODAL_BUMDES = 30_000_000
+type SisaResp = { reguler: { value: string | number }[]; modal_awal: { value: string | number }[] }
+
+/** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
+function weekEnd(period: string, w: number): string {
+  const [y, m] = period.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  d.setDate(1 + ((8 - d.getDay()) % 7) + (w - 1) * 7 + 6)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function Neraca({ period, saldo, laba }: { period: string; saldo: WeekVals; laba: WeekVals }) {
+  const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
+  const modalIn = useQuery({
+    queryKey: ['toko', 'modal-awal-in'],
+    queryFn: async () => (await api.get<InventoryMovement[]>(`${INV}/movements`, { params: { direction: 'in', limit: 2000 } })).data,
+  })
+  const stok = useQueries({
+    queries: ends.map((end) => ({
+      queryKey: ['toko', 'sisa', end],
+      queryFn: async () => (await api.get<SisaResp>(`${INV}/reports/remaining-by-source`, { params: { as_of: end } })).data,
+    })),
+  })
+  const err = modalIn.error || stok.find((q) => q.error)?.error
+  if (err) return <p role="alert">{getApiError(err)}</p>
+  if (modalIn.isLoading || stok.some((q) => q.isLoading)) return <Spinner label="Memuat neraca..." />
+  const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
+  const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
+  const kas = blank(), stokV = blank(), lr = blank()
+  let cumSaldo = 0, cumLaba = 0
+  keys.forEach((k, i) => {
+    cumSaldo += saldo[k]
+    cumLaba += laba[k]
+    const belanjaModal = (modalIn.data ?? [])
+      .filter((m) => m.payment_method === 'modal_awal' && String(m.movement_date ?? '').slice(0, 10) <= ends[i])
+      .reduce((t, m) => t + parseMoney(String(m.total_value ?? 0)), 0)
+    kas[k] = MODAL_BUMDES - belanjaModal + cumSaldo
+    const r = stok[i].data
+    stokV[k] = r ? [...r.reguler, ...r.modal_awal].reduce((t, x) => t + parseMoney(String(x.value)), 0) : 0
+    lr[k] = cumLaba
+  })
+  // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
+  for (const v of [kas, stokV, lr]) v.jumlah = v.w5
+  const modal: WeekVals = { w1: MODAL_BUMDES, w2: MODAL_BUMDES, w3: MODAL_BUMDES, w4: MODAL_BUMDES, w5: MODAL_BUMDES, jumlah: MODAL_BUMDES }
+  const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
+  const sum = (...vs: WeekVals[]): WeekVals => Object.fromEntries(all.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
+  const totalAset = sum(kas, stokV)
+  const totalUtang = blank()
+  const totalEkuitas = sum(modal, lr)
+  const totalPasiva = sum(totalUtang, totalEkuitas)
+  type Line = { no?: number; label: string; v?: WeekVals; kind?: 'head' | 'total' }
+  const lines: Line[] = [
+    { label: 'ASET', kind: 'head' },
+    { no: 1, label: 'Kas / Bank', v: kas },
+    { no: 2, label: 'Stok Barang', v: stokV },
+    { no: 3, label: 'Piutang Penjualan' },
+    { no: 4, label: 'Piutang Lainnya' },
+    { label: 'TOTAL ASET', v: totalAset, kind: 'total' },
+    { label: 'KEWAJIBAN/UTANG', kind: 'head' },
+    { no: 5, label: 'Utang Usaha' },
+    { label: 'TOTAL KEWAJIBAN/UTANG', v: totalUtang, kind: 'total' },
+    { label: 'EKUITAS', kind: 'head' },
+    { no: 6, label: 'Modal BUMDes', v: modal },
+    { no: 7, label: 'Laba/Rugi Periode Lalu' },
+    { no: 8, label: 'Laba/Rugi Periode Berjalan', v: lr },
+    { label: 'TOTAL EKUITAS', v: totalEkuitas, kind: 'total' },
+  ]
+  const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
+  const cell = (n: number) => <span className={n < 0 ? 'text-destructive' : undefined}>{money(n)}</span>
+  return (
+    <div className="space-y-2 pt-4">
+      <div className="flex items-center gap-1">
+        <h2 className="font-heading text-lg font-semibold">Neraca</h2>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir. Modal BUMDes Rp 30.000.000.</HelpHint>
+      </div>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+        </colgroup>
+        <TableHeader className={headerClass}><TableRow>
+          <TableHead>No.</TableHead>
+          <TableHead>Uraian</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowrap">Jumlah</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {lines.map((l) => (
+            <TableRow key={l.label} className={l.kind === 'total' ? 'border-t bg-muted/50 font-semibold' : l.kind === 'head' ? 'font-semibold' : undefined}>
+              <TableCell>{l.no ?? ''}</TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words lg:truncate lg:whitespace-nowrap" title={l.label}>{l.label}</TableCell>
+              {all.map((k) => (
+                <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">
+                  {l.kind === 'head' ? '' : l.v ? cell(l.v[k]) : <EmptyCellDash />}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2} className="whitespace-normal break-words">TOTAL KEWAJIBAN/UTANG + EKUITAS</TableCell>
+          {all.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{cell(totalPasiva[k])}</TableCell>)}
+        </TableRow>
+        <TableRow className="border-0 bg-card font-normal hover:bg-card">
+          <TableCell colSpan={2} className="text-sm">Cek Selisih Neraca =</TableCell>
+          {all.map((k) => {
+            const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
+            return <TableCell key={k} className={`text-right text-sm whitespace-nowrap ${ok ? '' : 'font-semibold text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
+          })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
     </div>
