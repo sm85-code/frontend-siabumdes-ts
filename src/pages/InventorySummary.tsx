@@ -200,6 +200,54 @@ function SisaTable({ title, hint, rows, empty, testId }: { title: string; hint: 
   )
 }
 
+const LOW_STOCK = 5
+
+function LowStockTable({ products }: { products: InventoryProduct[] }) {
+  const data = useMemo(() => products
+    .map((p) => ({ id: p.id, sku: p.sku || '-', name: p.name || '-', qty: num(p.qty_on_hand), unit: p.unit_of_measure || '' }))
+    .filter((r) => r.qty <= LOW_STOCK), [products])
+  const { sorted, headerProps, sortIndicator } = useSort(data, 'qty', 'asc')
+  const head = (k: string, label: string, numeric = false) => (
+    <TableHead {...headerProps(k)} className={`cursor-pointer select-none whitespace-nowrap${numeric ? ' num' : ''}`}>{label}{sortIndicator(k)}</TableHead>
+  )
+  return (
+    <Card className="overflow-hidden p-0" data-testid="stok-tipis">
+      <div className="p-4 pb-2">
+        <h3 className="font-heading flex items-center gap-1 text-lg font-semibold">Stok Tipis<HelpHint>SKU dengan stok ≤ {LOW_STOCK} saat ini (tidak ikut filter bulan).</HelpHint></h3>
+        <p className="font-heading mt-1 text-xl font-bold tabular-nums" data-testid="stok-tipis-total">{data.length} SKU</p>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        <TableShell minWidth={520}>
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow>
+                <TableHead>No.</TableHead>
+                {head('sku', 'SKU')}
+                {head('name', 'Nama Produk')}
+                {head('qty', 'Stok', true)}
+                {head('unit', 'Satuan')}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>Tidak ada stok tipis.</TableCell></TableRow>
+              ) : sorted.map((r, i) => (
+                <TableRow key={r.id}>
+                  <TableCell>{i + 1}</TableCell>
+                  <TableCell className="font-medium whitespace-nowrap">{r.sku}</TableCell>
+                  <TableCell>{r.name}</TableCell>
+                  <TableCell className={`num ${r.qty === 0 ? 'text-destructive' : ''}`}>{r.qty.toLocaleString('id-ID')}</TableCell>
+                  <TableCell>{r.unit}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableShell>
+      </div>
+    </Card>
+  )
+}
+
 interface InventorySummaryProps {
   products?: InventoryProduct[]
   movements?: InventoryMovement[]
@@ -228,7 +276,7 @@ export default function InventorySummary({
   )
 
   const lowStockCount = useMemo(
-    () => products.filter((p) => Number(p.qty_on_hand || 0) <= 5).length,
+    () => products.filter((p) => Number(p.qty_on_hand || 0) <= LOW_STOCK).length,
     [products],
   )
 
@@ -352,6 +400,7 @@ export default function InventorySummary({
         empty="Belum ada stock out."
         testId="rekap-stock-out"
       />
+      <LowStockTable products={products} />
     </div>
   )
 }
