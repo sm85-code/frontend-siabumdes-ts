@@ -254,8 +254,8 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
 
 /** Piutang Lainnya tetap (dipinjamkan dari kas). */
 const PIUTANG_LAINNYA = 9_200_000
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string }
-type NeracaResp = { modal: string; positions: NeracaPos[] }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya?: string }
+type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[] }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
 function weekEnd(period: string, w: number): string {
@@ -307,13 +307,17 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
   const labaLalu = parseMoney(prev.laba)
   keys.forEach((k, i) => {
     const p = pos[i]
-    kas[k] = parseMoney(p.kas) - PIUTANG_LAINNYA
-    piutangLain[k] = PIUTANG_LAINNYA
+    // Setelah saldo awal (opening_date), backend mengirim kas riil & piutang_lainnya.
+    const awal = p.piutang_lainnya != null
+    kas[k] = parseMoney(p.kas) - (awal ? 0 : PIUTANG_LAINNYA)
+    piutangLain[k] = awal ? parseMoney(p.piutang_lainnya!) : PIUTANG_LAINNYA
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
     utang[k] = parseMoney(p.utang)
-    lalu[k] = labaLalu
-    lr[k] = parseMoney(p.laba) - labaLalu
+    // Laba setelah saldo awal dihitung sejak 1 Okt 2026 (laba sebelumnya sudah dibagi).
+    const l = awal && prev.piutang_lainnya == null ? 0 : labaLalu
+    lalu[k] = l
+    lr[k] = parseMoney(p.laba) - l
   })
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
   for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr]) v.jumlah = v[lastKey]
