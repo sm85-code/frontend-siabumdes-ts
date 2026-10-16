@@ -120,7 +120,74 @@ export default function TxTable({
           {total} transaksi · halaman {page}/{pageCount}
         </p>
       </CardHeader>
-      <TableShell minWidth={720} label="Daftar transaksi keuangan">
+      {/* Mobile (<640px): kartu per transaksi — tanggal + jumlah satu baris, keterangan, lalu akun. */}
+      <div className="divide-y sm:hidden" data-testid="tx-cards">
+        {loading ? (
+          <div className="py-6"><Spinner className="justify-center" /></div>
+        ) : sorted.length === 0 ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">
+            Belum ada transaksi <b>{activeGroup}</b> pada <b>{periodLabel}</b>.
+          </div>
+        ) : (
+          sorted.map((t) => {
+            const proofs = t.proofs || []
+            const label = inventoryLabels[t.reference]
+            return (
+              <div key={t.id} className="space-y-1 p-3" data-testid={`tx-card-${t.id}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {canBulkDelete && (
+                      <Checkbox
+                        disabled={isManagedAutomatic(t.reference)}
+                        checked={selected.has(t.id)}
+                        onCheckedChange={() => toggleSel(t.id)}
+                      />
+                    )}
+                    <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{fmtDate(t.date)}</span>
+                    {activeGroup !== 'BUMDES' && <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>}
+                  </div>
+                  <span className="whitespace-nowrap font-semibold tabular-nums">{fmtRp(t.amount)}</span>
+                </div>
+                <div className="break-words text-sm">
+                  {label?.description || t.description}
+                  {label?.document_id && <Link className="ml-1 text-xs text-primary underline" to={`/inventory?document=${label.document_id}`}>{label.document_number}</Link>}
+                </div>
+                <div className="break-words text-xs text-muted-foreground">
+                  <span className="font-medium">D:</span> {accName(t.debit_account_code)} · <span className="font-medium">K:</span> {accName(t.credit_account_code)}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+                  {proofs.map((p) => (
+                    <a key={p.file_id} href={p.url || '#'} target="_blank" rel="noreferrer" className="flex max-w-[160px] items-center gap-1 truncate text-primary underline" title={p.file_name}>
+                      <Link2 className="size-3.5" /> {p.file_name}
+                    </a>
+                  ))}
+                  {canManageProofs(t) && proofs.length < 3 && (
+                    <button type="button" onClick={() => onUploadProof(t)} className="flex items-center gap-1 text-muted-foreground">
+                      <Paperclip className="size-3.5" /> {proofs.length ? 'Tambah' : 'Upload'}
+                    </button>
+                  )}
+                  {canWrite && (
+                    <div className="ml-auto flex gap-1">
+                      {canEditRow(t) && (
+                        <Button onClick={() => onEdit(t)} aria-label="Ubah transaksi" variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                          <Pencil className="size-4" />
+                        </Button>
+                      )}
+                      {!isManagedAutomatic(t.reference) && can(user, 'admin', 'direktur', 'bendahara') && (
+                        <Button onClick={() => onDelete(t.id)} aria-label="Hapus transaksi" variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+      <div className="hidden sm:block">
+      <TableShell minWidth={900} label="Daftar transaksi keuangan">
         <Table data-testid="tx-table">
           <TableHeader>
             <TableRow>
@@ -136,22 +203,22 @@ export default function TxTable({
                   />
                 </TableHead>
               )}
-              <TableHead {...sortState.headerProps('date')}>
+              <TableHead {...sortState.headerProps('date')} className={`whitespace-nowrap ${sortState.headerProps('date').className}`}>
                 Tanggal{sortState.sortIndicator('date')}
               </TableHead>
               {activeGroup !== 'BUMDES' && <TableHead>Unit</TableHead>}
               <TableHead {...sortState.headerProps('description')} className={`min-w-48 sm:min-w-56 ${sortState.headerProps('description').className ?? ''}`}>
                 Keterangan{sortState.sortIndicator('description')}
               </TableHead>
-              <TableHead {...sortState.headerProps('debit_account_code')}>
+              <TableHead {...sortState.headerProps('debit_account_code')} className={`min-w-36 ${sortState.headerProps('debit_account_code').className}`}>
                 Debit{sortState.sortIndicator('debit_account_code')}
               </TableHead>
-              <TableHead {...sortState.headerProps('credit_account_code')}>
+              <TableHead {...sortState.headerProps('credit_account_code')} className={`min-w-36 ${sortState.headerProps('credit_account_code').className}`}>
                 Kredit{sortState.sortIndicator('credit_account_code')}
               </TableHead>
               <TableHead
                 {...sortState.headerProps('amount')}
-                className={`text-right ${sortState.headerProps('amount').className}`}
+                className={`whitespace-nowrap text-right ${sortState.headerProps('amount').className}`}
               >
                 Jumlah{sortState.sortIndicator('amount')}
               </TableHead>
@@ -192,7 +259,7 @@ export default function TxTable({
                         />
                       </TableCell>
                     )}
-                    <TableCell>{fmtDate(t.date)}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{fmtDate(t.date)}</TableCell>
                     {activeGroup !== 'BUMDES' && (
                       <TableCell>
                         <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>
@@ -202,9 +269,9 @@ export default function TxTable({
                       {inventoryLabels[t.reference]?.description || t.description}
                       {inventoryLabels[t.reference]?.document_id && <Link className="mt-1 block text-xs text-primary underline" to={`/inventory?document=${inventoryLabels[t.reference].document_id}`}>{inventoryLabels[t.reference].document_number}</Link>}
                     </TableCell>
-                    <TableCell className="text-xs">{accName(t.debit_account_code)}</TableCell>
-                    <TableCell className="text-xs">{accName(t.credit_account_code)}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.debit_account_code)}</TableCell>
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.credit_account_code)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">
                       {fmtRp(t.amount)}
                     </TableCell>
                     <TableCell>
@@ -303,6 +370,7 @@ export default function TxTable({
           </TableBody>
         </Table>
       </TableShell>
+      </div>
       {total > limit && (
         <div className="flex items-center justify-between gap-2 border-t p-3">
           <Button
