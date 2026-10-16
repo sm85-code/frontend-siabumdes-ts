@@ -31,6 +31,7 @@ import { useAuth } from '@/lib/auth'
 import { notify } from '@/lib/feedback'
 import { cn } from '@/lib/utils'
 import type { Account, LedgerData, PeriodValue } from '@/types'
+import PageHeader from '@/components/typography/PageHeader'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -154,9 +155,7 @@ export default function LedgerPage() {
     <div className="space-y-6" data-testid="ledger-page">
       <div>
         <p className="label mb-1">GENERAL LEDGER</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl flex items-center gap-2">
-          <BookOpen className="size-7" style={{ color: 'var(--primary-dark)' }} /> Buku Besar per Akun
-        </h1>
+        <PageHeader icon={<BookOpen className="size-7" style={{ color: 'var(--primary-dark)' }} />} title="Buku Besar per Akun" />
       </div>
 
       <Card className="grid grid-cols-1 items-start gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3" data-testid="ledger-filters">
@@ -290,11 +289,11 @@ export default function LedgerPage() {
                     <TableRow key={e.id || `${e.date}-${e.description}-${e.balance}`}>
                       <TableCell>{fmtDate(e.date)}</TableCell>
                       <TableCell className="max-w-xs">{e.description}</TableCell>
-                      <TableCell className="text-xs">
+                      <TableCell className="">
                         <div className="font-mono">{e.other_account_code}</div>
                         <div style={{ color: 'var(--text-muted)' }}>{e.other_account_name}</div>
                       </TableCell>
-                      <TableCell className="text-xs">{e.reference || '-'}</TableCell>
+                      <TableCell className="">{e.reference || '-'}</TableCell>
                       <TableCell className="num">{e.debit ? fmtRp(e.debit) : '-'}</TableCell>
                       <TableCell className="num">{e.credit ? fmtRp(e.credit) : '-'}</TableCell>
                       <TableCell className="num font-semibold tabular-nums">{fmtRp(e.balance)}</TableCell>

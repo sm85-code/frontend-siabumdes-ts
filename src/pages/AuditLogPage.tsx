@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ROLE_LABELS } from '@/config/roles'
+import PageHeader from '@/components/typography/PageHeader'
 
 const ACTION_LABELS: Record<string, string> = {
   login_success: 'Login berhasil',
@@ -83,7 +84,7 @@ export default function AuditLogPage() {
     <div className="space-y-6" data-testid="audit-log-page">
       <div>
         <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Audit Log</h1>
+        <PageHeader title={<>Audit Log</>} />
       </div>
       <Card className="overflow-hidden p-0">
         {loading ? (
@@ -110,7 +111,7 @@ export default function AuditLogPage() {
               <TableBody>
                 {rows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
+                    <TableCell className="whitespace-nowrap">
                       {fmtDateTime(row.created_at)}
                     </TableCell>
                     <TableCell>
@@ -124,8 +125,8 @@ export default function AuditLogPage() {
                         {ACTION_LABELS[row.action] || row.action}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{row.detail || '-'}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{row.ip}</TableCell>
+                    <TableCell className="">{row.detail || '-'}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.ip}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

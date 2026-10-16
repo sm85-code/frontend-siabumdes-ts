@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth'
+import PageHeader from '@/components/typography/PageHeader'
 
 export default function ProfilePage() {
   const { user, changePassword, refreshUser } = useAuth()
@@ -72,7 +73,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Profil Saya</h1>
+        <PageHeader title={<>Profil Saya</>} />
       </div>
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-error">{error}</div>}
@@ -103,7 +104,7 @@ export default function ProfilePage() {
                   data-testid="profile-photo-input"
                 />
               </Label>
-              <p className="mt-1 text-xs text-muted-foreground">PNG/JPG/WebP, maksimal 2 MB.</p>
+              <p className="help-text mt-1">PNG/JPG/WebP, maksimal 2 MB.</p>
             </div>
           </div>
         </CardContent>

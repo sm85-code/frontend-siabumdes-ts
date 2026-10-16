@@ -1,5 +1,4 @@
 import FormDialog from '@/components/FormDialog'
-import HelpHint from '@/components/HelpHint'
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useForm, Controller } from "react-hook-form";
@@ -21,6 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Account, TransactionType, UnitUsaha } from "@/types";
 import { accountFormSchema, type AccountFormValues } from "@/schemas/accounts";
+import PageHeader from '@/components/typography/PageHeader'
+import SectionTitle from '@/components/typography/SectionTitle'
 
 const CAT_LABELS: Record<string, string> = {
   aset: "Aset", kewajiban: "Kewajiban", ekuitas: "Ekuitas",
@@ -301,7 +302,7 @@ export default function COAPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Chart of Accounts</p>
-          <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kode Akun & Jenis Transaksi</h1><HelpHint label="Tentang Kode Akun"><p>Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.</p></HelpHint></div>
+          <PageHeader title={<>Kode Akun & Jenis Transaksi</>} hintLabel="Tentang Kode Akun" hint={<><p>Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.</p></>} />
         </div>
       </div>
 
@@ -339,7 +340,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-2">
         <div>
-          <h2 className="section-title">Kode Akun — {groupLabel}</h2>
+          <SectionTitle>Kode Akun — {groupLabel}</SectionTitle>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedAccounts.length} akun aktif pada kelompok <b>{group}</b>.
           </p>
@@ -531,7 +532,7 @@ export default function COAPage() {
                 <TableCell className="font-mono font-semibold">{a.code}</TableCell>
                 <TableCell>{a.name}</TableCell>
                 <TableCell>{(a.category && CAT_LABELS[a.category]) ? <Badge>{CAT_LABELS[a.category]}</Badge> : <Badge variant="secondary">{a.category}</Badge>}</TableCell>
-                <TableCell className="text-xs">{a.subcategory}</TableCell>
+                <TableCell className="">{a.subcategory}</TableCell>
                 <TableCell>{a.normal_balance === "debit"
                   ? <Badge variant="outline">Debit</Badge>
                   : <Badge variant="secondary">Kredit</Badge>}</TableCell>
@@ -568,7 +569,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-4">
         <div>
-          <h2 className="section-title">Jenis Transaksi — {groupLabel}</h2>
+          <SectionTitle>Jenis Transaksi — {groupLabel}</SectionTitle>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedTypes.length} jenis transaksi pada kelompok <b>{group}</b>. Debit & Kredit hanya bisa memilih akun dari kelompok yang sama.
           </p>
@@ -676,7 +677,7 @@ export default function COAPage() {
                   <div className="font-medium">{t.name}</div>
                   <div className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>{t.code}</div>
                 </TableCell>
-                <TableCell className="text-xs">
+                <TableCell className="">
                   <div>D: {t.debit}</div>
                   <div>K: {t.credit}</div>
                 </TableCell>

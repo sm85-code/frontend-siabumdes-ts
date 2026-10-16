@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import HelpHint from '@/components/HelpHint'
 import api from '@/api/client'
 import { Switch } from '@/components/ui/switch'
+import PageHeader from '@/components/typography/PageHeader'
 
 type Assignment = { user_id: string; name: string; username: string; role: string; unit: string; active: boolean; unit_active: boolean; is_allowed: boolean }
 const key = ['riska-assignments']
@@ -12,7 +12,7 @@ export default function RiskaPermissionsPage() {
   const mutation = useMutation({ mutationFn: async (body: { user_id: string; is_allowed: boolean }) => api.patch('/v1/admin/riska-assignments', body),
     onSuccess: () => client.invalidateQueries({ queryKey: key }) })
   return <section className="space-y-4">
-    <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Penugasan Asisten Riska</h1><HelpHint label="Tentang Penugasan Riska"><p>Pilih pengguna yang membutuhkan bantuan. Riska hanya memakai hak akses pengguna tersebut. Setelah pengguna mengakhiri sesi, Riska menghilang sampai ditugaskan kembali.</p></HelpHint></div>
+    <PageHeader title={<>Penugasan Asisten Riska</>} hintLabel="Tentang Penugasan Riska" hint={<><p>Pilih pengguna yang membutuhkan bantuan. Riska hanya memakai hak akses pengguna tersebut. Setelah pengguna mengakhiri sesi, Riska menghilang sampai ditugaskan kembali.</p></>} />
     {(error || mutation.error) && <p role="alert">Perubahan tidak berhasil. Periksa koneksi dan hak akses.</p>}
     {mutation.isSuccess && <p role="status">Penugasan tersimpan. Tombol Riska akan mengikuti status bantuan dalam sekitar 5 detik, atau saat pengguna kembali membuka halaman SIABUMDES.</p>}
     {isPending && <p>Memuat penugasan…</p>}

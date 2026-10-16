@@ -43,6 +43,8 @@ import {
   type TokoJenis,
   type TxRow,
 } from '@/lib/toko'
+import PageHeader from '@/components/typography/PageHeader'
+import SectionTitle from '@/components/typography/SectionTitle'
 
 const tableClass = 'toko-table [&_th]:h-auto [&_th]:px-4 [&_th]:py-3 [&_td]:px-4 [&_td]:py-2'
 /** Lebar kolom sama untuk Pemasukan & Pengeluaran agar Minggu/Jumlah sejajar saat ditumpuk. */
@@ -98,7 +100,7 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
+      <PageHeader title={<>Manajemen Toko</>} hintLabel="Tentang Manajemen Toko" hint={<><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></>} />
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
@@ -213,7 +215,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <h2 className="section-title">Laporan Laba Rugi</h2>
+        <SectionTitle>Laporan Laba Rugi</SectionTitle>
         <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, dan HPP barang terjual (Stock Out penjualan). Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
@@ -347,7 +349,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
   return (
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
-        <h2 className="section-title">Neraca</h2>
+        <SectionTitle>Neraca</SectionTitle>
         <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
@@ -385,7 +387,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
           {all.map((k) => {
             if (!started.has(k)) return <TableCell key={k} />
             const ok = Math.abs(totalAset[k] - totalPasiva[k]) < 0.5
-            return <TableCell key={k} className={`text-right whitespace-nowrap font-semibold ${ok ? 'text-emerald-600' : 'text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
+            return <TableCell key={k} className={`tabular-nums text-right whitespace-nowrap font-semibold ${ok ? 'text-emerald-600' : 'text-destructive'}`}>{ok ? 'Seimbang' : 'Tidak Seimbang'}</TableCell>
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
@@ -433,14 +435,14 @@ function AutoTable({ title, label, doc, period, rows }: { title: string; label: 
   const display = [...sorted, ...Array.from({ length: padCount }, (_, i) => emptyTxRow(`empty-${i}`))]
   const totals = txTotals(rows)
   const sortHead = (key: string, text: string, right = false) => (
-    <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${right ? 'text-right' : ''}`}>
+    <TableHead {...headerProps(key)} className={`tabular-nums cursor-pointer select-none whitespace-nowrap ${right ? 'text-right' : ''}`}>
       {text}{sortIndicator(key)}
     </TableHead>
   )
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <h2 className="section-title">{title}</h2>
+        <SectionTitle>{title}</SectionTitle>
         <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {doc === 'invoice' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
@@ -517,7 +519,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   const totals = txTotals(rows)
   const title = JENIS_LABEL[jenis]
   const sortHead = (key: string, label: string, right = false) => (
-    <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${right ? 'text-right' : ''}`}>
+    <TableHead {...headerProps(key)} className={`tabular-nums cursor-pointer select-none whitespace-nowrap ${right ? 'text-right' : ''}`}>
       {label}{sortIndicator(key)}
     </TableHead>
   )
@@ -525,7 +527,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="section-title">{title}</h2>
+        <SectionTitle>{title}</SectionTitle>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -728,8 +730,8 @@ function EntryDialog({ target, period, onClose, onSaved }: {
             <Input id="toko-tanggal" type="date" required value={tanggal} aria-invalid={!!dateMsg}
               min={`${period}-01`} max={monthEnd}
               onChange={(e) => { setTanggal(e.target.value); setDateMsg('') }} />
-            {free && !dateMsg && <p className="text-xs text-muted-foreground">Bulan ini tidak memiliki Sabtu di Minggu ke-5; pilih tanggal bebas dalam periode {period}.</p>}
-            {!free && !dateMsg && <p className="text-xs text-muted-foreground">Tanggal dapat diubah ke tanggal mana pun dalam periode {period}.</p>}
+            {free && !dateMsg && <p className="help-text">Bulan ini tidak memiliki Sabtu di Minggu ke-5; pilih tanggal bebas dalam periode {period}.</p>}
+            {!free && !dateMsg && <p className="help-text">Tanggal dapat diubah ke tanggal mana pun dalam periode {period}.</p>}
             {dateMsg && <p role="alert" className="text-xs text-destructive">{dateMsg}</p>}
           </div>
           <div className="space-y-2">

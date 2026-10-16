@@ -52,6 +52,7 @@ import { notify } from '@/lib/feedback'
 import type { OrgProfile, PeriodValue } from '@/types'
 import BagiHasilTransferTab from '@/pages/reports/BagiHasilTransferTab'
 import ReportBody from '@/pages/reports/ReportBody'
+import PageHeader from '@/components/typography/PageHeader'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const today = new Date()
@@ -280,7 +281,7 @@ export default function ReportsPage() {
     <div className="space-y-6" data-testid="reports-page">
       <div>
         <p className="label mb-1">FINANCIAL STATEMENTS</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Laporan Keuangan</h1>
+        <PageHeader title={<>Laporan Keuangan</>} />
       </div>
 
       {isAdmin && (
@@ -617,7 +618,7 @@ export default function ReportsPage() {
               <div className="mt-4">
                 <p className="label mb-2">Periode Dikunci ({lockedList.length})</p>
                 {lockedList.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Belum ada periode yang dikunci.</p>
+                  <p className="page-sub">Belum ada periode yang dikunci.</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {lockedList.map((l) => (

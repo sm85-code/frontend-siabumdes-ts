@@ -1,5 +1,4 @@
 import FormDialog from '@/components/FormDialog'
-import HelpHint from '@/components/HelpHint'
 import EmptyCellDash from '@/components/EmptyCellDash'
 import { useMemo, useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -18,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { DialogFooter } from '@/components/ui/dialog'
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from '@/components/ui/table'
+import PageHeader from '@/components/typography/PageHeader'
 
 const yieldTableClass = '[&_th]:h-auto [&_th]:px-5 [&_th]:py-4 [&_td]:px-5 [&_td]:py-3'
 const yieldHeaderClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
@@ -104,7 +104,7 @@ export default function YieldPage() {
   if (!allowed) return <p role="alert">Manajemen Setoran hanya untuk pengelola unit 4.</p>
   const writable = data?.unit_active === true && !saving
   return <div className="min-w-0 space-y-5">
-    <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Manajemen Setoran</h1><HelpHint label="Tentang Manajemen Setoran"><p>Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal.</p><p>Klik sel bulan di tab Setoran untuk mencatat pembayaran. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui sel yang sama.</p><p>Tanda – berarti pembayaran belum dicatat, bukan Rp 0. Nama mitra mengikuti tab Data Sing Utang.</p></HelpHint></div>
+    <PageHeader title={<>Manajemen Setoran</>} hintLabel="Tentang Manajemen Setoran" hint={<><p>Catatan mitra unit 4. Imbal hasil dihitung 3% dari penyertaan modal.</p><p>Klik sel bulan di tab Setoran untuk mencatat pembayaran. Pembayaran otomatis membuat transaksi dan jurnal unit 4; ubah atau hapus melalui sel yang sama.</p><p>Tanda – berarti pembayaran belum dicatat, bukan Rp 0. Nama mitra mengikuti tab Data Sing Utang.</p></>} />
     <div className="flex items-center gap-3"><Label htmlFor="yield-year">Tahun</Label><Input id="yield-year" groupDigits={false} type="number" min="1900" max="9999" className="w-28" value={yearDraft} onChange={e => setYearDraft(e.target.value)} onBlur={() => { const value = Number(yearDraft); if (Number.isInteger(value) && value >= 1900 && value <= 9999) setYear(value); else { notify('Masukkan tahun antara 1900 dan 9999'); setYearDraft(String(year)) } }} /></div>
     {error ? <div role="alert" className="space-y-2"><p>{getApiError(error)}</p><Button onClick={() => void refetch()}>Coba lagi</Button></div> : isLoading ? <Spinner label="Memuat mitra..." /> : <>
     {data?.unit_active === false && <p role="status">Unit nonaktif. Data dapat dilihat, tetapi tidak dapat diubah.</p>}

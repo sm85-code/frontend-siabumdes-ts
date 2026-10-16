@@ -98,7 +98,7 @@ export default function StockLedgerTable({
                     {r.kind === "internal_use" && <Badge variant="outline" className="ml-1">Internal</Badge>}
                   </>}
                 </TableCell>
-                <TableCell className="text-xs">
+                <TableCell className="">
                   {r.hasRef ? <Link to={`/transactions?reference=${encodeURIComponent(r.nota || r.id)}`} className="underline" style={{ color: "var(--primary-dark)" }}>Lihat transaksi</Link> : "-"}
                 </TableCell>
                 {onCancel && <TableCell><Button type="button" variant="outline" size="sm" onClick={() => onCancel(r.id)}>Batalkan</Button></TableCell>}

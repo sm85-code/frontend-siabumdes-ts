@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table'
 import { notifyError } from '@/lib/feedback'
 import type { PeriodValue } from '@/types'
+import PageHeader from '@/components/typography/PageHeader'
 
 const today = new Date().toISOString().slice(0, 10)
 const currentYear = today.slice(0, 4)
@@ -83,7 +84,7 @@ export default function ReportsPerUnitPage() {
     <div className="space-y-6" data-testid="per-unit-page">
       <div>
         <p className="label mb-1">Laporan</p>
-        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kinerja Per Unit Usaha</h1>
+        <PageHeader title={<>Kinerja Per Unit Usaha</>} />
       </div>
       <Card>
         <CardContent className="flex flex-wrap items-end gap-4 pt-6">

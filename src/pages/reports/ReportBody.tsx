@@ -309,7 +309,7 @@ export default function ReportBody({ active, data }: { active: string; data: Any
       k === 'periode_awal' || k === 'periode_akhir' ? fmtDate(String(v)) : String(v ?? '')
     return (
       <div className="space-y-8">
-        <p className="text-sm text-muted-foreground sm:text-base">
+        <p className="page-sub sm:text-base">
           Catatan ini menjelaskan informasi umum entitas, ringkasan kinerja keuangan, dan kebijakan
           akuntansi yang diterapkan pada penyusunan laporan keuangan periode berjalan.
         </p>
