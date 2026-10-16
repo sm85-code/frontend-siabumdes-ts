@@ -367,7 +367,7 @@ export default function CommercialDocuments() {
   // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const docWeeks = (d: Doc) => {
-    const map = new Map<string, { period: string; w: number; ids: string[] }>();
+    const map = new Map<string, { period: string; w: number; ids: string[]; day: string }>();
     for (const it of d.items ?? []) {
       if (!it.source_id || !it.date) continue;
       const [y, m, day] = it.date.split("-").map(Number);
@@ -381,7 +381,7 @@ export default function CommercialDocuments() {
       }
       if (w == null) continue;
       const key = `${period}-minggu${w}`;
-      const g = map.get(key) ?? { period, w, ids: [] };
+      const g = map.get(key) ?? { period, w, ids: [], day: it.date };
       g.ids.push(it.source_id);
       map.set(key, g);
     }
@@ -389,9 +389,9 @@ export default function CommercialDocuments() {
   };
   const docFile = (d: Doc, suffix: string) =>
     `${d.kind === "invoice" ? "Invoice" : "PO"}-${(d.partner_name ?? "").replace(/[^\w-]+/g, "_")}-${suffix}.pdf`;
-  const downloadDoc = (d: Doc, key: string | null, ids?: string[]) => {
+  const downloadDoc = (d: Doc, key: string | null, ids?: string[], day?: string) => {
     setOpenDoc(null);
-    if (key && ids) void exportPdf(`${BASE}/transactions-pdf`, docFile(d, key), false, { kind: d.kind, source_ids: ids });
+    if (key && ids) void exportPdf(`${BASE}/transactions-pdf`, docFile(d, key), false, { kind: d.kind, source_ids: ids, week: day });
     else void exportPdf(`${BASE}/${d.id}/pdf`, docFile(d, (d.period_end ?? d.issued_date).slice(0, 7)));
   };
   // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
@@ -537,7 +537,7 @@ export default function CommercialDocuments() {
                                 <div className="flex flex-col" role="menu" aria-label={`Periode ${d.number}`}>
                                   {docWeeks(d).map(([key, g]) => (
                                     <Button key={key} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
-                                      onClick={() => downloadDoc(d, key, g.ids)}>{tradeWeekLabel(g.period, g.w)}</Button>
+                                      onClick={() => downloadDoc(d, key, g.ids, g.day)}>{tradeWeekLabel(g.period, g.w)}</Button>
                                   ))}
                                   <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
                                     onClick={() => downloadDoc(d, null)}>Semua minggu</Button>

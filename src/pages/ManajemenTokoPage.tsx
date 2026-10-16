@@ -419,7 +419,7 @@ function AutoTable({ title, label, doc, period, rows }: { title: string; label: 
     setOpenKey(null)
     setBusyKey(row.key)
     try {
-      const res = await api.post(`${INV}/documents/transactions-pdf`, { kind: doc, source_ids: ids }, { responseType: 'blob' })
+      const res = await api.post(`${INV}/documents/transactions-pdf`, { kind: doc, source_ids: ids, week: week == null ? undefined : weekEnd(period, week) }, { responseType: 'blob' })
       const suffix = week == null ? period : `${period}-minggu${week}`
       triggerBlobDownload(res.data, `${docLabel}-${(row.uraian ?? '').replace(/[^\w-]+/g, '_')}-${suffix}.pdf`)
     } catch (e) {
