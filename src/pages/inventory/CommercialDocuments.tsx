@@ -16,7 +16,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSort } from "@/lib/useSort";
 import type { InventoryProduct } from "@/types";
-import { WEEKS, tradeWeekLabel } from "@/lib/toko";
+import { WEEKS, tradeWeek, tradeWeekLabel } from "@/lib/toko";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const BASE = "/v1/uu05_inventory/documents";
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -38,6 +39,7 @@ type Source = {
 };
 type Item = {
   source_id?: string;
+  date?: string;
   name: string;
   quantity: number;
   size: string;
@@ -54,6 +56,7 @@ type Doc = {
   payment_info: string;
   items: Item[];
   payments?: Source[];
+  period_end?: string;
 };
 type Statement = {
   id: string;
@@ -361,6 +364,36 @@ export default function CommercialDocuments() {
       <Input type={type} value={value} onChange={(e) => change(e.target.value)} />
     </label>
   );
+  // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
+  const [openDoc, setOpenDoc] = useState<string | null>(null);
+  const docWeeks = (d: Doc) => {
+    const map = new Map<string, { period: string; w: number; ids: string[] }>();
+    for (const it of d.items ?? []) {
+      if (!it.source_id || !it.date) continue;
+      const [y, m, day] = it.date.split("-").map(Number);
+      const dt = new Date(y, m - 1, day);
+      let period = it.date.slice(0, 7);
+      let w = tradeWeek(period, dt);
+      if (w == null) {
+        const prev = new Date(y, m - 2, 1);
+        period = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+        w = tradeWeek(period, dt);
+      }
+      if (w == null) continue;
+      const key = `${period}-minggu${w}`;
+      const g = map.get(key) ?? { period, w, ids: [] };
+      g.ids.push(it.source_id);
+      map.set(key, g);
+    }
+    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
+  };
+  const docFile = (d: Doc, suffix: string) =>
+    `${d.kind === "invoice" ? "Invoice" : "PO"}-${(d.partner_name ?? "").replace(/[^\w-]+/g, "_")}-${suffix}.pdf`;
+  const downloadDoc = (d: Doc, key: string | null, ids?: string[]) => {
+    setOpenDoc(null);
+    if (key && ids) void exportPdf(`${BASE}/transactions-pdf`, docFile(d, key), false, { kind: d.kind, source_ids: ids });
+    else void exportPdf(`${BASE}/${d.id}/pdf`, docFile(d, (d.period_end ?? d.issued_date).slice(0, 7)));
+  };
   // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
   const weekPeriod = (start || today()).slice(0, 7);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -492,16 +525,37 @@ export default function CommercialDocuments() {
                           >
                             Detail
                           </Button>
-                          <Button
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                              void exportPdf(`${BASE}/${d.id}/pdf`, d.number.replaceAll("/", "-") + ".pdf")
-                            }
-                          >
-                            <Download className="size-4" />
-                            Unduh PDF
-                          </Button>
+                          {d.kind === "invoice" || d.kind === "po" ? (
+                            <Popover open={openDoc === d.id} onOpenChange={(o) => setOpenDoc(o ? d.id : null)}>
+                              <PopoverTrigger asChild>
+                                <Button size="sm" disabled={busy}>
+                                  <Download className="size-4" />
+                                  Unduh PDF
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="end" className="w-auto p-1">
+                                <div className="flex flex-col" role="menu" aria-label={`Periode ${d.number}`}>
+                                  {docWeeks(d).map(([key, g]) => (
+                                    <Button key={key} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                                      onClick={() => downloadDoc(d, key, g.ids)}>{tradeWeekLabel(g.period, g.w)}</Button>
+                                  ))}
+                                  <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                                    onClick={() => downloadDoc(d, null)}>Semua minggu</Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={busy}
+                              onClick={() =>
+                                void exportPdf(`${BASE}/${d.id}/pdf`, d.number.replaceAll("/", "-") + ".pdf")
+                              }
+                            >
+                              <Download className="size-4" />
+                              Unduh PDF
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
