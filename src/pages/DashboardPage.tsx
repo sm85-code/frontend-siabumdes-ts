@@ -1,3 +1,4 @@
+import { UnitCell, UnitHead } from '@/components/UnitColumn'
 import {
   Building2,
   Calendar,
@@ -324,7 +325,7 @@ export default function DashboardPage() {
           <Table data-testid="unit-summary-table">
             <TableHeader>
               <TableRow>
-                <TableHead className="col-name col-sticky">Unit Usaha</TableHead>
+                <UnitHead />
                 <TableHead className="text-right whitespace-nowrap tabular-nums">Pendapatan</TableHead>
                 <TableHead className="text-right whitespace-nowrap tabular-nums">Beban</TableHead>
                 <TableHead className="text-right whitespace-nowrap tabular-nums">Laba Bersih</TableHead>
@@ -334,7 +335,7 @@ export default function DashboardPage() {
             <TableBody>
               {activeUnits.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="col-name col-sticky font-medium">{u.name}</TableCell>
+                  <UnitCell name={u.name} />
                   <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(u.pendapatan)}</TableCell>
                   <TableCell className="text-right whitespace-nowrap tabular-nums">{fmtRp(u.beban)}</TableCell>
                   <TableCell className="text-right whitespace-nowrap font-semibold tabular-nums">
@@ -345,9 +346,7 @@ export default function DashboardPage() {
               ))}
               {unitCount > 0 && (
                 <TableRow data-testid="unit-total-row">
-                  <TableCell className="col-name col-sticky font-bold">
-                    TOTAL
-                  </TableCell>
+                  <UnitCell name="TOTAL" bold />
                   <TableCell className="text-right whitespace-nowrap font-bold tabular-nums">
                     {fmtRp(activeUnits.reduce((s, u) => s + parseMoney(u.pendapatan), 0))}
                   </TableCell>
@@ -385,17 +384,17 @@ function UnitFinancialTable({ title, rows, columns }: {
   return <Card className="overflow-hidden p-0">
     <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
     <TableShell minWidth={640}><Table>
-      <TableHeader><TableRow><TableHead className="col-name col-sticky">Unit Usaha</TableHead>
+      <TableHeader><TableRow><UnitHead />
         {columns.map(([key, label]) => <TableHead key={key} className="text-right whitespace-nowrap tabular-nums">{label}</TableHead>)}
       </TableRow></TableHeader>
       <TableBody>{rows.map(row => <TableRow key={row.id}>
-        <TableCell className="col-name col-sticky font-medium">{row.name}</TableCell>
+        <UnitCell name={row.name} />
         {columns.map(([key]) => <TableCell key={key} className="text-right whitespace-nowrap tabular-nums">
           {row[key] == null ? '—' : fmtRp(row[key])}
         </TableCell>)}
       </TableRow>)}
       {rows.length > 0 && <TableRow>
-        <TableCell className="col-name col-sticky font-bold">TOTAL</TableCell>
+        <UnitCell name="TOTAL" bold />
         {columns.map(([key]) => <TableCell key={key} className="text-right whitespace-nowrap font-bold tabular-nums">
           {rows.some(row => row[key] == null) ? '—' : fmtRp(rows.reduce((sum, row) => sum + parseMoney(row[key]), 0))}
         </TableCell>)}

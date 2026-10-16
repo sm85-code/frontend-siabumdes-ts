@@ -1,3 +1,4 @@
+import { UnitCell, UnitHead } from '@/components/UnitColumn'
 import { FileSpreadsheet, FileText } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { fmtRp, getApiError } from '@/api/client'
@@ -122,8 +123,8 @@ export default function ReportsPerUnitPage() {
             <Table data-testid="per-unit-table">
               <TableHeader>
                 <TableRow>
+                  <UnitHead />
                   <TableHead>Kode</TableHead>
-                  <TableHead className="col-name">Unit Usaha</TableHead>
                   <TableHead className="num">Pendapatan</TableHead>
                   <TableHead className="num">Beban</TableHead>
                   <TableHead className="num">Laba Bersih</TableHead>
@@ -134,10 +135,10 @@ export default function ReportsPerUnitPage() {
               <TableBody>
                 {data.units.map((u) => (
                   <TableRow key={u.id}>
+                    <UnitCell name={u.name} />
                     <TableCell>
                       <Badge>{u.code}</Badge>
                     </TableCell>
-                    <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell className="num">{fmtRp(u.pendapatan)}</TableCell>
                     <TableCell className="num">{fmtRp(u.beban)}</TableCell>
                     <TableCell
