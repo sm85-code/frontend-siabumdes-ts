@@ -1,15 +1,17 @@
-import { LogOut } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { ChevronDown, LogOut } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import AppearancePopover from '@/components/AppearancePopover'
 import BottomNav from '@/components/BottomNav'
 import RiskaChatBox from '@/components/RiskaChatBox'
 import WallpaperLayer from '@/components/WallpaperLayer'
 import { Button } from '@/components/ui/button'
-import { NAV, BOTTOM_NAV_PATHS, filterNavForUser } from '@/config/nav'
+import { NAV, NAV_GROUPS, BOTTOM_NAV_PATHS, filterNavForUser } from '@/config/nav'
 import { ROLE_LABELS } from '@/config/roles'
 import { useInventoryUnitIds } from '@/hooks/useUnits'
 import { useAuth } from '@/lib/auth'
+
+const NAV_GROUPS_KEY = 'siabumdes_nav_groups'
 
 function isNavActive(pathname: string, to: string, allPaths: string[]) {
   const matches = allPaths.filter((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -30,6 +32,18 @@ export default function Layout({ children }: { children: ReactNode }) {
   )
 
   const allPaths = useMemo(() => visible.map((n) => n.to), [visible])
+  const activeGroup = visible.find((n) => isNavActive(location.pathname, n.to, allPaths))?.group
+  // Grup sidebar: terbuka/tertutup disimpan di localStorage; grup halaman aktif otomatis terbuka.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem(NAV_GROUPS_KEY) || '{}') as Record<string, boolean> } catch { return {} }
+  })
+  useEffect(() => {
+    if (activeGroup && activeGroup !== 'akun') setOpenGroups((g) => (g[activeGroup] === true ? g : { ...g, [activeGroup]: true }))
+  }, [activeGroup])
+  useEffect(() => {
+    try { localStorage.setItem(NAV_GROUPS_KEY, JSON.stringify(openGroups)) } catch { /* abaikan */ }
+  }, [openGroups])
+  const isGroupOpen = (id: string) => openGroups[id] ?? true
 
   const bottomItems = useMemo(() => {
     const byPath = new Map(visible.map((n) => [n.to, n]))
@@ -102,27 +116,53 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
-            {visible.map((n) => {
-              const Icon = n.icon
-              const active = isNavActive(location.pathname, n.to, allPaths)
+            {NAV_GROUPS.map((g) => {
+              const items = visible.filter((n) => n.group === g.id)
+              if (!items.length) return null
+              const isOpen = isGroupOpen(g.id)
               return (
-                <NavLink
-                  key={n.to}
-                  to={n.to}
-                  data-testid={`nav-${n.to.replace(/\//g, '-')}`}
-                  onClick={() => setOpen(false)}
-                  className={`side-link ${active ? 'active' : ''}`}
-                >
-                  <span className="nav-ico">
-                    <Icon className="size-4.5" strokeWidth={active ? 2.5 : 2} />
-                  </span>
-                  <span>{n.label}</span>
-                </NavLink>
+                <div key={g.id} className="space-y-1">
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    data-testid={`nav-group-${g.id}`}
+                    onClick={() => setOpenGroups((s) => ({ ...s, [g.id]: !isOpen }))}
+                    className="flex w-full items-center justify-between rounded-md px-3 pt-2 pb-1 text-[11px] font-semibold tracking-wide uppercase"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {g.label}
+                    <ChevronDown className={`size-3.5 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+                  </button>
+                  {isOpen && items.map((n) => {
+                    const Icon = n.icon
+                    const active = isNavActive(location.pathname, n.to, allPaths)
+                    return (
+                      <NavLink
+                        key={n.to}
+                        to={n.to}
+                        data-testid={`nav-${n.to.replace(/\//g, '-')}`}
+                        onClick={() => setOpen(false)}
+                        className={`side-link ${active ? 'active' : ''}`}
+                      >
+                        <span className="nav-ico">
+                          <Icon className="size-4.5" strokeWidth={active ? 2.5 : 2} />
+                        </span>
+                        <span>{n.label}</span>
+                      </NavLink>
+                    )
+                  })}
+                </div>
               )
             })}
           </nav>
           <div className="shrink-0 p-4">
-            <div className="mb-3 flex items-center gap-3">
+            <NavLink
+              to="/profile"
+              data-testid="nav--profile"
+              title="Profil Saya"
+              onClick={() => setOpen(false)}
+              className={`side-link mb-3 flex items-center gap-3 ${isNavActive(location.pathname, '/profile', allPaths) ? 'active' : ''}`}
+            >
               {user.photo_url ? (
                 <img
                   src={user.photo_url}
@@ -140,10 +180,10 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold">{user.name}</div>
                 <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {ROLE_LABELS[user.role]}
+                  {ROLE_LABELS[user.role]} · Profil Saya
                 </div>
               </div>
-            </div>
+            </NavLink>
             <Button data-testid="logout-btn" onClick={() => void logout()} variant="outline" size="sm" className="w-full">
               <LogOut className="size-4" /> Keluar
             </Button>
