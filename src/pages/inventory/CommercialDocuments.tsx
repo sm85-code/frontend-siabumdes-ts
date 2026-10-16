@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import HelpHint from "@/components/HelpHint";
-import { Download, Eye, FileText, List, Plus, RefreshCw, Trash2, Users } from "lucide-react";
+import { Download, Eye, List, RefreshCw, Users } from "lucide-react";
 import SubTabs from "@/components/SubTabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import api, { fmtRp, fmtDate, getApiError } from "@/api/client";
@@ -10,12 +10,10 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import TableShell from "@/components/TableShell";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSort } from "@/lib/useSort";
-import type { InventoryProduct } from "@/types";
 import { WEEKS, tradeWeek, tradeWeekLabel } from "@/lib/toko";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -67,14 +65,6 @@ type Statement = {
   overdue_count: number;
   rows: Source[];
 };
-type PoLine = {
-  product_id: string;
-  date: string;
-  size: string;
-  order_code: string;
-  quantity: string;
-  price: string;
-};
 const labels: Record<Kind, string> = {
   invoice: "Invoice Pelanggan",
   po: "PO Pemasok",
@@ -86,14 +76,6 @@ const hints: Record<Kind, string> = {
   purchase_statement: "Rangkuman barang yang sudah diterima dari pemasok.",
 };
 const ALL = "__all";
-const blankLine = (): PoLine => ({
-  product_id: "",
-  date: today(),
-  size: "",
-  order_code: "",
-  quantity: "1",
-  price: "",
-});
 
 export default function CommercialDocuments() {
   const { user } = useAuth();
@@ -102,7 +84,6 @@ export default function CommercialDocuments() {
   const canWrite = ["admin", "direktur", "bendahara", "pengelola"].includes(user?.role || "");
   const [kind, setKind] = useState<Kind>("invoice");
   const [view, setView] = useState<"documents" | "statements">("documents");
-  const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partner, setPartner] = useState("");
   const [start, setStart] = useState(today().slice(0, 8) + "01");
@@ -114,19 +95,11 @@ export default function CommercialDocuments() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
   const [detail, setDetail] = useState<Doc | null>(null);
   const [statementDetail, setStatementDetail] = useState<Statement | null>(null);
   const [paymentGroup, setPaymentGroup] = useState<Statement | null>(null);
   const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
   const [paymentDate, setPaymentDate] = useState(today());
-  const [sources, setSources] = useState<Source[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [issuedDate, setIssuedDate] = useState(today());
-  const [dueDate, setDueDate] = useState("");
-  const [info, setInfo] = useState("");
-  const [poLines, setPoLines] = useState<PoLine[]>([blankLine()]);
-  const [extras, setExtras] = useState<Record<string, { size: string; packing: string; processing: string }>>({});
   const statementKind = kind === "invoice" ? "invoice" : "purchase_statement";
   const params = useMemo(
     () => ({
@@ -142,13 +115,11 @@ export default function CommercialDocuments() {
     setLoading(true);
     setError("");
     try {
-      const [p, d, g, catalog] = await Promise.all([
+      const [p, d, g] = await Promise.all([
         api.get(`${BASE}/partners`, { params: { kind: statementKind } }),
         api.get(BASE, { params: { kind, offset } }),
         api.get(`${BASE}/statements`, { params }),
-        api.get(`${BASE}/catalog`),
       ]);
-      setProducts(catalog.data);
       setPartners(p.data);
       setDocs(d.data.items);
       setHasMore(d.data.has_more);
@@ -177,26 +148,6 @@ export default function CommercialDocuments() {
       current = false;
     };
   }, [documentId]);
-  useEffect(() => {
-    if (!editing || kind === "po" || !partner) {
-      setSources([]);
-      return;
-    }
-    let current = true;
-    setSources([]);
-    setSelected(new Set());
-    api
-      .get(`${BASE}/sources`, { params })
-      .then((r) => {
-        if (current) setSources(r.data);
-      })
-      .catch((e) => {
-        if (current) setError(getApiError(e));
-      });
-    return () => {
-      current = false;
-    };
-  }, [editing, partner, kind, params]);
 
   const exportPdf = async (
     url: string,
@@ -238,62 +189,6 @@ export default function CommercialDocuments() {
       setBusy(false);
     }
   };
-  const payload = () => ({
-    kind,
-    partner_id: partner,
-    period_start: start,
-    period_end: end,
-    issued_date: issuedDate,
-    due_date: dueDate || null,
-    payment_info: info,
-    source_ids: kind === "po" ? [] : [...selected],
-    lines:
-      kind === "po"
-        ? poLines.map((l) => ({
-            ...l,
-            quantity: Number(l.quantity),
-            price: l.price,
-          }))
-        : [],
-    allocations:
-      kind === "invoice"
-        ? [...selected].map((id) => ({
-            source_id: id,
-            size: extras[id]?.size || "",
-            packing: extras[id]?.packing || "0",
-            processing: extras[id]?.processing || "0",
-          }))
-        : [],
-  });
-  const valid = () => {
-    if (!partner || !start || !end || start > end || !issuedDate || (dueDate && dueDate < issuedDate)) {
-      setError("Pilih mitra dan isi tanggal/periode yang valid.");
-      return false;
-    }
-    if (kind !== "po" && !selected.size) {
-      setError("Pilih transaksi yang akan dimasukkan.");
-      return false;
-    }
-    if (
-      kind === "po" &&
-      poLines.some(
-        (l) =>
-          !l.product_id ||
-          !l.date ||
-          l.date < start ||
-          l.date > end ||
-          !Number.isInteger(Number(l.quantity)) ||
-          Number(l.quantity) < 1 ||
-          !l.price ||
-          !Number.isFinite(Number(l.price)) ||
-          Number(l.price) < 0,
-      )
-    ) {
-      setError("Lengkapi produk, tanggal dalam periode, jumlah, dan harga pada seluruh rincian PO.");
-      return false;
-    }
-    return true;
-  };
   const savePayments = async () => {
     if (!paymentGroup || !paymentDate) {
       setError("Pilih tanggal pembayaran.");
@@ -329,35 +224,6 @@ export default function CommercialDocuments() {
     }
   };
 
-  const issue = async () => {
-    if (!valid()) return;
-    setBusy(true);
-    setError("");
-    try {
-      const response = await api.post(BASE, payload());
-      setEditing(false);
-      setDetail(response.data);
-      await load();
-    } catch (e) {
-      setError(getApiError(e, "Gagal menerbitkan dokumen"));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const total =
-    kind === "po"
-      ? poLines.reduce((sum, l) => sum + Number(l.price || 0) * Number(l.quantity || 0), 0)
-      : sources.filter((s) => selected.has(s.id)).reduce((sum, s) => sum + Number(s.total), 0);
-  const openCreate = () => {
-    setSelected(new Set());
-    setExtras({});
-    setIssuedDate(today());
-    setDueDate("");
-    setInfo("");
-    setPoLines([blankLine()]);
-    setError("");
-    setEditing(true);
-  };
   const field = (label: string, value: string, change: (value: string) => void, type = "text") => (
     <label className="grid gap-1 text-sm">
       {label}
@@ -463,13 +329,10 @@ export default function CommercialDocuments() {
     const [y, m] = weekPeriod.split("-").map(Number);
     const mon = new Date(y, m - 1, 1);
     mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7);
-    const sat = new Date(mon);
-    sat.setDate(mon.getDate() + 5);
     const sun = new Date(mon);
     sun.setDate(mon.getDate() + 6); // transaksi hari Minggu ikut minggu ini
     setStart(iso(mon));
     setEnd(iso(sun));
-    setIssuedDate(iso(sat));
   };
   const weekSelect = (
     <div className="grid gap-1 text-sm">
@@ -535,12 +398,6 @@ export default function CommercialDocuments() {
         <Button size="sm" variant="ghost" onClick={() => void load()} disabled={loading || busy} aria-label="Segarkan">
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Segarkan
         </Button>
-        {canWrite && (
-          <Button size="sm" variant="outline" className="w-full sm:ml-auto sm:w-auto" onClick={openCreate} disabled={busy}>
-            <Plus className="size-4" />
-            Buat {labels[kind]}
-          </Button>
-        )}
       </div>
       {error && (
         <p role="alert" className="rounded-lg border border-destructive p-3 text-sm text-destructive">
@@ -739,237 +596,6 @@ export default function CommercialDocuments() {
           </Button>
         </div>
       )}
-      <Dialog
-        open={editing}
-        onOpenChange={(v) => {
-          if (!busy) setEditing(v);
-        }}
-      >
-        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Buat {labels[kind]}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {error && (
-              <p role="alert" className="text-destructive">
-                {error}
-              </p>
-            )}
-            <div className="grid gap-3 sm:grid-cols-3">
-              {partnerSelect}
-              {weekSelect}
-              {field("Tanggal dokumen", issuedDate, setIssuedDate, "date")}
-              {field("Jatuh tempo / target pembayaran", dueDate, setDueDate, "date")}
-              {field("Periode mulai", start, setStart, "date")}
-              {field("Periode akhir", end, setEnd, "date")}
-            </div>
-            {kind === "po" ? (
-              <>
-                <TableShell minWidth={1000}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {["Produk", "Tanggal selesai", "Kode pesanan", "Ukuran", "Qty", "Harga satuan", "Aksi"].map(
-                          (h) => (
-                            <TableHead key={h}>{h}</TableHead>
-                          ),
-                        )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {poLines.map((l, i) => (
-                        <TableRow key={i}>
-                          <TableCell>
-                            <select
-                              className="input min-w-48"
-                              aria-label={`Produk PO ${i + 1}`}
-                              value={l.product_id}
-                              onChange={(e) =>
-                                setPoLines((lines) =>
-                                  lines.map((line, j) => (j === i ? { ...line, product_id: e.target.value } : line)),
-                                )
-                              }
-                            >
-                              <option value="">Pilih produk</option>
-                              {products
-                                .filter((p) => p.unit_usaha_id === user?.unit_usaha_id || user?.role !== "pengelola")
-                                .map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.name}
-                                  </option>
-                                ))}
-                            </select>
-                          </TableCell>
-                          {(["date", "order_code", "size", "quantity", "price"] as const).map((k) => (
-                            <TableCell key={k}>
-                              <Input
-                                aria-label={`${k} PO ${i + 1}`}
-                                type={k === "date" ? "date" : k === "quantity" || k === "price" ? "number" : "text"}
-                                min="0"
-                                value={l[k]}
-                                onChange={(e) =>
-                                  setPoLines((lines) =>
-                                    lines.map((line, j) => (j === i ? { ...line, [k]: e.target.value } : line)),
-                                  )
-                                }
-                              />
-                            </TableCell>
-                          ))}
-                          <TableCell>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              aria-label={`Hapus baris PO ${i + 1}`}
-                              disabled={poLines.length === 1}
-                              onClick={() => setPoLines((lines) => lines.filter((_, j) => i !== j))}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableShell>
-                <Button size="sm" variant="outline" onClick={() => setPoLines((lines) => [...lines, blankLine()])}>
-                  <Plus className="size-4" />
-                  Tambah barang
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setSelected(new Set(sources.filter((s) => !s.issued).map((s) => s.id)))}
-                  >
-                    Pilih seluruh transaksi tersedia
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>
-                    Hapus pilihan
-                  </Button>
-                </div>
-                <TableShell minWidth={kind === "invoice" ? 1000 : 650}>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {[
-                          "Pilih",
-                          "Tanggal / Invoice",
-                          "Barang / Qty",
-                          "Total",
-                          ...(kind === "invoice" ? ["Ukuran", "Packing / Tambahan", "Proses Pesanan"] : []),
-                        ].map((h) => (
-                          <TableHead key={h}>{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sources.map((s) => (
-                        <TableRow key={s.id}>
-                          <TableCell>
-                            <Checkbox
-                              aria-label={`Pilih ${s.name} ${s.id}`}
-                              disabled={s.issued}
-                              checked={selected.has(s.id)}
-                              onCheckedChange={(checked) =>
-                                setSelected((old) => {
-                                  const n = new Set(old);
-                                  if (checked) n.add(s.id);
-                                  else n.delete(s.id);
-                                  return n;
-                                })
-                              }
-                            />
-                            {s.issued && <span className="ml-2 text-xs">Sudah diterbitkan</span>}
-                          </TableCell>
-                          <TableCell>
-                            {fmtDate(s.date)}
-                            <div className="text-xs">{s.invoice_number || "—"}</div>
-                          </TableCell>
-                          <TableCell>
-                            {s.name} ×{s.quantity}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">{fmtRp(s.total)}</TableCell>
-                          {kind === "invoice" &&
-                            (["size", "packing", "processing"] as const).map((k) => (
-                              <TableCell key={k}>
-                                <Input
-                                  aria-label={`${k} ${s.id}`}
-                                  type={k === "size" ? "text" : "number"}
-                                  min="0"
-                                  value={extras[s.id]?.[k] || ""}
-                                  disabled={!selected.has(s.id)}
-                                  onChange={(e) =>
-                                    setExtras((old) => ({
-                                      ...old,
-                                      [s.id]: {
-                                        ...(old[s.id] || {
-                                          size: "",
-                                          packing: "",
-                                          processing: "",
-                                        }),
-                                        [k]: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                />
-                              </TableCell>
-                            ))}
-                        </TableRow>
-                      ))}
-                      {!sources.length && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="py-6 text-center">
-                            Pilih mitra dan periode yang memiliki transaksi tercatat.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableShell>
-                {kind === "invoice" && (
-                  <p className="text-xs text-muted-foreground">
-                    Biaya tambahan merinci total transaksi yang sudah tercatat. Total invoice tetap sama; kolom harga
-                    barang adalah sisa setelah rincian biaya.
-                  </p>
-                )}
-              </>
-            )}
-            <p className="text-right font-semibold">Total: {fmtRp(total)}</p>
-            <label className="grid gap-1 text-sm">
-              Informasi pembayaran / rekening / ketentuan
-              <textarea
-                className="input min-h-24"
-                value={info}
-                onChange={(e) => setInfo(e.target.value)}
-                maxLength={3000}
-              />
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Periksa pratinjau sebelum menerbitkan. Dokumen terbit diarsipkan dengan nomor otomatis dan tidak mengubah
-              jurnal.
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => {
-                  if (valid()) void exportPdf(`${BASE}/preview`, "Pratinjau.pdf", true, payload());
-                }}
-              >
-                <Eye className="size-4" />
-                Pratinjau PDF
-              </Button>
-              <Button disabled={busy} onClick={() => void issue()}>
-                <FileText className="size-4" />
-                {busy ? "Memproses…" : "Terbitkan Dokumen"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
       <Dialog
         open={!!detail}
         onOpenChange={(v) => {
