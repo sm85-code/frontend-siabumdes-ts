@@ -324,10 +324,10 @@ export default function DashboardPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Unit Usaha</TableHead>
-                <TableHead className="text-right">Pendapatan</TableHead>
-                <TableHead className="text-right">Beban</TableHead>
-                <TableHead className="text-right">Laba Bersih</TableHead>
-                <TableHead className="text-right">Margin Laba Bersih</TableHead>
+                <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Pendapatan</TableHead>
+                <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Beban</TableHead>
+                <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Laba Bersih</TableHead>
+                <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Margin Laba Bersih</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -385,7 +385,7 @@ function UnitFinancialTable({ title, rows, columns }: {
     <h3 className="font-heading p-5 text-lg font-semibold">{title}</h3>
     <TableShell minWidth={640}><Table>
       <TableHeader><TableRow><TableHead>Unit Usaha</TableHead>
-        {columns.map(([key, label]) => <TableHead key={key} className="text-right">{label}</TableHead>)}
+        {columns.map(([key, label]) => <TableHead key={key} className="text-righttext-right whitespace-nowrap tabular-nums">{label}</TableHead>)}
       </TableRow></TableHeader>
       <TableBody>{rows.map(row => <TableRow key={row.id}>
         <TableCell className="font-medium">{row.name}</TableCell>

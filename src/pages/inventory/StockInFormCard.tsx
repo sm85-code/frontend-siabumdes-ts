@@ -1,3 +1,4 @@
+import { fmtRp } from '@/api/client'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { Plus, Trash2 } from 'lucide-react'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -17,7 +18,7 @@ interface Props {
   onOpenCatalog?: () => void
 }
 
-const rupiah = (n: number) => `Rp ${n.toLocaleString('id-ID')}`
+const rupiah = (n: number) => fmtRp(n)
 
 function fieldErr(msg?: string) {
   return msg ? (

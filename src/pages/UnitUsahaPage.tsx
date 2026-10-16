@@ -137,7 +137,7 @@ export default function UnitUsahaPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="label mb-1">Struktur Usaha</p>
-          <h1 className="font-heading page-h1 text-3xl font-bold">{list.length} Unit Usaha BUMDes</h1>
+          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">{list.length} Unit Usaha BUMDes</h1>
         </div>
         {canWrite && (
           <Dialog
@@ -242,7 +242,7 @@ export default function UnitUsahaPage() {
             <TableHead>Nama Unit</TableHead>
             <TableHead>Jenis Usaha</TableHead>
             <TableHead>Status</TableHead>
-            {canWrite && <TableHead className="text-right">Aksi</TableHead>}
+            {canWrite && <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Aksi</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -267,7 +267,7 @@ export default function UnitUsahaPage() {
                 )}
               </TableCell>
               {canWrite && (
-                <TableCell className="text-right">
+                <TableCell className="text-righttext-right whitespace-nowrap tabular-nums">
                   <Button
                     variant="ghost"
                     size="icon"

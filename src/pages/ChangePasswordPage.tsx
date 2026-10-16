@@ -51,7 +51,7 @@ export default function ChangePasswordPage() {
       <Card className="fade-in w-full max-w-md">
         <CardContent className="pt-6">
           <p className="label mb-1">Keamanan Akun</p>
-          <h1 className="font-heading page-h1 text-3xl font-bold">Ganti Password</h1>
+          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Ganti Password</h1>
           <p className="mt-2 mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
             Password sementara harus diganti sebelum Anda dapat melanjutkan.
           </p>

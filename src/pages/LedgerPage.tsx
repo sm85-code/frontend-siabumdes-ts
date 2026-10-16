@@ -154,7 +154,7 @@ export default function LedgerPage() {
     <div className="space-y-6" data-testid="ledger-page">
       <div>
         <p className="label mb-1">GENERAL LEDGER</p>
-        <h1 className="font-heading page-h1 flex items-center gap-2 text-3xl font-bold">
+        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl flex items-center gap-2">
           <BookOpen className="size-7" style={{ color: 'var(--primary-dark)' }} /> Buku Besar per Akun
         </h1>
       </div>

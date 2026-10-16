@@ -301,7 +301,7 @@ export default function COAPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Chart of Accounts</p>
-          <div className="flex items-center gap-1"><h1 className="font-heading text-3xl font-bold page-h1">Kode Akun & Jenis Transaksi</h1><HelpHint label="Tentang Kode Akun"><p>Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.</p></HelpHint></div>
+          <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kode Akun & Jenis Transaksi</h1><HelpHint label="Tentang Kode Akun"><p>Setiap kelompok (BUMDes & 6 Unit) memiliki kode akun serta jenis transaksi <b>terpisah</b> — tidak saling terhubung.</p></HelpHint></div>
         </div>
       </div>
 
@@ -339,7 +339,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-2">
         <div>
-          <h2 className="font-heading text-lg font-semibold">Kode Akun — {groupLabel}</h2>
+          <h2 className="section-title">Kode Akun — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedAccounts.length} akun aktif pada kelompok <b>{group}</b>.
           </p>
@@ -568,7 +568,7 @@ export default function COAPage() {
       </Card>
       <div className="flex justify-between items-center gap-4 flex-wrap pt-4">
         <div>
-          <h2 className="font-heading text-lg font-semibold">Jenis Transaksi — {groupLabel}</h2>
+          <h2 className="section-title">Jenis Transaksi — {groupLabel}</h2>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             {sortedTypes.length} jenis transaksi pada kelompok <b>{group}</b>. Debit & Kredit hanya bisa memilih akun dari kelompok yang sama.
           </p>

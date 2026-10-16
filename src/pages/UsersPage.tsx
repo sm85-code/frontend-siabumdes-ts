@@ -263,7 +263,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
-          <div className="flex items-center gap-1"><h1 className="font-heading text-3xl font-bold page-h1">Kelola Pengguna</h1><HelpHint label="Tentang Kelola Pengguna"><p>Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.</p></HelpHint></div>
+          <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kelola Pengguna</h1><HelpHint label="Tentang Kelola Pengguna"><p>Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.</p></HelpHint></div>
         </div>
         <div className="flex gap-2">
           <Button data-testid="btn-new-user" onClick={() => { setFormError(''); createForm.reset(EMPTY_CREATE); setShow(true); }}>

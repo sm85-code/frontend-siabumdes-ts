@@ -397,7 +397,7 @@ export default function Inventory() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">{meta?.unit_code ? `Unit Usaha ${meta.unit_code}` : "Unit Usaha"}</p>
-          <h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Stok</h1>
+          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Manajemen Stok</h1>
         </div>
       </div>
 
