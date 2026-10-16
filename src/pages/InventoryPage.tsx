@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import PageHeader from '@/components/typography/PageHeader'
 
 function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
   const detail = (err as { response?: { data?: { detail?: unknown }; message?: string }; message?: string })
@@ -397,7 +398,7 @@ export default function Inventory() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">{meta?.unit_code ? `Unit Usaha ${meta.unit_code}` : "Unit Usaha"}</p>
-          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Manajemen Stok</h1>
+          <PageHeader title={<>Manajemen Stok</>} />
         </div>
       </div>
 
@@ -518,7 +519,7 @@ export default function Inventory() {
                     <TableRow><TableCell colSpan={6} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada mitra pemasok.</TableCell></TableRow>
                   ) : vendors.map((v) => (
                     <TableRow key={v.id}>
-                      <TableCell className="font-mono text-xs">{v.code || "-"}</TableCell>
+                      <TableCell className="font-mono">{v.code || "-"}</TableCell>
                       <TableCell className="font-medium">{v.name}</TableCell>
                       <TableCell>{v.contact || "-"}</TableCell>
                       <TableCell>{v.address || "-"}</TableCell>
@@ -561,7 +562,7 @@ export default function Inventory() {
                     <TableRow><TableCell colSpan={6} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada customer.</TableCell></TableRow>
                   ) : customers.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-mono text-xs">{c.code || "-"}</TableCell>
+                      <TableCell className="font-mono">{c.code || "-"}</TableCell>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell>{c.contact || "-"}</TableCell>
                       <TableCell>{c.address || "-"}</TableCell>

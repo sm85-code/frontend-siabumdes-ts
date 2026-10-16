@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import type { OrgProfile } from '@/types'
+import PageHeader from '@/components/typography/PageHeader'
 
 type OrgFormState = {
   org_name: string
@@ -194,7 +195,7 @@ export default function OrgProfilePage() {
     <div className="max-w-3xl space-y-6" data-testid="org-profile-page">
       <div>
         <p className="label mb-1">PENGATURAN</p>
-        <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Profil BUMDes</h1><HelpHint label="Tentang Profil BUMDes"><p>Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.</p></HelpHint></div>
+        <PageHeader title={<>Profil BUMDes</>} hintLabel="Tentang Profil BUMDes" hint={<><p>Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.</p></>} />
       </div>
 
       <Card>
@@ -226,12 +227,12 @@ export default function OrgProfilePage() {
                       data-testid="org-logo-input"
                     />
                   </Label>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="help-text mt-1">
                     PNG/JPG/WebP/SVG, maksimal 2 MB. Tampil di tengah kop surat.
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">
+                <p className="help-text">
                   Mode lihat saja — Anda tidak dapat mengubah logo.
                 </p>
               )}
@@ -242,7 +243,7 @@ export default function OrgProfilePage() {
 
       <form onSubmit={(e) => void save(e)} className="space-y-6">
         {!canWrite && (
-          <p className="text-sm text-muted-foreground" data-testid="org-profile-readonly-banner">
+          <p className="page-sub" data-testid="org-profile-readonly-banner">
             Mode lihat saja — role Anda tidak dapat mengubah Profil BUMDes.
           </p>
         )}

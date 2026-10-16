@@ -1,5 +1,4 @@
 import FormDialog from '@/components/FormDialog'
-import HelpHint from '@/components/HelpHint'
 import { Key, Lock, Pencil, Plus, Trash2 } from "lucide-react"
 import { ROLE_LABELS } from "@/config/roles"
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -26,6 +25,7 @@ import {
 import type { Role, UnitUsaha, User } from "@/types";
 import { fetchClosedPeriods } from "@/api/reports";
 import { createUserSchema, type CreateUserFormValues } from "@/schemas/users";
+import PageHeader from '@/components/typography/PageHeader'
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "admin", label: "Admin Utama" },
@@ -201,7 +201,7 @@ export default function UsersPage() {
           <CardTitle className="font-heading text-xl">Akses Ditolak</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <p className="text-sm text-muted-foreground">
+          <p className="page-sub">
             Hanya Admin Utama yang berwenang melihat dan mengelola pengguna.
           </p>
         </CardContent>
@@ -263,7 +263,7 @@ export default function UsersPage() {
       <div className="flex justify-between items-start gap-4 flex-wrap">
         <div>
           <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
-          <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kelola Pengguna</h1><HelpHint label="Tentang Kelola Pengguna"><p>Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.</p></HelpHint></div>
+          <PageHeader title={<>Kelola Pengguna</>} hintLabel="Tentang Kelola Pengguna" hint={<><p>Password tidak dapat dilihat. Gunakan Reset Password jika pengguna kehilangan akses.</p></>} />
         </div>
         <div className="flex gap-2">
           <Button data-testid="btn-new-user" onClick={() => { setFormError(''); createForm.reset(EMPTY_CREATE); setShow(true); }}>
@@ -430,7 +430,7 @@ export default function UsersPage() {
                   <Label>Password Sementara</Label>
                   <Input data-testid="reset-pw-input" type="password" required minLength={8} maxLength={72}
                          value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="min. 8 karakter" />
-                  <p className="text-xs mt-2 text-muted-foreground">
+                  <p className="help-text mt-2">
                     Pengguna wajib mengganti password ini setelah login berikutnya.
                   </p>
                 </div>
@@ -458,7 +458,7 @@ export default function UsersPage() {
                 <CardTitle className="font-heading text-lg flex items-center gap-2">
                   <Lock className="text-destructive"  /> Kunci Periode Transaksi
                 </CardTitle>
-                <p className="text-sm mt-1 text-muted-foreground">
+                <p className="page-sub mt-1">
                   Untuk <b>{targetUser?.name}</b>. Bulan yang dicentang akan diblokir dari input/edit/hapus transaksi. Bulan bertanda <b>•</b> bukunya sudah ditutup ({targetGroup}), jadi sudah terkunci untuk semua orang.
                 </p>
               </div>
@@ -547,12 +547,12 @@ export default function UsersPage() {
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">{u.name}</TableCell>
                       <TableCell>{u.username}</TableCell>
-                      <TableCell className="text-xs">{u.email}</TableCell>
+                      <TableCell className="">{u.email}</TableCell>
                       <TableCell>
                         <Badge variant={ROLE_BADGE_VARIANT[u.role] ?? "outline"}>{ROLE_LABELS[u.role] || u.role}</Badge>
                       </TableCell>
-                      <TableCell className="text-xs">{units.find(x => x.id === u.unit_usaha_id)?.code || "-"}</TableCell>
-                      <TableCell className="text-xs" data-testid={`blocked-count-${u.id}`}>
+                      <TableCell className="">{units.find(x => x.id === u.unit_usaha_id)?.code || "-"}</TableCell>
+                      <TableCell className="" data-testid={`blocked-count-${u.id}`}>
                         {blockedCnt > 0
                           ? <Badge variant="secondary">{blockedCnt} bulan</Badge>
                           : <span className="text-muted-foreground">—</span>}

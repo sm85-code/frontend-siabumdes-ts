@@ -523,7 +523,7 @@ export default function CommercialDocuments() {
               </TableBody>
             </Table>
           </TableShell>
-          <p className="mt-2 text-xs text-muted-foreground">Dibayar dan sisa tagihan memakai posisi pembayaran terbaru.</p>
+          <p className="help-text mt-2">Dibayar dan sisa tagihan memakai posisi pembayaran terbaru.</p>
         </CardContent>
       </Card>
       {(offset > 0 || hasMore) && (
@@ -741,7 +741,7 @@ export default function CommercialDocuments() {
             </p>
           )}
           {field("Tanggal pembayaran", paymentDate, setPaymentDate, "date")}
-          <p className="text-sm text-muted-foreground">
+          <p className="page-sub">
             Isi nominal pada tagihan yang dibayar; kosongkan tagihan lainnya. Satu kali simpan dapat melunasi beberapa
             tagihan. Pembayaran membuat transaksi dan jurnal sesuai nominal masing-masing.
           </p>

@@ -226,3 +226,4 @@
 .page-sub { font-size: 0.875rem; color: var(--text-muted); }
 .section-title { font-family: var(--font-heading, inherit); font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; }
 .help-text { font-size: 0.75rem; color: var(--text-muted); }
+/* Ukuran teks tabel standar (lihat components/ui/table.tsx): header 12px semibold, isi 14px. */

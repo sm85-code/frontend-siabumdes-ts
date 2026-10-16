@@ -116,7 +116,7 @@ export default function TxTable({
         <CardTitle className="font-heading text-base font-semibold" data-testid="tx-table-title">
           Transaksi {activeGroup === 'BUMDES' ? 'BUMDes' : activeGroup} — {periodLabel}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="help-text">
           {total} transaksi · halaman {page}/{pageCount}
         </p>
       </CardHeader>
@@ -218,7 +218,7 @@ export default function TxTable({
               </TableHead>
               <TableHead
                 {...sortState.headerProps('amount')}
-                className={`whitespace-nowrap text-right ${sortState.headerProps('amount').className}`}
+                className={`tabular-nums whitespace-nowrap text-right ${sortState.headerProps('amount').className}`}
               >
                 Jumlah{sortState.sortIndicator('amount')}
               </TableHead>
@@ -269,8 +269,8 @@ export default function TxTable({
                       {inventoryLabels[t.reference]?.description || t.description}
                       {inventoryLabels[t.reference]?.document_id && <Link className="mt-1 block text-xs text-primary underline" to={`/inventory?document=${inventoryLabels[t.reference].document_id}`}>{inventoryLabels[t.reference].document_number}</Link>}
                     </TableCell>
-                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.debit_account_code)}</TableCell>
-                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.credit_account_code)}</TableCell>
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words">{accName(t.debit_account_code)}</TableCell>
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words">{accName(t.credit_account_code)}</TableCell>
                     <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">
                       {fmtRp(t.amount)}
                     </TableCell>

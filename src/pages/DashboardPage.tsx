@@ -38,6 +38,7 @@ import {
   chartConfigForPeriod,
 } from '@/lib/dashboardBucketing'
 import type { PeriodValue } from '@/types'
+import SectionTitle from '@/components/typography/SectionTitle'
 
 const TODAY_LABEL = new Date().toLocaleDateString('id-ID', {
   weekday: 'long',
@@ -209,12 +210,12 @@ export default function DashboardPage() {
       <div>
         <p className="label mb-1">SIA BUMDes Karya Raharja</p>
         <h1
-          className="font-heading page-h1 text-3xl font-bold sm:text-4xl"
+          className="font-heading page-h1 text-2xl font-bold sm:text-3xl"
           data-testid="dashboard-greeting"
         >
           Selamat datang, {jabatan}.
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="page-sub mt-1">
           Ringkasan data BUMDes Karya Raharja • {TODAY_LABEL}
           {isFetching ? ' · memperbarui…' : ''}
         </p>
@@ -237,19 +238,19 @@ export default function DashboardPage() {
       </Card>
 
       <section aria-labelledby="activity-title">
-        <h2 id="activity-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Aktivitas Usaha - Unit ${unitName}` : 'Aktivitas Usaha BUMDes'}</h2>
+        <SectionTitle id="activity-title" className="mb-3">{isPengelola ? `Aktivitas Usaha - Unit ${unitName}` : 'Aktivitas Usaha BUMDes'}</SectionTitle>
         <DashboardKpiGrid items={kpis} />
       </section>
 
       <section aria-labelledby="profit-sharing-title">
-        <h2 id="profit-sharing-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Bagi Hasil Usaha - Unit ${unitName}` : 'Bagi Hasil Usaha BUMDes'}</h2>
+        <SectionTitle id="profit-sharing-title" className="mb-3">{isPengelola ? `Bagi Hasil Usaha - Unit ${unitName}` : 'Bagi Hasil Usaha BUMDes'}</SectionTitle>
         {bagiHasilKpis.length > 0 ? <DashboardKpiGrid items={bagiHasilKpis} desktopColumns={3} /> : (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Data bagi hasil BUMDes pusat tidak tersedia pada tampilan ini.</p>
         )}
       </section>
 
       <section aria-labelledby="financial-position-title">
-        <h2 id="financial-position-title" className="font-heading mb-3 text-lg font-semibold">{isPengelola ? `Posisi Keuangan - Unit ${unitName}` : 'Posisi Keuangan BUMDes'}</h2>
+        <SectionTitle id="financial-position-title" className="mb-3">{isPengelola ? `Posisi Keuangan - Unit ${unitName}` : 'Posisi Keuangan BUMDes'}</SectionTitle>
         <DashboardKpiGrid items={posisiKpis} />
       </section>
 
@@ -291,7 +292,7 @@ export default function DashboardPage() {
                 {profitableUnits.map((unit, i) => <li key={unit.id} className="flex items-start gap-3 text-sm">
                   <span className="mt-1 size-3 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                   <div className="min-w-0 flex-1"><p className="font-medium">{unit.name}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{fmtRp(unit.laba)}</p>
+                    <p className="help-text tabular-nums">{fmtRp(unit.laba)}</p>
                   </div>
                   <span className="shrink-0 font-semibold tabular-nums">
                     {(unit.laba / profitableUnits.reduce((sum, u) => sum + u.laba, 0) * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%

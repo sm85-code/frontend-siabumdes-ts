@@ -29,6 +29,7 @@ import {
   type CreateUnitFormValues,
   type EditUnitFormValues,
 } from '@/schemas/units'
+import PageHeader from '@/components/typography/PageHeader'
 
 const BUSINESS_TYPES = [
   { value: 'jasa', label: 'Jasa' },
@@ -137,7 +138,7 @@ export default function UnitUsahaPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="label mb-1">Struktur Usaha</p>
-          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">{list.length} Unit Usaha BUMDes</h1>
+          <PageHeader title={<>{list.length} Unit Usaha BUMDes</>} />
         </div>
         {canWrite && (
           <Dialog
@@ -169,7 +170,7 @@ export default function UnitUsahaPage() {
                     aria-invalid={Boolean(createForm.formState.errors.code)}
                     {...createForm.register('code')}
                   />
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p className="help-text mt-1">
                     Kode tidak bisa diubah lagi setelah dibuat.
                   </p>
                   {createForm.formState.errors.code && (
@@ -228,7 +229,7 @@ export default function UnitUsahaPage() {
           </Dialog>
         )}
         {!canWrite && (
-          <p className="text-muted-foreground text-sm" data-testid="unit-usaha-readonly-banner">
+          <p className="page-sub" data-testid="unit-usaha-readonly-banner">
             Mode lihat saja — role Anda tidak dapat mengubah Profil Unit Usaha.
           </p>
         )}
@@ -303,7 +304,7 @@ export default function UnitUsahaPage() {
               <div>
                 <Label>Kode unit</Label>
                 <Input value={editing.code} disabled />
-                <p className="text-muted-foreground mt-1 text-xs">
+                <p className="help-text mt-1">
                   Kode tidak bisa diubah karena sudah dipakai di akun/transaksi unit ini.
                 </p>
               </div>

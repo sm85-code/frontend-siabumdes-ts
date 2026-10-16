@@ -11,6 +11,7 @@ import {
   changePasswordSchema,
   type ChangePasswordFormValues,
 } from '@/schemas/auth'
+import PageHeader from '@/components/typography/PageHeader'
 
 export default function ChangePasswordPage() {
   const { changePassword, logout } = useAuth()
@@ -51,8 +52,8 @@ export default function ChangePasswordPage() {
       <Card className="fade-in w-full max-w-md">
         <CardContent className="pt-6">
           <p className="label mb-1">Keamanan Akun</p>
-          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Ganti Password</h1>
-          <p className="mt-2 mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          <PageHeader title={<>Ganti Password</>} />
+          <p className="page-sub mt-2 mb-6">
             Password sementara harus diganti sebelum Anda dapat melanjutkan.
           </p>
           <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4">

@@ -53,6 +53,7 @@ import TxFormCard from '@/pages/transactions/TxFormCard'
 import TxTable from '@/pages/transactions/TxTable'
 import { emptyTxForm, type TxFormState } from '@/pages/transactions/types'
 import type { TransactionFormValues } from '@/schemas/transactions'
+import PageHeader from '@/components/typography/PageHeader'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -464,7 +465,7 @@ export default function TransactionsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="label mb-1">JOURNAL ENTRY</p>
-          <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Transaksi Keuangan</h1>
+          <PageHeader title={<>Transaksi Keuangan</>} />
         </div>
         <div className="flex w-full items-center gap-2 sm:w-auto">
           {canImport && (

@@ -203,7 +203,7 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
               <Input aria-label="Sufiks SKU" value={editSuffix} maxLength={40} onChange={(e) => setEditSuffix(e.target.value.toUpperCase().replace(/\s/g, ""))} />
             </div>
             <p className="text-sm">{editRow?.sku} → <span className="font-medium">{buildSku(catById.get(editCat)?.code || "", editSuffix)}</span></p>
-            {byId.get(editRow?.id || "")?.has_history && <p className="text-xs text-muted-foreground">Produk sudah punya riwayat; transaksi tetap tertaut, dokumen terbit tetap memakai SKU lama.</p>}
+            {byId.get(editRow?.id || "")?.has_history && <p className="help-text">Produk sudah punya riwayat; transaksi tetap tertaut, dokumen terbit tetap memakai SKU lama.</p>}
             {editErr && <p role="alert" className="text-sm text-destructive">{editErr}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button><Button type="submit" disabled={!editCat || !editSuffix.trim()}>Simpan</Button></div>
           </form>
