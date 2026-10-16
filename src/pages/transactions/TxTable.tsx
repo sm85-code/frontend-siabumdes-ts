@@ -120,7 +120,7 @@ export default function TxTable({
           {total} transaksi · halaman {page}/{pageCount}
         </p>
       </CardHeader>
-      <TableShell minWidth={720} label="Daftar transaksi keuangan">
+      <TableShell minWidth={900} label="Daftar transaksi keuangan">
         <Table data-testid="tx-table">
           <TableHeader>
             <TableRow>
@@ -136,22 +136,22 @@ export default function TxTable({
                   />
                 </TableHead>
               )}
-              <TableHead {...sortState.headerProps('date')}>
+              <TableHead {...sortState.headerProps('date')} className={`whitespace-nowrap ${sortState.headerProps('date').className}`}>
                 Tanggal{sortState.sortIndicator('date')}
               </TableHead>
               {activeGroup !== 'BUMDES' && <TableHead>Unit</TableHead>}
               <TableHead {...sortState.headerProps('description')} className={`min-w-48 sm:min-w-56 ${sortState.headerProps('description').className ?? ''}`}>
                 Keterangan{sortState.sortIndicator('description')}
               </TableHead>
-              <TableHead {...sortState.headerProps('debit_account_code')}>
+              <TableHead {...sortState.headerProps('debit_account_code')} className={`min-w-36 ${sortState.headerProps('debit_account_code').className}`}>
                 Debit{sortState.sortIndicator('debit_account_code')}
               </TableHead>
-              <TableHead {...sortState.headerProps('credit_account_code')}>
+              <TableHead {...sortState.headerProps('credit_account_code')} className={`min-w-36 ${sortState.headerProps('credit_account_code').className}`}>
                 Kredit{sortState.sortIndicator('credit_account_code')}
               </TableHead>
               <TableHead
                 {...sortState.headerProps('amount')}
-                className={`text-right ${sortState.headerProps('amount').className}`}
+                className={`whitespace-nowrap text-right ${sortState.headerProps('amount').className}`}
               >
                 Jumlah{sortState.sortIndicator('amount')}
               </TableHead>
@@ -192,7 +192,7 @@ export default function TxTable({
                         />
                       </TableCell>
                     )}
-                    <TableCell>{fmtDate(t.date)}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">{fmtDate(t.date)}</TableCell>
                     {activeGroup !== 'BUMDES' && (
                       <TableCell>
                         <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>
@@ -202,9 +202,9 @@ export default function TxTable({
                       {inventoryLabels[t.reference]?.description || t.description}
                       {inventoryLabels[t.reference]?.document_id && <Link className="mt-1 block text-xs text-primary underline" to={`/inventory?document=${inventoryLabels[t.reference].document_id}`}>{inventoryLabels[t.reference].document_number}</Link>}
                     </TableCell>
-                    <TableCell className="text-xs">{accName(t.debit_account_code)}</TableCell>
-                    <TableCell className="text-xs">{accName(t.credit_account_code)}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.debit_account_code)}</TableCell>
+                    <TableCell className="min-w-36 max-w-56 whitespace-normal break-words text-xs">{accName(t.credit_account_code)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">
                       {fmtRp(t.amount)}
                     </TableCell>
                     <TableCell>
