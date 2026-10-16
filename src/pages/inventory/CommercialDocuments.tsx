@@ -366,9 +366,36 @@ export default function CommercialDocuments() {
   );
   // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
   const [openDoc, setOpenDoc] = useState<string | null>(null);
-  const docWeeks = (d: Doc) => {
+  const [weeklyNo, setWeeklyNo] = useState<Record<string, string>>({});
+  // Daftar Dokumen tanpa dokumen terbit: tampilkan dokumen mingguan per mitra dari transaksi minggu terpilih.
+  const weekPicked = !!start && !!end && start.length === 10 && (new Date(`${start}T00:00:00`).getDay() === 1) &&
+    (new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86400000 === 6;
+  const [groupNo, setGroupNo] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setGroupNo({});
+    if (!weekPicked) return;
+    const k = kind === "invoice" ? "invoice" : "po";
+    void Promise.all(groups.filter((g) => g.rows.length).map((g) =>
+      api.post(`${BASE}/weekly-numbers`, { kind: k, partner_id: g.id, dates: [start] })
+        .then((r) => [g.id, r.data[start] as string] as const).catch(() => [g.id, ""] as const),
+    )).then((pairs) => setGroupNo(Object.fromEntries(pairs)));
+  }, [groups, weekPicked, start, kind]);
+  useEffect(() => {
+    setWeeklyNo({});
+    if (!statementDetail?.rows.length) return;
+    api
+      .post(`${BASE}/weekly-numbers`, {
+        kind: kind === "invoice" ? "invoice" : "po",
+        partner_id: statementDetail.id,
+        dates: [...new Set(statementDetail.rows.map((r) => r.date))].slice(0, 60),
+      })
+      .then((r) => setWeeklyNo(r.data))
+      .catch(() => setWeeklyNo({}));
+  }, [statementDetail, kind]);
+  const docWeeks = (d: Doc) => weeksOf((d.items ?? []).map((it) => ({ source_id: it.source_id, date: it.date })));
+  const weeksOf = (list: { source_id?: string; date?: string }[]) => {
     const map = new Map<string, { period: string; w: number; ids: string[]; day: string }>();
-    for (const it of d.items ?? []) {
+    for (const it of list) {
       if (!it.source_id || !it.date) continue;
       const [y, m, day] = it.date.split("-").map(Number);
       const dt = new Date(y, m - 1, day);
@@ -394,6 +421,36 @@ export default function CommercialDocuments() {
     if (key && ids) void exportPdf(`${BASE}/transactions-pdf`, docFile(d, key), false, { kind: d.kind, source_ids: ids, week: day });
     else void exportPdf(`${BASE}/${d.id}/pdf`, docFile(d, (d.period_end ?? d.issued_date).slice(0, 7)));
   };
+  // Rekap per Mitra: unduh langsung dari transaksi (tanpa dokumen terbit), sama seperti Perduitan #2.
+  const txKind = kind === "invoice" ? "invoice" : "po";
+  const txLabel = kind === "invoice" ? "Invoice" : "PO";
+  const groupFile = (g: Statement, suffix: string) => `${txLabel}-${(g.name ?? "").replace(/[^\w-]+/g, "_")}-${suffix}.pdf`;
+  const downloadGroup = (g: Statement, key: string | null, ids: string[], day?: string) => {
+    setOpenDoc(null);
+    const last = g.rows.map((r) => r.date).sort().at(-1) ?? today();
+    void exportPdf(`${BASE}/transactions-pdf`, groupFile(g, key ?? last.slice(0, 7)), false,
+      { kind: txKind, source_ids: ids, ...(day ? { week: day } : {}) });
+  };
+  const groupMenu = (g: Statement, menuKey: string) => (
+    <Popover open={openDoc === menuKey} onOpenChange={(o) => setOpenDoc(o ? menuKey : null)}>
+      <PopoverTrigger asChild>
+        <Button size="sm" disabled={busy || !g.rows.length}>
+          <Download className="size-4" />
+          Unduh PDF
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-1">
+        <div className="flex flex-col" role="menu" aria-label={`Periode ${txLabel} ${g.name}`}>
+          {weeksOf(g.rows.map((r) => ({ source_id: r.id, date: r.date }))).map(([key, w]) => (
+            <Button key={key} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+              onClick={() => downloadGroup(g, key, w.ids, w.day)}>{tradeWeekLabel(w.period, w.w)}</Button>
+          ))}
+          <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+            onClick={() => downloadGroup(g, null, g.rows.map((r) => r.id))}>Semua minggu</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
   // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
   const weekPeriod = (start || today()).slice(0, 7);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -403,14 +460,16 @@ export default function CommercialDocuments() {
     mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7);
     const sat = new Date(mon);
     sat.setDate(mon.getDate() + 5);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6); // transaksi hari Minggu ikut minggu ini
     setStart(iso(mon));
-    setEnd(iso(sat));
+    setEnd(iso(sun));
     setIssuedDate(iso(sat));
   };
   const weekSelect = (
     <div className="grid gap-1 text-sm">
       <span>Minggu</span>
-      <Select value="" onValueChange={pickWeek}>
+      <Select value={WEEKS.map(String).find((w) => { const [y, m] = weekPeriod.split("-").map(Number); const mon = new Date(y, m - 1, 1); mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return start === iso(mon) && end === iso(sun); }) ?? ""} onValueChange={pickWeek}>
         <SelectTrigger aria-label="Pilih minggu"><SelectValue placeholder="Pilih minggu" /></SelectTrigger>
         <SelectContent>
           {WEEKS.map((w) => <SelectItem key={w} value={String(w)}>{tradeWeekLabel(weekPeriod, w)}</SelectItem>)}
@@ -560,10 +619,22 @@ export default function CommercialDocuments() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!docs.length && !loading && (
+                  {!docs.length && !loading && weekPicked && groups.filter((g) => g.rows.length).map((g) => (
+                    <TableRow key={`w-${g.id}`}>
+                      <TableCell>
+                        {groupNo[g.id] || "—"}
+                        <div className="text-xs text-muted-foreground">{fmtDate(issuedDate)}</div>
+                      </TableCell>
+                      <TableCell>{g.name}</TableCell>
+                      <TableCell>Dari transaksi</TableCell>
+                      <TableCell className="whitespace-nowrap text-right">{fmtRp(g.total)}</TableCell>
+                      <TableCell>{groupMenu(g, `w-${g.id}`)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!docs.length && !loading && !(weekPicked && groups.some((g) => g.rows.length)) && (
                     <TableRow>
                       <TableCell colSpan={5} className="py-8 text-center">
-                        Belum ada dokumen.
+                        {weekPicked ? "Tidak ada transaksi pada minggu ini." : "Belum ada dokumen. Pilih Minggu untuk melihat dokumen dari transaksi."}
                       </TableCell>
                     </TableRow>
                   )}
@@ -626,9 +697,12 @@ export default function CommercialDocuments() {
                       ))}
                       <TableCell>{g.overdue_count} tagihan</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => setStatementDetail(g)}>
-                          Rincian
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setStatementDetail(g)}>
+                            Rincian
+                          </Button>
+                          {groupMenu(g, `g-${g.id}`)}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1011,7 +1085,9 @@ export default function CommercialDocuments() {
           </DialogHeader>
           {statementDetail && (
             <div className="flex flex-wrap gap-2">
+              {groupMenu(statementDetail, `d-${statementDetail.id}`)}
               <Button
+                variant="outline"
                 disabled={busy}
                 onClick={() =>
                   void exportPdf(`${BASE}/statements/pdf`, "Rekap-Mitra.pdf", false, undefined, statementDetail.id)
@@ -1051,7 +1127,7 @@ export default function CommercialDocuments() {
                     <TableRow key={r.id}>
                       <TableCell>
                         {fmtDate(r.date)}
-                        <div>{r.invoice_number || "—"}</div>
+                        <div>{weeklyNo[r.date] || r.invoice_number || "—"}</div>
                       </TableCell>
                       <TableCell>
                         {r.name} ×{r.quantity}
