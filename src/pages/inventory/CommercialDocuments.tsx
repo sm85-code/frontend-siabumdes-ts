@@ -367,6 +367,19 @@ export default function CommercialDocuments() {
   // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [weeklyNo, setWeeklyNo] = useState<Record<string, string>>({});
+  // Daftar Dokumen tanpa dokumen terbit: tampilkan dokumen mingguan per mitra dari transaksi minggu terpilih.
+  const weekPicked = !!start && !!end && start.length === 10 && (new Date(`${start}T00:00:00`).getDay() === 1) &&
+    (new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86400000 === 6;
+  const [groupNo, setGroupNo] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setGroupNo({});
+    if (!weekPicked) return;
+    const k = kind === "invoice" ? "invoice" : "po";
+    void Promise.all(groups.filter((g) => g.rows.length).map((g) =>
+      api.post(`${BASE}/weekly-numbers`, { kind: k, partner_id: g.id, dates: [start] })
+        .then((r) => [g.id, r.data[start] as string] as const).catch(() => [g.id, ""] as const),
+    )).then((pairs) => setGroupNo(Object.fromEntries(pairs)));
+  }, [groups, weekPicked, start, kind]);
   useEffect(() => {
     setWeeklyNo({});
     if (!statementDetail?.rows.length) return;
@@ -447,14 +460,16 @@ export default function CommercialDocuments() {
     mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7);
     const sat = new Date(mon);
     sat.setDate(mon.getDate() + 5);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6); // transaksi hari Minggu ikut minggu ini
     setStart(iso(mon));
-    setEnd(iso(sat));
+    setEnd(iso(sun));
     setIssuedDate(iso(sat));
   };
   const weekSelect = (
     <div className="grid gap-1 text-sm">
       <span>Minggu</span>
-      <Select value={WEEKS.map(String).find((w) => { const [y, m] = weekPeriod.split("-").map(Number); const mon = new Date(y, m - 1, 1); mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7); const sat = new Date(mon); sat.setDate(mon.getDate() + 5); return start === iso(mon) && end === iso(sat); }) ?? ""} onValueChange={pickWeek}>
+      <Select value={WEEKS.map(String).find((w) => { const [y, m] = weekPeriod.split("-").map(Number); const mon = new Date(y, m - 1, 1); mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7); const sun = new Date(mon); sun.setDate(mon.getDate() + 6); return start === iso(mon) && end === iso(sun); }) ?? ""} onValueChange={pickWeek}>
         <SelectTrigger aria-label="Pilih minggu"><SelectValue placeholder="Pilih minggu" /></SelectTrigger>
         <SelectContent>
           {WEEKS.map((w) => <SelectItem key={w} value={String(w)}>{tradeWeekLabel(weekPeriod, w)}</SelectItem>)}
@@ -604,10 +619,22 @@ export default function CommercialDocuments() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!docs.length && !loading && (
+                  {!docs.length && !loading && weekPicked && groups.filter((g) => g.rows.length).map((g) => (
+                    <TableRow key={`w-${g.id}`}>
+                      <TableCell>
+                        {groupNo[g.id] || "—"}
+                        <div className="text-xs text-muted-foreground">{fmtDate(issuedDate)}</div>
+                      </TableCell>
+                      <TableCell>{g.name}</TableCell>
+                      <TableCell>Dari transaksi</TableCell>
+                      <TableCell className="whitespace-nowrap text-right">{fmtRp(g.total)}</TableCell>
+                      <TableCell>{groupMenu(g, `w-${g.id}`)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {!docs.length && !loading && !(weekPicked && groups.some((g) => g.rows.length)) && (
                     <TableRow>
                       <TableCell colSpan={5} className="py-8 text-center">
-                        Belum ada dokumen.
+                        {weekPicked ? "Tidak ada transaksi pada minggu ini." : "Belum ada dokumen. Pilih Minggu untuk melihat dokumen dari transaksi."}
                       </TableCell>
                     </TableRow>
                   )}
