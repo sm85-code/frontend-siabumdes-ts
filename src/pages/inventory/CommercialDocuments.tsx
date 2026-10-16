@@ -449,7 +449,7 @@ export default function CommercialDocuments() {
                     <TableCell>{r.name}</TableCell>
                     <TableCell>{r.status}</TableCell>
                     {(["total", "paid", "outstanding"] as const).map((k) => (
-                      <TableCell key={k} className="whitespace-nowrap text-rightwhitespace-nowrap text-right tabular-nums">{fmtRp(r[k])}</TableCell>
+                      <TableCell key={k} className="whitespace-nowrap text-right tabular-nums">{fmtRp(r[k])}</TableCell>
                     ))}
                     <TableCell>{r.overdue_count} tagihan</TableCell>
                     <TableCell>
@@ -470,9 +470,9 @@ export default function CommercialDocuments() {
                     </TableCell>
                     <TableCell>{d.partner_name}</TableCell>
                     <TableCell>{d.status === "void" ? "Dibatalkan" : "Diterbitkan"}</TableCell>
-                    <TableCell className="whitespace-nowrap text-rightwhitespace-nowrap text-right tabular-nums">{fmtRp(d.total)}</TableCell>
-                    <TableCell className="text-righttext-right whitespace-nowrap tabular-nums">—</TableCell>
-                    <TableCell className="text-righttext-right whitespace-nowrap tabular-nums">—</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular-nums">{fmtRp(d.total)}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">—</TableCell>
+                    <TableCell className="text-right whitespace-nowrap tabular-nums">—</TableCell>
                     <TableCell>—</TableCell>
                     <TableCell>
                       <div className="flex gap-2">

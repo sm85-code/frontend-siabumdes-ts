@@ -243,7 +243,7 @@ export default function UnitUsahaPage() {
             <TableHead>Nama Unit</TableHead>
             <TableHead>Jenis Usaha</TableHead>
             <TableHead>Status</TableHead>
-            {canWrite && <TableHead className="text-righttext-right whitespace-nowrap tabular-nums">Aksi</TableHead>}
+            {canWrite && <TableHead className="text-right whitespace-nowrap tabular-nums">Aksi</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -268,7 +268,7 @@ export default function UnitUsahaPage() {
                 )}
               </TableCell>
               {canWrite && (
-                <TableCell className="text-righttext-right whitespace-nowrap tabular-nums">
+                <TableCell className="text-right whitespace-nowrap tabular-nums">
                   <Button
                     variant="ghost"
                     size="icon"

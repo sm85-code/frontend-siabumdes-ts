@@ -227,3 +227,14 @@
 .section-title { font-family: var(--font-heading, inherit); font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; }
 .help-text { font-size: 0.75rem; color: var(--text-muted); }
 /* Ukuran teks tabel standar (lihat components/ui/table.tsx): header 12px semibold, isi 14px. */
+
+/* Kolom teks pertama tabel: lebar minimum ~180px agar nama tidak turun 4-5 baris. */
+.col-name { min-width: 200px; max-width: 260px; white-space: normal; overflow-wrap: anywhere; }
+/* Kolom pertama menempel di kiri saat tabel digeser horizontal. */
+.col-sticky { position: sticky; left: 0; z-index: 1; background: var(--card); box-shadow: 1px 0 0 var(--border); }
+[data-slot=table-head].col-sticky { z-index: 2; background: color-mix(in srgb, var(--muted) 70%, var(--card)); }
+/* Mobile: padding baris tabel lebih rapat. */
+@media (max-width: 639px) {
+  [data-slot=table] [data-slot=table-cell] { padding: 0.5rem 0.75rem; }
+  [data-slot=table] [data-slot=table-head] { padding: 0.5rem 0.75rem; height: 2.5rem; }
+}

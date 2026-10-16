@@ -123,7 +123,7 @@ export default function ReportsPerUnitPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Kode</TableHead>
-                  <TableHead>Unit Usaha</TableHead>
+                  <TableHead className="col-name">Unit Usaha</TableHead>
                   <TableHead className="num">Pendapatan</TableHead>
                   <TableHead className="num">Beban</TableHead>
                   <TableHead className="num">Laba Bersih</TableHead>

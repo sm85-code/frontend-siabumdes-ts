@@ -20,7 +20,7 @@ export default function ReportBody({ active, data }: { active: string; data: Any
           <TableHeader>
             <TableRow>
               <TableHead>Kode Akun</TableHead>
-              <TableHead>Uraian</TableHead>
+              <TableHead className="col-name">Uraian</TableHead>
               <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
             </TableRow>
           </TableHeader>
@@ -111,7 +111,7 @@ export default function ReportBody({ active, data }: { active: string; data: Any
             <TableHeader>
               <TableRow>
                 <TableHead>Kode</TableHead>
-                <TableHead>Akun</TableHead>
+                <TableHead className="col-name">Akun</TableHead>
                 <TableHead className="num">Jumlah</TableHead>
               </TableRow>
             </TableHeader>
@@ -249,7 +249,7 @@ export default function ReportBody({ active, data }: { active: string; data: Any
           <TableHeader>
             <TableRow>
               <TableHead>No.</TableHead>
-              <TableHead>Uraian</TableHead>
+              <TableHead className="col-name">Uraian</TableHead>
               <TableHead className="num">Jumlah (Rp)</TableHead>
             </TableRow>
           </TableHeader>

@@ -227,9 +227,9 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
         </colgroup>
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
-          <TableHead>Uraian</TableHead>
-          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
+          <TableHead className="col-name">Uraian</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {lines.map((l) => (
@@ -361,9 +361,9 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
         </colgroup>
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
-          <TableHead>Uraian</TableHead>
-          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
+          <TableHead className="col-name">Uraian</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {lines.map((l) => (
