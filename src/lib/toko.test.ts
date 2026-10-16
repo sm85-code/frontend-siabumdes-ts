@@ -50,3 +50,17 @@ describe('manajemen toko helpers', () => {
     expect(fmtNumber(1500000)).toBe('1.500.000')
   })
 })
+
+describe('buildJournalRows', () => {
+  it('mengelompokkan transaksi manual per minggu dan melewati yang tidak dihitung', async () => {
+    const { buildJournalRows } = await import('./toko')
+    const base = { debit: { code: '1', name: 'Kas', pos: 'kas' as const }, credit: { code: '2', name: 'Pendapatan', pos: 'pendapatan' as const } }
+    const rows = buildJournalRows([
+      { ...base, id: 'a', tanggal: '2026-10-06', keterangan: 'Sewa', nominal: '100', jenis: 'pemasukan', counted: true },
+      { ...base, id: 'b', tanggal: '2026-10-07', keterangan: 'Sewa', nominal: '50', jenis: 'pemasukan', counted: true },
+      { ...base, id: 'c', tanggal: '2026-10-07', keterangan: 'X', nominal: '9', jenis: 'pemasukan', counted: false },
+    ], '2026-10', (r) => r.jenis === 'pemasukan')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].w1).toBe(150)
+  })
+})
