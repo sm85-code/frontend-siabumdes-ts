@@ -71,7 +71,7 @@ export default function PartnerFormCard({
         <p className="label mb-3">{editingId ? labels.edit : labels.create}</p>
         <form
           onSubmit={(e) => void handleSubmit((v) => onSubmit(v))(e)}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-4"
+          className="grid grid-cols-1 gap-4 sm:grid-cols-3"
           noValidate
         >
           <div>
@@ -85,19 +85,6 @@ export default function PartnerFormCard({
               {...register('name')}
             />
             {fieldErr(errors.name?.message)}
-          </div>
-          <div>
-            <label className="label" htmlFor={`partner-${kind}-code`}>
-              Kode
-            </label>
-            <Input
-              id={`partner-${kind}-code`}
-              data-testid={`partner-${kind}-code`}
-              placeholder="mis. MDL"
-              aria-invalid={Boolean(errors.code)}
-              {...register('code')}
-            />
-            {fieldErr(errors.code?.message)}
           </div>
           <div>
             <label className="label" htmlFor={`partner-${kind}-contact`}>
@@ -123,7 +110,7 @@ export default function PartnerFormCard({
             />
             {fieldErr(errors.address?.message)}
           </div>
-          <div className="flex justify-end gap-2 sm:col-span-4">
+          <div className="flex justify-end gap-2 sm:col-span-3">
             {editingId && (
               <Button type="button" variant="outline" onClick={onCancel}>
                 Batal
