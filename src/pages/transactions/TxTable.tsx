@@ -120,73 +120,6 @@ export default function TxTable({
           {total} transaksi · halaman {page}/{pageCount}
         </p>
       </CardHeader>
-      {/* Mobile (<640px): kartu per transaksi — tanggal + jumlah satu baris, keterangan, lalu akun. */}
-      <div className="divide-y sm:hidden" data-testid="tx-cards">
-        {loading ? (
-          <div className="py-6"><Spinner className="justify-center" /></div>
-        ) : sorted.length === 0 ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">
-            Belum ada transaksi <b>{activeGroup}</b> pada <b>{periodLabel}</b>.
-          </div>
-        ) : (
-          sorted.map((t) => {
-            const proofs = t.proofs || []
-            const label = inventoryLabels[t.reference]
-            return (
-              <div key={t.id} className="space-y-1 p-3" data-testid={`tx-card-${t.id}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    {canBulkDelete && (
-                      <Checkbox
-                        disabled={isManagedAutomatic(t.reference)}
-                        checked={selected.has(t.id)}
-                        onCheckedChange={() => toggleSel(t.id)}
-                      />
-                    )}
-                    <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">{fmtDate(t.date)}</span>
-                    {activeGroup !== 'BUMDES' && <Badge variant="secondary">{unitOf(t.unit_usaha_id)?.code}</Badge>}
-                  </div>
-                  <span className="whitespace-nowrap font-semibold tabular-nums">{fmtRp(t.amount)}</span>
-                </div>
-                <div className="break-words text-sm">
-                  {label?.description || t.description}
-                  {label?.document_id && <Link className="ml-1 text-xs text-primary underline" to={`/inventory?document=${label.document_id}`}>{label.document_number}</Link>}
-                </div>
-                <div className="break-words text-xs text-muted-foreground">
-                  <span className="font-medium">D:</span> {accName(t.debit_account_code)} · <span className="font-medium">K:</span> {accName(t.credit_account_code)}
-                </div>
-                <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
-                  {proofs.map((p) => (
-                    <a key={p.file_id} href={p.url || '#'} target="_blank" rel="noreferrer" className="flex max-w-[160px] items-center gap-1 truncate text-primary underline" title={p.file_name}>
-                      <Link2 className="size-3.5" /> {p.file_name}
-                    </a>
-                  ))}
-                  {canManageProofs(t) && proofs.length < 3 && (
-                    <button type="button" onClick={() => onUploadProof(t)} className="flex items-center gap-1 text-muted-foreground">
-                      <Paperclip className="size-3.5" /> {proofs.length ? 'Tambah' : 'Upload'}
-                    </button>
-                  )}
-                  {canWrite && (
-                    <div className="ml-auto flex gap-1">
-                      {canEditRow(t) && (
-                        <Button onClick={() => onEdit(t)} aria-label="Ubah transaksi" variant="ghost" size="icon" className="h-8 w-8 text-primary">
-                          <Pencil className="size-4" />
-                        </Button>
-                      )}
-                      {!isManagedAutomatic(t.reference) && can(user, 'admin', 'direktur', 'bendahara') && (
-                        <Button onClick={() => onDelete(t.id)} aria-label="Hapus transaksi" variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                          <Trash2 className="size-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-      <div className="hidden sm:block">
       <TableShell minWidth={900} label="Daftar transaksi keuangan">
         <Table data-testid="tx-table">
           <TableHeader>
@@ -370,7 +303,6 @@ export default function TxTable({
           </TableBody>
         </Table>
       </TableShell>
-      </div>
       {total > limit && (
         <div className="flex items-center justify-between gap-2 border-t p-3">
           <Button
