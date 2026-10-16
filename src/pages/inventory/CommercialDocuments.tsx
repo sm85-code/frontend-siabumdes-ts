@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import HelpHint from "@/components/HelpHint";
-import { Download, Eye, List, RefreshCw, Users } from "lucide-react";
+import { Download, Eye, RefreshCw } from "lucide-react";
 import SubTabs from "@/components/SubTabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import api, { fmtRp, fmtDate, getApiError } from "@/api/client";
@@ -83,7 +83,6 @@ export default function CommercialDocuments() {
   const documentId = searchParams.get("document");
   const canWrite = ["admin", "direktur", "bendahara", "pengelola"].includes(user?.role || "");
   const [kind, setKind] = useState<Kind>("invoice");
-  const [view, setView] = useState<"documents" | "statements">("documents");
   const [partners, setPartners] = useState<Partner[]>([]);
   const [partner, setPartner] = useState("");
   const [start, setStart] = useState(today().slice(0, 8) + "01");
@@ -110,7 +109,6 @@ export default function CommercialDocuments() {
     }),
     [statementKind, partner, start, end],
   );
-  const sorter = useSort(groups, "name");
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -322,6 +320,20 @@ export default function CommercialDocuments() {
       g, key, w, total: g.rows.filter((r) => w.ids.includes(r.id)).reduce((t, r) => t + Number(r.total), 0),
     })))
     .sort((x, y) => y.key.localeCompare(x.key) || x.g.name.localeCompare(y.g.name));
+  // Satu tabel: baris per mitra per minggu (Dibayar/Sisa/Jatuh Tempo dihitung dari transaksi minggu itu).
+  const nowIso = today();
+  const tableRows = autoDocs.map((a) => {
+    const rows = a.g.rows.filter((r) => a.w.ids.includes(r.id));
+    const sum = (k: "total" | "paid" | "outstanding") => rows.reduce((t, r) => t + Number(r[k]), 0);
+    const overdue = rows.filter((r) => Number(r.outstanding) > 0 && r.due_date && r.due_date < nowIso).length;
+    const wg: Statement = { ...a.g, rows, total: String(sum("total")), paid: String(sum("paid")), outstanding: String(sum("outstanding")), overdue_count: overdue };
+    return {
+      id: `${a.g.id}|${a.key}`, number: groupNo[`${a.g.id}|${a.key}`] || "", week: a.key, label: tradeWeekLabel(a.w.period, a.w.w),
+      name: a.g.name, status: "Otomatis", total: sum("total"), paid: sum("paid"), outstanding: sum("outstanding"), overdue_count: overdue,
+      g: a.g, wg,
+    };
+  });
+  const tableSort = useSort(tableRows, "week");
   // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
   const weekPeriod = (start || today()).slice(0, 7);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -359,10 +371,6 @@ export default function CommercialDocuments() {
       </Select>
     </div>
   );
-  const viewOptions = [
-    { id: "documents" as const, label: "Daftar Dokumen", icon: List },
-    { id: "statements" as const, label: "Rekap per Mitra", icon: Users },
-  ];
   return (
     <div className="space-y-4">
       <SubTabs
@@ -387,208 +395,140 @@ export default function CommercialDocuments() {
         </CardContent>
       </Card>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg border p-0.5" role="radiogroup" aria-label="Tampilan">
-          {viewOptions.map((o) => (
-            <button key={o.id} type="button" role="radio" aria-checked={view === o.id} onClick={() => setView(o.id)}
-              className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors ${view === o.id ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              <o.icon className="size-4" /> {o.label}
-            </button>
-          ))}
-        </div>
         <Button size="sm" variant="ghost" onClick={() => void load()} disabled={loading || busy} aria-label="Segarkan">
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Segarkan
         </Button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => { setStart(""); setEnd(""); }}>
+            Seluruh periode
+          </Button>
+          <Button size="sm" disabled={busy} onClick={() => void exportPdf(`${BASE}/statements/pdf`, "Rekap-Mitra.pdf")}>
+            <Download className="size-4" />
+            Unduh Rekap PDF
+          </Button>
+        </div>
       </div>
       {error && (
         <p role="alert" className="rounded-lg border border-destructive p-3 text-sm text-destructive">
           {error}
         </p>
       )}
-      {loading && <p role="status">Memuat dokumen dan rekap…</p>}
-      {view === "documents" ? (
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <TableShell minWidth={850}>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nomor / Tanggal</TableHead>
-                    <TableHead>Mitra</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {autoDocs.map((a) => (
-                    <TableRow key={`a-${a.g.id}-${a.key}`}>
-                      <TableCell>
-                        {groupNo[`${a.g.id}|${a.key}`] || "—"}
-                        <div className="text-xs text-muted-foreground">{tradeWeekLabel(a.w.period, a.w.w)}</div>
-                      </TableCell>
-                      <TableCell>{a.g.name}</TableCell>
-                      <TableCell>Otomatis</TableCell>
-                      <TableCell className="whitespace-nowrap text-right">{fmtRp(a.total)}</TableCell>
-                      <TableCell>{groupMenu(a.g, `a-${a.g.id}-${a.key}`)}</TableCell>
-                    </TableRow>
+      {loading && <p role="status">Memuat dokumen…</p>}
+      <Card>
+        <CardContent className="p-4 sm:p-5">
+          <TableShell minWidth={1100}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[
+                    ["week", "Nomor / Minggu"],
+                    ["name", "Mitra"],
+                    ["status", "Status"],
+                    ["total", "Total Transaksi"],
+                    ["paid", "Dibayar"],
+                    ["outstanding", "Sisa Tagihan"],
+                    ["overdue_count", "Jatuh Tempo"],
+                  ].map(([key, label]) => (
+                    <TableHead key={key} className={["total", "paid", "outstanding"].includes(key) ? "text-right" : undefined}>
+                      <button type="button" {...tableSort.headerProps(key)}>
+                        {label}
+                        {tableSort.sortIndicator(key)}
+                      </button>
+                    </TableHead>
                   ))}
-                  {docs.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>
-                        {d.number}
-                        <div className="text-xs text-muted-foreground">{fmtDate(d.issued_date)}</div>
-                      </TableCell>
-                      <TableCell>{d.partner_name}</TableCell>
-                      <TableCell>{d.status === "void" ? "Dibatalkan" : "Diterbitkan"}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right">{fmtRp(d.total)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setBusy(true);
-                              api
-                                .get(`${BASE}/${d.id}`)
-                                .then((r) => setDetail(r.data))
-                                .catch((e) => setError(getApiError(e)))
-                                .finally(() => setBusy(false));
-                            }}
-                            disabled={busy}
-                          >
-                            Detail
-                          </Button>
-                          {d.kind === "invoice" || d.kind === "po" ? (
-                            <Popover open={openDoc === d.id} onOpenChange={(o) => setOpenDoc(o ? d.id : null)}>
-                              <PopoverTrigger asChild>
-                                <Button size="sm" disabled={busy}>
-                                  <Download className="size-4" />
-                                  Unduh PDF
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent align="end" className="w-auto p-1">
-                                <div className="flex flex-col" role="menu" aria-label={`Periode ${d.number}`}>
-                                  {docWeeks(d).map(([key, g]) => (
-                                    <Button key={key} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
-                                      onClick={() => downloadDoc(d, key, g.ids, g.day)}>{tradeWeekLabel(g.period, g.w)}</Button>
-                                  ))}
-                                  <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
-                                    onClick={() => downloadDoc(d, null)}>Semua minggu</Button>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
-                          ) : (
-                            <Button
-                              size="sm"
-                              disabled={busy}
-                              onClick={() =>
-                                void exportPdf(`${BASE}/${d.id}/pdf`, d.number.replaceAll("/", "-") + ".pdf")
-                              }
-                            >
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tableSort.sorted.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>
+                      {r.number || "—"}
+                      <div className="text-xs text-muted-foreground">{r.label}</div>
+                    </TableCell>
+                    <TableCell>{r.name}</TableCell>
+                    <TableCell>{r.status}</TableCell>
+                    {(["total", "paid", "outstanding"] as const).map((k) => (
+                      <TableCell key={k} className="whitespace-nowrap text-right">{fmtRp(r[k])}</TableCell>
+                    ))}
+                    <TableCell>{r.overdue_count} tagihan</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setStatementDetail(r.wg)}>
+                          Rincian
+                        </Button>
+                        {groupMenu(r.g, `t-${r.id}`)}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {docs.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell>
+                      {d.number}
+                      <div className="text-xs text-muted-foreground">{fmtDate(d.issued_date)}</div>
+                    </TableCell>
+                    <TableCell>{d.partner_name}</TableCell>
+                    <TableCell>{d.status === "void" ? "Dibatalkan" : "Diterbitkan"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right">{fmtRp(d.total)}</TableCell>
+                    <TableCell className="text-right">—</TableCell>
+                    <TableCell className="text-right">—</TableCell>
+                    <TableCell>—</TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setBusy(true);
+                            api
+                              .get(`${BASE}/${d.id}`)
+                              .then((r) => setDetail(r.data))
+                              .catch((e) => setError(getApiError(e)))
+                              .finally(() => setBusy(false));
+                          }}
+                          disabled={busy}
+                        >
+                          Detail
+                        </Button>
+                        <Popover open={openDoc === d.id} onOpenChange={(o) => setOpenDoc(o ? d.id : null)}>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" disabled={busy}>
                               <Download className="size-4" />
                               Unduh PDF
                             </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!docs.length && !loading && !autoDocs.length && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center">
-                        Tidak ada transaksi pada periode ini.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableShell>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="space-y-3 p-4">
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setStart("");
-                  setEnd("");
-                }}
-              >
-                Seluruh periode
-              </Button>
-              <Button disabled={busy} onClick={() => void exportPdf(`${BASE}/statements/pdf`, "Rekap-Mitra.pdf")}>
-                <Download className="size-4" />
-                Unduh Rekap PDF
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Total berdasarkan transaksi pada periode terpilih; pembayaran dan sisa tagihan memakai posisi terbaru.
-              Seluruh transaksi diambil, bukan hanya 100 baris pertama.
-            </p>
-            <TableShell minWidth={850}>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {[
-                      ["name", "Mitra"],
-                      ["total", "Total Transaksi"],
-                      ["paid", "Dibayar"],
-                      ["outstanding", "Sisa Tagihan"],
-                      ["overdue_count", "Jatuh Tempo"],
-                    ].map(([key, label]) => (
-                      <TableHead key={key}>
-                        <button type="button" {...sorter.headerProps(key)}>
-                          {label}
-                          {sorter.sortIndicator(key)}
-                        </button>
-                      </TableHead>
-                    ))}
-                    <TableHead>Aksi</TableHead>
+                          </PopoverTrigger>
+                          <PopoverContent align="end" className="w-auto p-1">
+                            <div className="flex flex-col" role="menu" aria-label={`Periode ${d.number}`}>
+                              {(d.kind === "invoice" || d.kind === "po" ? docWeeks(d) : []).map(([key, g]) => (
+                                <Button key={key} type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                                  onClick={() => downloadDoc(d, key, g.ids, g.day)}>{tradeWeekLabel(g.period, g.w)}</Button>
+                              ))}
+                              <Button type="button" variant="ghost" size="sm" className="justify-start" role="menuitem"
+                                onClick={() => downloadDoc(d, null)}>Semua minggu</Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sorter.sorted.map((g) => (
-                    <TableRow key={g.id}>
-                      <TableCell>{g.name}</TableCell>
-                      {(["total", "paid", "outstanding"] as const).map((k) => (
-                        <TableCell key={k} className="whitespace-nowrap text-right">
-                          {fmtRp(g[k])}
-                        </TableCell>
-                      ))}
-                      <TableCell>{g.overdue_count} tagihan</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button size="sm" variant="outline" onClick={() => setStatementDetail(g)}>
-                            Rincian
-                          </Button>
-                          {groupMenu(g, `g-${g.id}`)}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!groups.length && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center">
-                        Tidak ada transaksi dalam periode ini.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableShell>
-          </CardContent>
-        </Card>
-      )}
-      {view === "documents" && (
+                ))}
+                {!docs.length && !loading && !tableRows.length && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-8 text-center">
+                      Tidak ada transaksi pada periode ini.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableShell>
+          <p className="mt-2 text-xs text-muted-foreground">Dibayar dan sisa tagihan memakai posisi pembayaran terbaru.</p>
+        </CardContent>
+      </Card>
+      {(offset > 0 || hasMore) && (
         <div className="flex justify-end gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!offset || busy}
-            onClick={() => setOffset((n) => Math.max(0, n - 50))}
-          >
+          <Button size="sm" variant="outline" disabled={!offset || busy} onClick={() => setOffset((n) => Math.max(0, n - 50))}>
             Sebelumnya
           </Button>
           <Button size="sm" variant="outline" disabled={!hasMore || busy} onClick={() => setOffset((n) => n + 50)}>
