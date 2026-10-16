@@ -194,6 +194,7 @@ export const partnerFormSchema = z.object({
     .trim()
     .min(1, 'Nama wajib diisi')
     .max(200, 'Nama maksimal 200 karakter'),
+  code: z.string().trim().max(16, 'Kode maksimal 16 karakter'),
   contact: z.string().max(120, 'Kontak maksimal 120 karakter'),
   address: z.string().max(500, 'Alamat maksimal 500 karakter'),
 })
@@ -202,6 +203,7 @@ export type PartnerFormValues = z.infer<typeof partnerFormSchema>
 
 export const emptyPartnerFormValues = (): PartnerFormValues => ({
   name: '',
+  code: '',
   contact: '',
   address: '',
 })

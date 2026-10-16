@@ -303,11 +303,11 @@ export default function Inventory() {
     try {
       if (vendorEditingId) {
         await api.put(`${BASE}/vendors/${vendorEditingId}`, {
-          name: values.name, contact: values.contact, address: values.address,
+          name: values.name, code: values.code, contact: values.contact, address: values.address,
         });
       } else {
         await api.post(`${BASE}/vendors`, {
-          name: values.name, contact: values.contact, address: values.address,
+          name: values.name, code: values.code, contact: values.contact, address: values.address,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
@@ -337,11 +337,11 @@ export default function Inventory() {
     try {
       if (customerEditingId) {
         await api.put(`${BASE}/customers/${customerEditingId}`, {
-          name: values.name, contact: values.contact, address: values.address,
+          name: values.name, code: values.code, contact: values.contact, address: values.address,
         });
       } else {
         await api.post(`${BASE}/customers`, {
-          name: values.name, contact: values.contact, address: values.address,
+          name: values.name, code: values.code, contact: values.contact, address: values.address,
           unit_usaha_id: meta?.unit_usaha_id,
         });
       }
@@ -512,19 +512,20 @@ export default function Inventory() {
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
               <Table>
-                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Kontak</TableHead><TableHead>Alamat</TableHead><TableHead>Status</TableHead>{canWrite && <TableHead />}</TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Kode</TableHead><TableHead>Kontak</TableHead><TableHead>Alamat</TableHead><TableHead>Status</TableHead>{canWrite && <TableHead />}</TableRow></TableHeader>
                 <TableBody>
                   {vendors.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada mitra pemasok.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada mitra pemasok.</TableCell></TableRow>
                   ) : vendors.map((v) => (
                     <TableRow key={v.id}>
                       <TableCell className="font-medium">{v.name}</TableCell>
+                      <TableCell>{v.code || "-"}</TableCell>
                       <TableCell>{v.contact || "-"}</TableCell>
                       <TableCell>{v.address || "-"}</TableCell>
                       <TableCell><Badge variant={v.is_active ? "default" : "outline"}>{v.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("vendor"); setVendorEditingId(v.id); setVendorDefaults({ name: v.name, contact: v.contact || "", address: v.address || "" }); }}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("vendor"); setVendorEditingId(v.id); setVendorDefaults({ name: v.name, code: v.code || "", contact: v.contact || "", address: v.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleVendorActive(v)}>{v.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}
@@ -554,19 +555,20 @@ export default function Inventory() {
           <Card className="p-0 overflow-hidden">
             <TableShell minWidth={640}>
               <Table>
-                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Kontak</TableHead><TableHead>Alamat</TableHead><TableHead>Status</TableHead>{canWrite && <TableHead />}</TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Nama</TableHead><TableHead>Kode</TableHead><TableHead>Kontak</TableHead><TableHead>Alamat</TableHead><TableHead>Status</TableHead>{canWrite && <TableHead />}</TableRow></TableHeader>
                 <TableBody>
                   {customers.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada customer.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8" style={{ color: "var(--text-muted)" }}>Belum ada customer.</TableCell></TableRow>
                   ) : customers.map((c) => (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell>{c.code || "-"}</TableCell>
                       <TableCell>{c.contact || "-"}</TableCell>
                       <TableCell>{c.address || "-"}</TableCell>
                       <TableCell><Badge variant={c.is_active ? "default" : "outline"}>{c.is_active ? "aktif" : "nonaktif"}</Badge></TableCell>
                       {canWrite && (
                         <TableCell className="whitespace-nowrap">
-                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("customer"); setCustomerEditingId(c.id); setCustomerDefaults({ name: c.name, contact: c.contact || "", address: c.address || "" }); }}><Pencil  className="size-4" /></button>
+                          <button type="button" className="p-1.5" title="Edit" onClick={() => { setError(""); setOperation("customer"); setCustomerEditingId(c.id); setCustomerDefaults({ name: c.name, code: c.code || "", contact: c.contact || "", address: c.address || "" }); }}><Pencil  className="size-4" /></button>
                           <Button type="button" variant="outline" size="sm" className="ml-2" onClick={() => toggleCustomerActive(c)}>{c.is_active ? "Nonaktifkan" : "Aktifkan"}</Button>
                         </TableCell>
                       )}

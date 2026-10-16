@@ -292,6 +292,7 @@ export interface InventoryAdjustment {
 export interface InventoryPartner {
   id: string
   name: string
+  code?: string | null
   contact?: string | null
   address?: string | null
   [key: string]: unknown

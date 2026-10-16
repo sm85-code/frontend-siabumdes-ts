@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useSort } from "@/lib/useSort";
 import type { InventoryProduct } from "@/types";
+import { WEEKS, tradeWeekLabel } from "@/lib/toko";
 
 const BASE = "/v1/uu05_inventory/documents";
 const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
@@ -360,6 +361,30 @@ export default function CommercialDocuments() {
       <Input type={type} value={value} onChange={(e) => change(e.target.value)} />
     </label>
   );
+  // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
+  const weekPeriod = (start || today()).slice(0, 7);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const pickWeek = (w: string) => {
+    const [y, m] = weekPeriod.split("-").map(Number);
+    const mon = new Date(y, m - 1, 1);
+    mon.setDate(1 + ((8 - mon.getDay()) % 7) + (Number(w) - 1) * 7);
+    const sat = new Date(mon);
+    sat.setDate(mon.getDate() + 5);
+    setStart(iso(mon));
+    setEnd(iso(sat));
+    setIssuedDate(iso(sat));
+  };
+  const weekSelect = (
+    <div className="grid gap-1 text-sm">
+      <span>Minggu</span>
+      <Select value="" onValueChange={pickWeek}>
+        <SelectTrigger aria-label="Pilih minggu"><SelectValue placeholder="Pilih minggu" /></SelectTrigger>
+        <SelectContent>
+          {WEEKS.map((w) => <SelectItem key={w} value={String(w)}>{tradeWeekLabel(weekPeriod, w)}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
   const partnerSelect = (
     <div className="grid gap-1 text-sm">
       <span>{kind === "invoice" ? "Pelanggan" : "Pemasok"}</span>
@@ -394,8 +419,9 @@ export default function CommercialDocuments() {
       />
       <div className="flex items-center gap-1 text-sm text-muted-foreground"><HelpHint><p>{hints[kind]}</p><p>Filter mitra dan periode berlaku untuk daftar, rekap, dan pemilihan transaksi sumber.</p></HelpHint></div>
       <Card>
-        <CardContent className="grid gap-3 p-4 sm:grid-cols-3">
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-4">
           {partnerSelect}
+          {weekSelect}
           {field("Tanggal awal", start, setStart, "date")}
           {field("Tanggal akhir", end, setEnd, "date")}
         </CardContent>
@@ -598,6 +624,7 @@ export default function CommercialDocuments() {
             )}
             <div className="grid gap-3 sm:grid-cols-3">
               {partnerSelect}
+              {weekSelect}
               {field("Tanggal dokumen", issuedDate, setIssuedDate, "date")}
               {field("Jatuh tempo / target pembayaran", dueDate, setDueDate, "date")}
               {field("Periode mulai", start, setStart, "date")}
