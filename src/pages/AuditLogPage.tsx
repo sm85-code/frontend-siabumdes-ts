@@ -83,7 +83,7 @@ export default function AuditLogPage() {
     <div className="space-y-6" data-testid="audit-log-page">
       <div>
         <p className="label mb-1">Manajemen Akses (Admin Utama)</p>
-        <h1 className="font-heading page-h1 text-3xl font-bold">Audit Log</h1>
+        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Audit Log</h1>
       </div>
       <Card className="overflow-hidden p-0">
         {loading ? (

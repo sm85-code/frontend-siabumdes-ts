@@ -98,7 +98,7 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
+      <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Manajemen Toko</h1><HelpHint label="Tentang Manajemen Toko"><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></HelpHint></div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
@@ -213,7 +213,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <h2 className="font-heading text-lg font-semibold">Laporan Laba Rugi</h2>
+        <h2 className="section-title">Laporan Laba Rugi</h2>
         <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, dan HPP barang terjual (Stock Out penjualan). Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
@@ -226,8 +226,8 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
           <TableHead>Uraian</TableHead>
-          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right whitespace-nowrap">Jumlah</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {lines.map((l) => (
@@ -347,7 +347,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
   return (
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
-        <h2 className="font-heading text-lg font-semibold">Neraca</h2>
+        <h2 className="section-title">Neraca</h2>
         <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
@@ -360,8 +360,8 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
           <TableHead>Uraian</TableHead>
-          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right whitespace-nowrap">Jumlah</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowraptext-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
         </TableRow></TableHeader>
         <TableBody>
           {lines.map((l) => (
@@ -440,7 +440,7 @@ function AutoTable({ title, label, doc, period, rows }: { title: string; label: 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <h2 className="font-heading text-lg font-semibold">{title}</h2>
+        <h2 className="section-title">{title}</h2>
         <HelpHint label={`Tentang tabel ${title}`}>Terisi otomatis dari transaksi {doc === 'invoice' ? 'penjualan' : 'pembelian reguler (tanpa Belanja Modal Awal)'}, dijumlah per {label} per minggu (Senin–Sabtu).</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title} otomatis`}><Table className={`${tableClass} table-fixed`}>
@@ -525,7 +525,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg font-semibold">{title}</h2>
+        <h2 className="section-title">{title}</h2>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
         <colgroup>

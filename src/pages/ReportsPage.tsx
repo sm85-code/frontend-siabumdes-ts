@@ -280,7 +280,7 @@ export default function ReportsPage() {
     <div className="space-y-6" data-testid="reports-page">
       <div>
         <p className="label mb-1">FINANCIAL STATEMENTS</p>
-        <h1 className="font-heading page-h1 text-3xl font-bold">Laporan Keuangan</h1>
+        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Laporan Keuangan</h1>
       </div>
 
       {isAdmin && (

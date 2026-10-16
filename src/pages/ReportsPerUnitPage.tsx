@@ -83,7 +83,7 @@ export default function ReportsPerUnitPage() {
     <div className="space-y-6" data-testid="per-unit-page">
       <div>
         <p className="label mb-1">Laporan</p>
-        <h1 className="font-heading page-h1 text-3xl font-bold">Kinerja Per Unit Usaha</h1>
+        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Kinerja Per Unit Usaha</h1>
       </div>
       <Card>
         <CardContent className="flex flex-wrap items-end gap-4 pt-6">

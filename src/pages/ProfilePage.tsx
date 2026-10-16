@@ -72,7 +72,7 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="font-heading page-h1 text-3xl font-bold">Profil Saya</h1>
+        <h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Profil Saya</h1>
       </div>
       {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-error">{error}</div>}

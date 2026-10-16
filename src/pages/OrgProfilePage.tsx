@@ -194,7 +194,7 @@ export default function OrgProfilePage() {
     <div className="max-w-3xl space-y-6" data-testid="org-profile-page">
       <div>
         <p className="label mb-1">PENGATURAN</p>
-        <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-3xl font-bold">Profil BUMDes</h1><HelpHint label="Tentang Profil BUMDes"><p>Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.</p></HelpHint></div>
+        <div className="flex items-center gap-1"><h1 className="font-heading page-h1 text-2xl font-bold sm:text-3xl">Profil BUMDes</h1><HelpHint label="Tentang Profil BUMDes"><p>Teks dan logo di sini dipakai sebagai kop surat pada semua export PDF, Excel, dan Word (Laporan Keuangan, Buku Besar). Perubahan langsung berlaku tanpa perlu deploy ulang.</p></HelpHint></div>
       </div>
 
       <Card>
