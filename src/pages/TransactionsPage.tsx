@@ -8,7 +8,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getApiError } from '@/api/client'
 import { fetchDriveConnectUrl, fetchDriveStatus } from '@/api/admin'
@@ -108,6 +108,12 @@ export default function TransactionsPage() {
   const [activeGroup, setActiveGroup] = useState('BUMDES')
   const [period, setPeriod] = useState<PeriodValue>(defaultMonthPeriod)
   const [offset, setOffset] = useState(0)
+  const [sort, setSort] = useState<{ by: string | null; dir: 'asc' | 'desc' }>({ by: 'date', dir: 'desc' })
+  const onSortChange = useCallback((by: string | null, dir: 'asc' | 'desc') => {
+    // Dipanggil hanya saat urutan berubah (dan sekali saat mount): kembali ke halaman 1.
+    setSort((s) => (s.by === by && s.dir === dir ? s : { by, dir }))
+    setOffset(0)
+  }, [])
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -134,7 +140,7 @@ export default function TransactionsPage() {
   // Server pagination: period + unit. BUMDES tab uses B4 pusat sentinel (null → '').
   const listParams = useMemo(() => {
     if (refFilter) {
-      return { reference: refFilter, limit: 200, offset: 0 }
+      return { reference: refFilter, limit: 200, offset: 0, sortBy: sort.by, sortDir: sort.dir }
     }
     return {
       startDate: period.startDate,
@@ -143,8 +149,10 @@ export default function TransactionsPage() {
       unitUsahaId: activeGroup === 'BUMDES' ? null : activeUnitId,
       limit: PAGE_SIZE,
       offset,
+      sortBy: sort.by,
+      sortDir: sort.dir,
     }
-  }, [refFilter, period.startDate, period.endDate, activeGroup, activeUnitId, offset])
+  }, [refFilter, period.startDate, period.endDate, activeGroup, activeUnitId, offset, sort])
 
   const txQ = useTransactionsPage(listParams)
   const pageData = txQ.data
@@ -646,6 +654,7 @@ export default function TransactionsPage() {
         limit={PAGE_SIZE}
         hasMore={hasMore}
         onPageChange={setOffset}
+        onSortChange={onSortChange}
         units={units}
         accounts={accounts}
         user={user}

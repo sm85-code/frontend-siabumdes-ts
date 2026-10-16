@@ -16,6 +16,9 @@ export interface ListTransactionsParams {
   reference?: string
   limit?: number
   offset?: number
+  /** Urutan server: date|description|debit_account_code|credit_account_code|amount. */
+  sortBy?: string | null
+  sortDir?: 'asc' | 'desc'
   /** B3: when true, returns {items, total, limit, offset, has_more}. */
   meta?: boolean
 }
@@ -35,6 +38,8 @@ export async function listTransactions(
     limit = 50,
     offset = 0,
     meta = false,
+    sortBy,
+    sortDir,
   } = params
 
   const r = await api.get<Transaction[] | PaginatedTransactions>('/transactions', {
@@ -52,6 +57,8 @@ export async function listTransactions(
       limit,
       offset,
       meta: meta || undefined,
+      sort_by: sortBy || undefined,
+      sort_dir: sortBy ? sortDir : undefined,
     },
   })
   return r.data
