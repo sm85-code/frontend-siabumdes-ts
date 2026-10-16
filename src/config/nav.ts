@@ -26,7 +26,19 @@ import {
 } from '@/config/roles'
 import type { Role } from '@/types'
 
+export type NavGroup = 'beranda' | 'unit' | 'keuangan' | 'profil' | 'admin' | 'akun'
+
+/** Grup sidebar (urutan tampil). 'akun' (Profil Saya) tampil di area akun bawah sidebar. */
+export const NAV_GROUPS: { id: Exclude<NavGroup, 'akun'>; label: string }[] = [
+  { id: 'beranda', label: 'Beranda' },
+  { id: 'unit', label: 'Unit Usaha' },
+  { id: 'keuangan', label: 'Keuangan & Akuntansi' },
+  { id: 'profil', label: 'Profil' },
+  { id: 'admin', label: 'Administrasi' },
+]
+
 export interface NavItem {
+  group: NavGroup
   to: string
   label: string
   shortLabel?: string
@@ -43,32 +55,20 @@ export interface NavItem {
 export const BOTTOM_NAV_PATHS = ['/dashboard', '/ledger', '/reports', '/transactions'] as const
 
 export const NAV: NavItem[] = [
-  { to: '/dashboard', label: 'Dashboard', icon: Home, roles: READ_MOST },
-  { to: '/accounts', label: 'Kode Akun (COA)', icon: Library, roles: ROLES_COA },
-  { to: '/transactions', label: 'Transaksi', icon: Receipt, roles: READ_MOST },
-  {
-    to: '/reports',
-    label: 'Laporan Keuangan',
-    shortLabel: 'Laporan',
-    icon: ChartLine,
-    roles: ROLES_REPORTS,
-  },
-  { to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
-  { to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
-  { to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
-  {
-    to: '/inventory',
-    label: 'Manajemen Stok',
-    icon: Package,
-    roles: ROLES_INVENTORY,
-    inventoryUnitOnly: true,
-  },
-  { to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
-  { to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
-  { to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
-  { to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
-  { to: "/riska-permissions", label: "Izin Riska", icon: Users, roles: ["admin"] },
-  { to: '/profile', label: 'Profil Saya', icon: UserCircle, roles: READ_MOST },
+  { group: 'beranda', to: '/dashboard', label: 'Dashboard', icon: Home, roles: READ_MOST },
+  { group: 'unit', to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
+  { group: 'unit', to: '/inventory', label: 'Manajemen Stok', icon: Package, roles: ROLES_INVENTORY, inventoryUnitOnly: true },
+  { group: 'unit', to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
+  { group: 'keuangan', to: '/transactions', label: 'Transaksi', icon: Receipt, roles: READ_MOST },
+  { group: 'keuangan', to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
+  { group: 'keuangan', to: '/accounts', label: 'Kode Akun (COA)', icon: Library, roles: ROLES_COA },
+  { group: 'keuangan', to: '/reports', label: 'Laporan Keuangan', shortLabel: 'Laporan', icon: ChartLine, roles: ROLES_REPORTS },
+  { group: 'profil', to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
+  { group: 'profil', to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
+  { group: 'admin', to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
+  { group: 'admin', to: '/riska-permissions', label: 'Izin Riska', icon: Users, roles: ['admin'] },
+  { group: 'admin', to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
+  { group: 'akun', to: '/profile', label: 'Profil Saya', icon: UserCircle, roles: READ_MOST },
 ]
 
 /** Pure filter: which nav items a user may see (role + inventory unit gate). */
