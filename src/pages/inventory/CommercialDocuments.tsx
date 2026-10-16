@@ -503,12 +503,12 @@ export default function CommercialDocuments() {
   return (
     <div className="space-y-4">
       <SubTabs
-        tabs={(Object.keys(labels) as Kind[]).map((k) => ({ id: k, label: labels[k] }))}
+        tabs={(["invoice", "po"] as Kind[]).map((k) => ({ id: k, label: k === "invoice" ? "INV Pelanggan" : labels[k] }))}
         value={kind}
         label="Jenis dokumen"
         testIdPrefix="doc-tab-"
         onChange={(k) => {
-          setKind(k as Kind);
+          setKind(k === "po" ? "po" : "invoice"); // Rekap Pembelian dihapus (sama dengan PO Pemasok)
           setPartner("");
           setOffset(0);
           setError("");
