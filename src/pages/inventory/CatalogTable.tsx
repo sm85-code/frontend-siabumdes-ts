@@ -14,7 +14,7 @@ import type { InventoryCategory, InventoryProduct } from "@/types";
 import { DEFAULT_CATALOG_ROWS, buildSku, isRowComplete, shouldAppendRow, skuPrefix, type CatalogRow } from "@/lib/catalog";
 
 const BASE = "/v1/uu05_inventory";
-const LOCKED = "Produk sudah memiliki stok/riwayat mutasi: kategori, HPP, dan hapus terkunci.";
+const LOCKED = "Produk sudah memiliki stok/riwayat mutasi: HPP dan hapus terkunci (kategori bisa diubah lewat SKU).";
 const COL_NO = "w-12";
 const COL_NAME = "min-w-48";
 type ApiErr = { response?: { data?: { detail?: unknown } } };
@@ -35,6 +35,27 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
   const [rows, setRows] = useState<CatalogRow[]>([]);
   const [skuRow, setSkuRow] = useState<CatalogRow | null>(null);
   const [suffix, setSuffix] = useState("");
+  // Ubah kategori + SKU produk tersimpan (juga yang sudah punya riwayat).
+  const [editRow, setEditRow] = useState<CatalogRow | null>(null);
+  const [editCat, setEditCat] = useState("");
+  const [editSuffix, setEditSuffix] = useState("");
+  const [editErr, setEditErr] = useState("");
+  const openEdit = (row: CatalogRow) => {
+    const code = catById.get(row.category_id)?.code || "";
+    const pre = skuPrefix(code);
+    setEditCat(row.category_id);
+    setEditSuffix(row.sku.startsWith(pre) ? row.sku.slice(pre.length) : row.sku.replace(/^KRS\.[^-]*-/, ""));
+    setEditErr("");
+    setEditRow(row);
+  };
+  const saveEdit = async () => {
+    if (!editRow?.id) return;
+    try {
+      await api.put(`${BASE}/products/${editRow.id}/sku`, { category_id: editCat, suffix: editSuffix });
+      setEditRow(null);
+      await onChanged();
+    } catch (e) { setEditErr(detail(e, "Gagal mengubah SKU")); }
+  };
   const creating = useRef(new Set<string>());
   const byId = new Map(products.map((p) => [p.id, p]));
   const catById = new Map(categories.map((c) => [c.id, c]));
@@ -126,23 +147,24 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
                     <TableCell className={COL_NO}>{i + 1}</TableCell>
                     {canWrite ? <>
                       <TableCell>
-                        <Select value={r.category_id || undefined} disabled={locked} onValueChange={(v) => update(r.key, { category_id: v, ...(r.id ? {} : { sku: "" }) }, Boolean(r.id))}>
-                          <SelectTrigger aria-label={`Kategori baris ${i + 1}`} className="h-10 w-full" title={locked ? LOCKED : undefined}><SelectValue placeholder="Pilih" /></SelectTrigger>
+                        <Select value={r.category_id || undefined} disabled={Boolean(r.id)} onValueChange={(v) => update(r.key, { category_id: v, ...(r.id ? {} : { sku: "" }) }, Boolean(r.id))}>
+                          <SelectTrigger aria-label={`Kategori baris ${i + 1}`} className="h-10 w-full" title={r.id ? "Ubah kategori lewat SKU" : undefined}><SelectValue placeholder="Pilih" /></SelectTrigger>
                           <SelectContent position="popper">{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}</SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <button type="button" className="input h-10 w-full text-left disabled:opacity-100" disabled={Boolean(r.id)} aria-label={`SKU baris ${i + 1}`}
-                          title={r.id ? "SKU tidak dapat diubah setelah produk dibuat" : "Klik untuk mengisi SKU"} onClick={() => openSku(r)}>
+                        <button type="button" className="input h-10 w-full text-left" aria-label={`SKU baris ${i + 1}`}
+                          title={r.id ? "Klik untuk ubah kategori/SKU" : "Klik untuk mengisi SKU"} onClick={() => (r.id ? openEdit(r) : openSku(r))}>
                           {r.sku || <span className="italic text-muted-foreground/60">klik untuk input</span>}
                         </button>
+                        {p?.has_history && <span className="text-[11px] text-muted-foreground" title="Produk sudah punya riwayat transaksi/mutasi">Riwayat</span>}
                       </TableCell>
                       <TableCell className={COL_NAME}><Input aria-label={`Nama baris ${i + 1}`} value={r.name} maxLength={255} onChange={(e) => update(r.key, { name: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><Input aria-label={`Satuan baris ${i + 1}`} value={r.unit_of_measure} maxLength={20} placeholder="pcs" onChange={(e) => update(r.key, { unit_of_measure: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><NumericInput className="input h-10 w-full text-right" aria-label={`HPP baris ${i + 1}`} min={0} step="any" value={r.cost_price} disabled={locked} title={locked ? LOCKED : undefined} onChange={(e) => update(r.key, { cost_price: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                       <TableCell><NumericInput className="input h-10 w-full text-right" aria-label={`Harga jual baris ${i + 1}`} min={0} step="any" value={r.sell_price} onChange={(e) => update(r.key, { sell_price: e.target.value })} onBlur={() => void persist(r)} /></TableCell>
                     </> : <>
-                      <TableCell>{p?.category_name || "-"}</TableCell><TableCell className="font-medium">{r.sku}</TableCell>
+                      <TableCell>{p?.category_name || "-"}</TableCell><TableCell className="font-medium">{r.sku}{p?.has_history && <div className="text-[11px] font-normal text-muted-foreground">Riwayat</div>}</TableCell>
                       <TableCell className={COL_NAME}>{r.name}</TableCell><TableCell>{r.unit_of_measure}</TableCell>
                       <TableCell className="num">{p ? fmtRp(Number(p.cost_price)) : ""}</TableCell><TableCell className="num">{p ? fmtRp(Number(p.sell_price)) : ""}</TableCell>
                     </>}
@@ -168,6 +190,25 @@ export default function CatalogTable({ products, categories, canWrite, unitId, o
           <span className="text-xs text-muted-foreground">{categories.length ? "Pilih Kategori, lalu klik SKU untuk mengisi kode produk baru." : "Belum ada kategori produk. Minta admin menambahkannya di Kategori Produk."}</span>
         </div>
       )}
+      <Dialog open={Boolean(editRow)} onOpenChange={(open) => { if (!open) setEditRow(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Ubah Kategori & SKU</DialogTitle></DialogHeader>
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void saveEdit(); }}>
+            <Select value={editCat || undefined} onValueChange={setEditCat}>
+              <SelectTrigger aria-label="Kategori baru" className="h-10 w-full"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
+              <SelectContent position="popper">{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}</SelectContent>
+            </Select>
+            <div className="flex items-center gap-2">
+      <span className="font-medium whitespace-nowrap">{skuPrefix(catById.get(editCat)?.code || "")}</span>
+              <Input aria-label="Sufiks SKU" value={editSuffix} maxLength={40} onChange={(e) => setEditSuffix(e.target.value.toUpperCase().replace(/\s/g, ""))} />
+            </div>
+            <p className="text-sm">{editRow?.sku} → <span className="font-medium">{buildSku(catById.get(editCat)?.code || "", editSuffix)}</span></p>
+            {byId.get(editRow?.id || "")?.has_history && <p className="text-xs text-muted-foreground">Produk sudah punya riwayat; transaksi tetap tertaut, dokumen terbit tetap memakai SKU lama.</p>}
+            {editErr && <p role="alert" className="text-sm text-destructive">{editErr}</p>}
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEditRow(null)}>Batal</Button><Button type="submit" disabled={!editCat || !editSuffix.trim()}>Simpan</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={Boolean(skuRow)} onOpenChange={(open) => { if (!open) setSkuRow(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle>Kode SKU : KRS.{skuCode}</DialogTitle></DialogHeader>
