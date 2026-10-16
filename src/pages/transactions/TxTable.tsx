@@ -43,6 +43,8 @@ interface Props {
   onDelete: (id: string) => void
   onUploadProof: (tx: Transaction) => void
   onDeleteProof: (tx: Transaction, fileId: string, fileName: string) => void
+  /** Urutan diterapkan di server (lintas halaman); baris dari server tidak diurutkan ulang. */
+  onSortChange?: (sortBy: string | null, sortDir: 'asc' | 'desc') => void
 }
 
 export default function TxTable({
@@ -55,6 +57,7 @@ export default function TxTable({
   limit,
   hasMore,
   onPageChange,
+  onSortChange,
   units,
   accounts,
   user,
@@ -69,7 +72,9 @@ export default function TxTable({
 }: Props) {
   const displayRows = rows.map(tx => ({ ...tx, description: automaticTransactionDescription(tx, units, accounts) }))
   const sortState = useSort(displayRows as unknown as Record<string, unknown>[], 'date', 'desc')
-  const sorted = sortState.sorted as unknown as Transaction[]
+  const sorted = (onSortChange ? displayRows : sortState.sorted) as unknown as Transaction[]
+  const { sortKey, sortDir } = sortState
+  useEffect(() => { onSortChange?.(sortKey, sortDir) }, [sortKey, sortDir, onSortChange])
 
   const [inventoryLabels, setInventoryLabels] = useState<Record<string, {description:string; document_id:string|null; document_number:string|null}>>({})
   const inventoryReferences = rows.filter(t => t.reference?.startsWith('stock-') || t.reference?.startsWith('purchase-pay:') || t.reference?.startsWith('sale-pay:')).map(t => t.reference).join('|')
