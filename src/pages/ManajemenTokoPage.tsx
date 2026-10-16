@@ -42,6 +42,9 @@ import {
   type TokoItem,
   type TokoJenis,
   type TxRow,
+  buildJournalRows,
+  isPiutangUtangUsaha,
+  type JournalRec,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -126,6 +129,7 @@ export default function ManajemenTokoPage() {
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
                 onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Bahan Perduitan untuk menambah uraian.') }} />
             ))}
+            {tab === 'transaksi' && <JournalSection period={period} />}
           </section>
           <section hidden={tab !== 'otomatis'} role="tabpanel" id="toko-panel-otomatis" aria-labelledby="toko-tab-otomatis" className="min-w-0 space-y-6">
             {tab === 'otomatis' && <AutoTables period={period} />}
@@ -156,6 +160,81 @@ function useTradeRows(period: string) {
   return { sales, purchases, inRows, outRows }
 }
 
+function useJournal(period: string) {
+  return useQuery({
+    queryKey: ['toko', 'journal', period],
+    queryFn: async () => (await api.get<JournalRec[]>('/v1/toko/journal', { params: { period } })).data,
+  })
+}
+
+function JournalSection({ period }: { period: string }) {
+  return (
+    <>
+      <JournalTable period={period} title="Pemasukan dari menu Transaksi" keep={(r) => r.jenis === 'pemasukan'} />
+      <JournalTable period={period} title="Pengeluaran dari menu Transaksi" keep={(r) => r.jenis === 'pengeluaran'} />
+      <JournalTable period={period} title="Mutasi Kas/Piutang/Utang dari menu Transaksi" keep={(r) => r.jenis === 'mutasi'} />
+      <JournalSkipped period={period} />
+    </>
+  )
+}
+
+function JournalSkipped({ period }: { period: string }) {
+  const q = useJournal(period)
+  const skipped = (q.data ?? []).filter((r) => !r.counted)
+  if (!skipped.length) return null
+  return (
+    <p className="text-sm text-muted-foreground">
+      {skipped.length} transaksi Unit 5 dari menu Transaksi tidak dihitung karena akunnya bukan Kas, Piutang, Utang, Persediaan, Pendapatan, atau Beban:{' '}
+      {skipped.map((r) => r.keterangan || `${r.debit.name} / ${r.credit.name}`).join('; ')}.
+    </p>
+  )
+}
+
+/** Tabel baca-saja transaksi manual menu Transaksi (Unit 5); ubah/hapus dari halaman Transaksi. */
+function JournalTable({ period, title, keep }: { period: string; title: string; keep: (r: JournalRec) => boolean }) {
+  const q = useJournal(period)
+  const rows = useMemo(() => buildJournalRows(q.data ?? [], period, keep), [q.data, period, keep])
+  if (q.error) return <p role="alert">{getApiError(q.error)}</p>
+  if (q.isLoading || !rows.length) return null
+  const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
+  const tot = txTotals(rows)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <SectionTitle>{title}</SectionTitle>
+        <HelpHint label={`Tentang ${title}`}>Transaksi Unit 5 yang dicatat langsung di menu Transaksi (bukan dari Perduitan atau stok). Ubah atau hapus dari halaman Transaksi.</HelpHint>
+      </div>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={title}><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+        </colgroup>
+        <TableHeader className={headerClass}><TableRow>
+          <TableHead>No.</TableHead>
+          <TableHead className="col-name">Uraian</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
+        </TableRow></TableHeader>
+        <TableBody>
+          {rows.map((r, i) => (
+            <TableRow key={r.key}>
+              <TableCell>{i + 1}</TableCell>
+              <TableCell className="min-w-0 whitespace-normal break-words" title={`${r.uraian} (dari menu Transaksi)`}>{r.uraian} <span className="text-xs text-muted-foreground">(Transaksi)</span></TableCell>
+              {keys.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{r[k] != null && r[k] !== 0 ? fmtNumber(r[k] as number) : <EmptyCellDash />}</TableCell>)}
+            </TableRow>
+          ))}
+        </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2}>Jumlah</TableCell>
+          {keys.map((k) => <TableCell key={k} className="text-right whitespace-nowrap tabular-nums">{fmtNumber(tot[k])}</TableCell>)}
+        </TableRow></tfoot>
+      </Table></TableShell></Card>
+    </div>
+  )
+}
+
 type WeekVals = { w1: number; w2: number; w3: number; w4: number; w5: number; jumlah: number }
 const isLainnya = (r: TxRow) => (r.uraian ?? '').trim().toUpperCase() === 'LAINNYA'
 
@@ -173,17 +252,23 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   })
   const p1In = useMemo(() => buildTxRows(items, entries, 'pemasukan'), [items, entries])
   const p1Out = useMemo(() => buildTxRows(items, entries, 'pengeluaran'), [items, entries])
-  const error = sales.error || purchases.error || cogs.error
+  const journal = useJournal(period)
+  const jIn = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pemasukan'), [journal.data, period])
+  const jOut = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pengeluaran'), [journal.data, period])
+  const jAll = useMemo(() => buildJournalRows(journal.data ?? [], period, () => true), [journal.data, period])
+  const error = sales.error || purchases.error || cogs.error || journal.error
   if (error) return <p role="alert">{getApiError(error)}</p>
-  if (sales.isLoading || purchases.isLoading || cogs.isLoading) return <Spinner label="Memuat laporan..." />
+  if (sales.isLoading || purchases.isLoading || cogs.isLoading || journal.isLoading) return <Spinner label="Memuat laporan..." />
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const add = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] + b[k]])) as WeekVals
   const sub = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] - b[k]])) as WeekVals
   const saldo = txTotals(p1In.filter((r) => !isLainnya(r)))
   const jual = txTotals(inRows)
   const lain = txTotals(p1In.filter(isLainnya))
-  const totalIn = add(add(saldo, jual), lain)
+  const trxIn = txTotals(jIn)
+  const totalIn = add(add(add(saldo, jual), lain), trxIn)
   const umum = txTotals(p1Out)
+  const trxOut = txTotals(jOut)
   const hpp: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
   const internal: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
   for (const mv of cogs.data ?? []) {
@@ -194,29 +279,31 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     target[`w${w}` as 'w1'] += v
     target.jumlah += v
   }
-  const totalOut = add(add(umum, hpp), internal)
+  const totalOut = add(add(add(umum, hpp), internal), trxOut)
   const laba = sub(totalIn, totalOut)
   type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
     { no: 1, label: 'Pemasukan Saldo Penjual', v: saldo },
     { no: 2, label: 'Pemasukan Penjualan Barang (Stock Out)', v: jual },
     { no: 3, label: 'Pemasukan Lainnya', v: lain },
+    { no: 4, label: 'Pemasukan dari menu Transaksi', v: trxIn },
     { label: 'TOTAL PEMASUKAN', v: totalIn, strong: true },
-    { no: 4, label: 'Pengeluaran Umum', v: umum },
-    { no: 5, label: 'Pengeluaran HPP Penjualan Barang', v: hpp },
-    { no: 6, label: 'Pengeluaran Pemakaian Internal', v: internal },
+    { no: 5, label: 'Pengeluaran Umum', v: umum },
+    { no: 6, label: 'Pengeluaran HPP Penjualan Barang', v: hpp },
+    { no: 7, label: 'Pengeluaran Pemakaian Internal', v: internal },
+    { no: 8, label: 'Pengeluaran dari menu Transaksi', v: trxOut },
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
   const started = startedWeeks(period)
   // Minggu yang Laba Rugi-nya sudah berisi (ada nilai ≠ 0) — Neraca hanya tampil untuk minggu ini.
-  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && lines.some((l) => l.v[k as keyof WeekVals] !== 0)))
+  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && (lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null))))
   if (filled.size) filled.add('jumlah')
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <SectionTitle>Laporan Laba Rugi</SectionTitle>
-        <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, dan HPP barang terjual (Stock Out penjualan). Negatif: merah dalam kurung.</HelpHint>
+        <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, HPP barang terjual (Stock Out penjualan), dan transaksi Unit 5 di menu Transaksi yang memakai akun Pendapatan/Beban. Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -404,6 +491,7 @@ function AutoTables({ period }: { period: string }) {
     <>
       <AutoTable title="Daftar Invoice untuk Pelanggan (Stock Out)" label="Customer" doc="invoice" period={period} rows={inRows} />
       <AutoTable title="Daftar Purchase Order untuk Pemasok (Stock In)" label="Pemasok" doc="po" period={period} rows={outRows} />
+      <JournalTable period={period} title="Pelunasan Piutang/Utang Usaha dari menu Transaksi" keep={isPiutangUtangUsaha} />
     </>
   )
 }

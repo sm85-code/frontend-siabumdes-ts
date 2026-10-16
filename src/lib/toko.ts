@@ -147,3 +147,20 @@ export function buildTradeRows(records: TradeRecord[], period: string): TxRow[] 
   }
   return [...map.values()].sort((a, b) => (a.uraian ?? '').localeCompare(b.uraian ?? ''))
 }
+
+/** Transaksi manual menu Transaksi (unit 5) dari GET /v1/toko/journal. */
+export type JournalPos = 'kas' | 'piutang_lainnya' | 'piutang' | 'utang' | 'stok' | 'pendapatan' | 'beban' | null
+export type JournalRec = {
+  id: string; tanggal: string; keterangan: string; nominal: string
+  jenis: 'pemasukan' | 'pengeluaran' | 'mutasi'; counted: boolean
+  debit: { code: string; name: string; pos: JournalPos }; credit: { code: string; name: string; pos: JournalPos }
+}
+
+/** Baris per keterangan per minggu (Senin–Sabtu, sama dengan Perduitan #2) untuk transaksi terpilih. */
+export function buildJournalRows(recs: JournalRec[], period: string, keep: (r: JournalRec) => boolean): TxRow[] {
+  return buildTradeRows(recs.filter((r) => r.counted && keep(r)).map((r) => ({
+    id: r.id, name: r.keterangan || `${r.debit.name} / ${r.credit.name}`, total_amount: r.nominal, created_at: null, transaction_date: r.tanggal,
+  })), period)
+}
+
+export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos].some((p) => p === 'piutang' || p === 'utang')
