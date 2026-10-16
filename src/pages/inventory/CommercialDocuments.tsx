@@ -503,7 +503,7 @@ export default function CommercialDocuments() {
   return (
     <div className="space-y-4">
       <SubTabs
-        tabs={(["invoice", "po"] as Kind[]).map((k) => ({ id: k, label: labels[k] }))}
+        tabs={(["invoice", "po"] as Kind[]).map((k) => ({ id: k, label: k === "invoice" ? "INV Pelanggan" : labels[k] }))}
         value={kind}
         label="Jenis dokumen"
         testIdPrefix="doc-tab-"
