@@ -367,19 +367,18 @@ export default function CommercialDocuments() {
   // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [weeklyNo, setWeeklyNo] = useState<Record<string, string>>({});
-  // Daftar Dokumen tanpa dokumen terbit: tampilkan dokumen mingguan per mitra dari transaksi minggu terpilih.
-  const weekPicked = !!start && !!end && start.length === 10 && (new Date(`${start}T00:00:00`).getDay() === 1) &&
-    (new Date(`${end}T00:00:00`).getTime() - new Date(`${start}T00:00:00`).getTime()) / 86400000 === 6;
+  // Nomor mingguan untuk dokumen otomatis (registri backend, tetap per mitra per minggu).
   const [groupNo, setGroupNo] = useState<Record<string, string>>({});
   useEffect(() => {
     setGroupNo({});
-    if (!weekPicked) return;
     const k = kind === "invoice" ? "invoice" : "po";
-    void Promise.all(groups.filter((g) => g.rows.length).map((g) =>
-      api.post(`${BASE}/weekly-numbers`, { kind: k, partner_id: g.id, dates: [start] })
-        .then((r) => [g.id, r.data[start] as string] as const).catch(() => [g.id, ""] as const),
-    )).then((pairs) => setGroupNo(Object.fromEntries(pairs)));
-  }, [groups, weekPicked, start, kind]);
+    void Promise.all(groups.filter((g) => g.rows.length).map((g) => {
+      const days = weeksOf(g.rows.map((r) => ({ source_id: r.id, date: r.date }))).map(([key, w]) => [key, w.day] as const);
+      return api.post(`${BASE}/weekly-numbers`, { kind: k, partner_id: g.id, dates: days.map(([, d]) => d).slice(0, 60) })
+        .then((r) => days.map(([key, d]) => [`${g.id}|${key}`, (r.data[d] as string) ?? ""] as const))
+        .catch(() => [] as (readonly [string, string])[]);
+    })).then((pairs) => setGroupNo(Object.fromEntries(pairs.flat())));
+  }, [groups, kind]);
   useEffect(() => {
     setWeeklyNo({});
     if (!statementDetail?.rows.length) return;
@@ -451,6 +450,12 @@ export default function CommercialDocuments() {
       </PopoverContent>
     </Popover>
   );
+  // Dokumen otomatis dari transaksi: satu baris per mitra per minggu (seperti Perduitan #2).
+  const autoDocs = groups
+    .flatMap((g) => weeksOf(g.rows.map((r) => ({ source_id: r.id, date: r.date }))).map(([key, w]) => ({
+      g, key, w, total: g.rows.filter((r) => w.ids.includes(r.id)).reduce((t, r) => t + Number(r.total), 0),
+    })))
+    .sort((x, y) => y.key.localeCompare(x.key) || x.g.name.localeCompare(y.g.name));
   // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
   const weekPeriod = (start || today()).slice(0, 7);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -531,7 +536,7 @@ export default function CommercialDocuments() {
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} /> Segarkan
         </Button>
         {canWrite && (
-          <Button size="sm" className="w-full sm:ml-auto sm:w-auto" onClick={openCreate} disabled={busy}>
+          <Button size="sm" variant="outline" className="w-full sm:ml-auto sm:w-auto" onClick={openCreate} disabled={busy}>
             <Plus className="size-4" />
             Buat {labels[kind]}
           </Button>
@@ -558,6 +563,18 @@ export default function CommercialDocuments() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {autoDocs.map((a) => (
+                    <TableRow key={`a-${a.g.id}-${a.key}`}>
+                      <TableCell>
+                        {groupNo[`${a.g.id}|${a.key}`] || "—"}
+                        <div className="text-xs text-muted-foreground">{tradeWeekLabel(a.w.period, a.w.w)}</div>
+                      </TableCell>
+                      <TableCell>{a.g.name}</TableCell>
+                      <TableCell>Otomatis</TableCell>
+                      <TableCell className="whitespace-nowrap text-right">{fmtRp(a.total)}</TableCell>
+                      <TableCell>{groupMenu(a.g, `a-${a.g.id}-${a.key}`)}</TableCell>
+                    </TableRow>
+                  ))}
                   {docs.map((d) => (
                     <TableRow key={d.id}>
                       <TableCell>
@@ -619,22 +636,10 @@ export default function CommercialDocuments() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!docs.length && !loading && weekPicked && groups.filter((g) => g.rows.length).map((g) => (
-                    <TableRow key={`w-${g.id}`}>
-                      <TableCell>
-                        {groupNo[g.id] || "—"}
-                        <div className="text-xs text-muted-foreground">{fmtDate(issuedDate)}</div>
-                      </TableCell>
-                      <TableCell>{g.name}</TableCell>
-                      <TableCell>Dari transaksi</TableCell>
-                      <TableCell className="whitespace-nowrap text-right">{fmtRp(g.total)}</TableCell>
-                      <TableCell>{groupMenu(g, `w-${g.id}`)}</TableCell>
-                    </TableRow>
-                  ))}
-                  {!docs.length && !loading && !(weekPicked && groups.some((g) => g.rows.length)) && (
+                  {!docs.length && !loading && !autoDocs.length && (
                     <TableRow>
                       <TableCell colSpan={5} className="py-8 text-center">
-                        {weekPicked ? "Tidak ada transaksi pada minggu ini." : "Belum ada dokumen. Pilih Minggu untuk melihat dokumen dari transaksi."}
+                        Tidak ada transaksi pada periode ini.
                       </TableCell>
                     </TableRow>
                   )}
