@@ -252,9 +252,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-/** Piutang Lainnya tetap (dipinjamkan dari kas). */
-const PIUTANG_LAINNYA = 9_200_000
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya?: string }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[] }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
@@ -305,17 +303,16 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
   const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank()
   const labaLalu = parseMoney(prev.laba)
+  const opening = q.data.opening_date
   keys.forEach((k, i) => {
     const p = pos[i]
-    // Setelah saldo awal (opening_date), backend mengirim kas riil & piutang_lainnya.
-    const awal = p.piutang_lainnya != null
-    kas[k] = parseMoney(p.kas) - (awal ? 0 : PIUTANG_LAINNYA)
-    piutangLain[k] = awal ? parseMoney(p.piutang_lainnya!) : PIUTANG_LAINNYA
+    kas[k] = parseMoney(p.kas)
+    piutangLain[k] = parseMoney(p.piutang_lainnya)
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
     utang[k] = parseMoney(p.utang)
     // Laba setelah saldo awal dihitung sejak 1 Okt 2026 (laba sebelumnya sudah dibagi).
-    const l = awal && prev.piutang_lainnya == null ? 0 : labaLalu
+    const l = opening && p.date > opening && prev.date <= opening ? 0 : labaLalu
     lalu[k] = l
     lr[k] = parseMoney(p.laba) - l
   })
