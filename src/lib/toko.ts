@@ -342,27 +342,49 @@ export function buildSkuStockRows(moves: StockMoveRec[], period: string, interna
   return [...map.values()].sort((a, b) => a.sku.localeCompare(b.sku))
 }
 
-/** Baris tabel catatan mingguan: saldo awal, mutasi (+/−) yang pernah tidak nol, saldo akhir. */
-export type WeeklyNoteRow = { label: string; saldo?: boolean; w: (number | null)[]; jumlah: number }
+/** Baris Laporan Arus (Kas/Stok) mingguan. */
+export type FlowRow = { label: string; kind: 'saldo' | 'head' | 'detail' | 'subtotal'; w: (number | null)[]; jumlah: number | null }
+/** Mutasi saldo per minggu dari kunci kumulatif ini = f × selisih; dir: blok Masuk/Keluar, 'both' dipecah per tanda. */
+export type FlowLine = { key: string; label: string; f: 1 | -1; dir: 'in' | 'out' | 'both' }
+
+export const KAS_FLOW: FlowLine[] = KAS_LINES.map(([key, label, f]) => ({ key, label, f, dir: key.startsWith('masuk_') ? 'in' : 'out' }))
+export const STOK_FLOW: FlowLine[] = STOK_LINES.map(([key, label]) => ({
+  key, label, f: 1, dir: key.startsWith('masuk_') ? 'in' : key.startsWith('keluar_') ? 'out' : 'both' }))
 
 /**
- * details[i] = rincian kumulatif s.d. akhir Minggu ke-(i+1) (awal sama untuk semua minggu); undefined = minggu belum
- * berjalan. Mutasi per minggu = selisih kumulatif dengan minggu sebelumnya; awal minggu = akhir minggu sebelumnya.
+ * details[i] = rincian kumulatif s.d. akhir Minggu ke-(i+1) (saldo awal sama untuk semua minggu); undefined = minggu
+ * belum berjalan. Hasil: Awal, blok Masuk (rincian + subtotal), blok Keluar (rincian + subtotal), Akhir.
+ * Awal minggu = akhir minggu sebelumnya; rincian tanpa nilai tidak ditampilkan.
  */
-export function weeklyNoteRows(details: (Record<string, string> | undefined)[], awalKey: string, akhirKey: string,
-  awalLabel: string, akhirLabel: string, lines: [string, string, number][]): WeeklyNoteRow[] {
+export function weeklyFlowRows(details: (Record<string, string> | undefined)[], awalKey: string, akhirKey: string,
+  names: { awal: string; masuk: string; keluar: string; akhir: string }, lines: FlowLine[]): FlowRow[] {
   const n = (d: Record<string, string> | undefined, k: string) => (d ? parseMoney(d[k]) : 0)
   const idx = details.map((d, i) => (d ? i : -1)).filter((i) => i >= 0)
   if (!idx.length) return []
-  const first = details[idx[0]], last = details[idx[idx.length - 1]]
-  const rows: WeeklyNoteRow[] = [{
-    label: awalLabel, saldo: true, jumlah: n(first, awalKey),
-    w: details.map((d, i) => (d ? (i === 0 || !details[i - 1] ? n(d, awalKey) : n(details[i - 1], akhirKey)) : null)),
-  }]
-  for (const [key, label, sign] of lines) {
-    const w = details.map((d, i) => (d ? sign * (n(d, key) - (i > 0 ? n(details[i - 1], key) : 0)) : null))
-    if (w.some((v) => v)) rows.push({ label, w, jumlah: sign * n(last, key) })
+  const on = (i: number) => !!details[i]
+  const delta = (l: FlowLine, i: number) => l.f * (n(details[i], l.key) - (i > 0 ? n(details[i - 1], l.key) : 0))
+  const block = (dir: 'in' | 'out', title: string, sub: string): FlowRow[] => {
+    const rows: FlowRow[] = []
+    for (const l of lines) {
+      if (l.dir !== dir && l.dir !== 'both') continue
+      const w = details.map((_, i) => {
+        if (!on(i)) return null
+        const v = delta(l, i)
+        return l.dir === 'both' ? Math.max(dir === 'in' ? v : -v, 0) : dir === 'in' ? v : -v
+      })
+      if (!w.some((v) => v)) continue
+      const label = l.dir === 'both' ? `${l.label} (${dir === 'in' ? 'tambah' : 'kurang'})` : l.label
+      rows.push({ label, kind: 'detail', w, jumlah: w.reduce<number>((a, v) => a + (v ?? 0), 0) })
+    }
+    const w = details.map((_, i) => (on(i) ? rows.reduce((a, r) => a + (r.w[i] ?? 0), 0) : null))
+    return [{ label: title, kind: 'head', w: w.map(() => null), jumlah: null }, ...rows,
+      { label: sub, kind: 'subtotal', w, jumlah: rows.reduce((a, r) => a + (r.jumlah ?? 0), 0) }]
   }
-  rows.push({ label: akhirLabel, saldo: true, w: details.map((d) => (d ? n(d, akhirKey) : null)), jumlah: n(last, akhirKey) })
-  return rows
+  return [
+    { label: names.awal, kind: 'saldo', jumlah: n(details[idx[0]], awalKey),
+      w: details.map((d, i) => (d ? (i === 0 || !details[i - 1] ? n(d, awalKey) : n(details[i - 1], akhirKey)) : null)) },
+    ...block('in', names.masuk, `Jumlah ${names.masuk}`),
+    ...block('out', names.keluar, `Jumlah ${names.keluar}`),
+    { label: names.akhir, kind: 'saldo', w: details.map((d) => (d ? n(d, akhirKey) : null)), jumlah: n(details[idx[idx.length - 1]], akhirKey) },
+  ]
 }

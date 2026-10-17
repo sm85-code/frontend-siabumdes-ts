@@ -44,10 +44,10 @@ import {
   type StockMoveRec,
   weekCount,
   type JournalRec,
-  KAS_LINES,
-  weeklyNoteRows,
-  type WeeklyNoteRow,
-  STOK_LINES,
+  KAS_FLOW,
+  weeklyFlowRows,
+  type FlowRow,
+  STOK_FLOW,
   diffNoteItems,
   type Suspect,
   type KasDetail,
@@ -323,7 +323,8 @@ function LabaRugi({ period }: { period: string }) {
   if (started.size) started.add('jumlah')
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-1">
+      <ArusSection period={period} />
+      <div className="flex items-center gap-1 pt-4">
         <SectionTitle>Laporan Laba Rugi</SectionTitle>
         <HelpHint label="Tentang Laporan Laba Rugi">Dari jurnal Unit 5 di menu Transaksi (otomatis dari Perduitan #1 dan Manajemen Stok, serta transaksi manual) yang memakai akun Pendapatan, Beban, atau HPP; per minggu Senin–Sabtu. Jurnal penutup, bagi hasil, dan imbal hasil tidak dihitung. Negatif: merah dalam kurung.</HelpHint>
       </div>
@@ -417,7 +418,7 @@ function Neraca({ period }: { period: string }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Kas/Bank = saldo awal Rp 2.124.500 per 30 Sep 2026 + pergerakan Kas sejak 1 Okt 2026. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sebelum Minggu ke-1 bulan ini; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Kas/Bank = saldo awal Rp 2.124.500 per 30 Sep 2026 + pergerakan Kas sejak 1 Okt 2026. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sejak 1 Okt 2026 (saldo awal laba ditahan per 30 Sep 2026 = 0) s.d. sebelum Minggu ke-1 bulan ini, dikurangi bagi hasil yang dibayar; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -458,15 +459,29 @@ function Neraca({ period }: { period: string }) {
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      {started.size > 0 && <KasNote pos={keys.map((k, i) => (started.has(k) ? pos[i] : undefined))} opening={q.data.kas_opening} />}
-      {started.size > 0 && <StokNote pos={keys.map((k, i) => (started.has(k) ? pos[i] : undefined))} last={last} />}
       {started.size > 0 && <DiffNote pos={last} />}
     </div>
   )
 }
 
-/** Tabel mingguan catatan pergerakan (gaya sama dengan tabel mingguan lain). */
-function WeeklyNoteTable({ label, rows }: { label: string; rows: WeeklyNoteRow[] }) {
+/** Laporan Arus Kas & Arus Stok (di atas Laporan Laba Rugi). */
+function ArusSection({ period }: { period: string }) {
+  const q = useGl(period)
+  const started = useMemo(() => startedWeeks(period), [period])
+  if (!q.data || !started.size) return null
+  const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
+  const pos = keys.map((k, i) => (started.has(k) ? q.data.positions[i] : undefined))
+  const last = [...pos].reverse().find(Boolean)
+  return (
+    <div className="space-y-4">
+      <KasNote pos={pos} opening={q.data.kas_opening} />
+      <StokNote pos={pos} last={last} />
+    </div>
+  )
+}
+
+/** Tabel mingguan laporan arus (gaya sama dengan tabel mingguan lain). */
+function WeeklyNoteTable({ label, rows }: { label: string; rows: FlowRow[] }) {
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-Math.round(n))})` : fmtNumber(Math.round(n)))
   return (
     <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={label}><Table className={`${tableClass} table-fixed`}>
@@ -484,11 +499,11 @@ function WeeklyNoteTable({ label, rows }: { label: string; rows: WeeklyNoteRow[]
       </TableRow></TableHeader>
       <TableBody>
         {rows.map((r, i) => (
-          <TableRow key={r.label} className={r.saldo ? 'bg-muted/50 font-semibold' : undefined}>
-            <TableCell>{r.saldo ? '' : i}</TableCell>
+          <TableRow key={`${i}-${r.label}`} className={r.kind === 'saldo' ? 'bg-muted/50 font-semibold' : r.kind === 'subtotal' ? 'border-t font-semibold' : r.kind === 'head' ? 'font-semibold' : undefined}>
+            <TableCell>{r.kind === 'detail' ? rows.slice(0, i + 1).filter((x) => x.kind === 'detail').length : ''}</TableCell>
             <TableCell className="min-w-0 whitespace-normal break-words" title={r.label}>{r.label}</TableCell>
             {[...r.w, r.jumlah].map((v, k) => (
-              <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${v != null && v < 0 ? ' text-destructive' : ''}`}>{v == null ? <EmptyCellDash /> : money(v)}</TableCell>
+              <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${v != null && v < 0 ? ' text-destructive' : ''}`}>{v == null ? (r.kind === 'head' ? '' : <EmptyCellDash />) : money(v)}</TableCell>
             ))}
           </TableRow>
         ))}
@@ -499,15 +514,16 @@ function WeeklyNoteTable({ label, rows }: { label: string; rows: WeeklyNoteRow[]
 
 /** Catatan di bawah Neraca: pergerakan Kas (jurnal menu Transaksi) per minggu; Jumlah = s.d. minggu terakhir yang tampil. */
 function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlResp['kas_opening'] }) {
-  const rows = weeklyNoteRows(pos.map((p) => p?.kas_detail), 'kas_awal', 'kas_akhir', 'Kas awal', 'Kas akhir', KAS_LINES)
+  const rows = weeklyFlowRows(pos.map((p) => p?.kas_detail), 'kas_awal', 'kas_akhir',
+    { awal: 'Kas Awal', masuk: 'Kas Masuk', keluar: 'Kas Keluar', akhir: 'Kas Akhir' }, KAS_FLOW)
   if (!rows.length) return null
   const gl = opening ? parseMoney(opening.gl) : 0
   const set = opening ? parseMoney(opening.ditetapkan) : 0
   const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
-      <p className="font-semibold text-foreground">Catatan pergerakan kas</p>
-      <WeeklyNoteTable label="Tabel catatan pergerakan kas" rows={rows} />
+      <SectionTitle>Laporan Arus Kas</SectionTitle>
+      <WeeklyNoteTable label="Tabel Laporan Arus Kas" rows={rows} />
       {opening && <p className="tabular-nums break-words">Kas di Neraca = saldo awal {rp(set)} per {fmtTgl(opening.date)} + pergerakan akun Kas/Bank Unit 5 di menu Transaksi sejak 1 Okt 2026 (transaksi Kas bertanggal sebelumnya tidak dihitung). Sebagai informasi, saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}.</p>}
     </div>
   )
@@ -515,16 +531,16 @@ function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlRes
 
 /** Catatan pergerakan akun Persediaan per minggu; stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Stok. */
 function StokNote({ pos, last }: { pos: (GlPos | undefined)[]; last?: GlPos }) {
-  const rows = weeklyNoteRows(pos.map((p) => p?.stok_detail), 'stok_awal', 'stok_akhir', 'Stok awal', 'Stok akhir',
-    STOK_LINES.map(([k, l]) => [k, l, 1] as [string, string, number]))
+  const rows = weeklyFlowRows(pos.map((p) => p?.stok_detail), 'stok_awal', 'stok_akhir',
+    { awal: 'Stok Awal', masuk: 'Stok Masuk', keluar: 'Stok Keluar', akhir: 'Stok Akhir' }, STOK_FLOW)
   if (!rows.length || !last?.stok_detail) return null
   const mgmt = last.pembanding?.stok
   const akhir = parseMoney(last.stok_detail.stok_akhir)
   const diff = mgmt != null && Math.abs(akhir - parseMoney(mgmt)) >= 1
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
-      <p className="font-semibold text-foreground">Catatan pergerakan stok</p>
-      <WeeklyNoteTable label="Tabel catatan pergerakan stok" rows={rows} />
+      <SectionTitle>Laporan Arus Stok</SectionTitle>
+      <WeeklyNoteTable label="Tabel Laporan Arus Stok" rows={rows} />
       {mgmt != null && <p className="tabular-nums break-words">Nilai Persediaan Manajemen Stok per {fmtTgl(last.date)}: Rp {fmtNumber(Math.round(parseMoney(mgmt)))} (selisih Rp {fmtNumber(Math.round(akhir - parseMoney(mgmt)))}).</p>}
       {diff && <p>Kemungkinan penyebab selisih dengan Manajemen Stok: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
     </div>
