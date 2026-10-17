@@ -164,3 +164,32 @@ export function buildJournalRows(recs: JournalRec[], period: string, keep: (r: J
 }
 
 export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos].some((p) => p === 'piutang' || p === 'utang')
+
+/** Rincian pergerakan Kas dari /v1/toko/neraca (kas_detail); kas_akhir = Kas di Neraca. */
+export type KasDetail = Record<string, string>
+
+const KAS_LINES: [string, string, 1 | -1][] = [
+  ['masuk_perduitan', 'Pemasukan Perduitan #1', 1],
+  ['masuk_penjualan_tunai', 'Penjualan tunai', 1],
+  ['masuk_pelunasan_piutang', 'Pelunasan piutang usaha', 1],
+  ['masuk_pelunasan_kasbon', 'Pelunasan kasbon', 1],
+  ['masuk_transaksi', 'Menu Transaksi (debit Kas)', 1],
+  ['keluar_perduitan', 'Pengeluaran Perduitan #1', -1],
+  ['keluar_pembelian_tunai', 'Pembelian tunai/modal awal', -1],
+  ['keluar_pelunasan_utang', 'Pembayaran utang usaha', -1],
+  ['keluar_kasbon', 'Kasbon diberikan', -1],
+  ['keluar_transaksi', 'Menu Transaksi (kredit Kas)', -1],
+]
+
+const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
+
+/** Baris teks catatan: kas awal, pos masuk (+) / keluar (−) yang tidak nol, kas akhir. */
+export function kasNoteLines(detail: KasDetail, awalLabel: string, akhirLabel: string): string[] {
+  const lines = [`${awalLabel}: ${rp(parseMoney(detail.kas_awal))}`]
+  for (const [key, label, sign] of KAS_LINES) {
+    const v = parseMoney(detail[key])
+    if (v) lines.push(`${sign > 0 ? '+' : '−'} ${label}: ${rp(v)}`)
+  }
+  lines.push(`${akhirLabel}: ${rp(parseMoney(detail.kas_akhir))}`)
+  return lines
+}

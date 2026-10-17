@@ -45,6 +45,8 @@ import {
   buildJournalRows,
   isPiutangUtangUsaha,
   type JournalRec,
+  kasNoteLines,
+  type KasDetail,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -341,7 +343,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[] }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
@@ -478,6 +480,23 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
+      {started.size > 0 && <KasNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} opening={opening} />}
+    </div>
+  )
+}
+
+/** Catatan teks di bawah tabel Neraca: pergerakan Kas s.d. minggu terakhir yang tampil. */
+function KasNote({ pos, opening }: { pos?: NeracaPos; opening?: string }) {
+  if (!pos?.kas_detail) return null
+  const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  const after = !!opening && pos.date > opening
+  const awal = after ? `Kas awal ${fmt(opening!)}` : 'Kas awal (Modal BUMDes − Piutang Lainnya lama)'
+  const lines = kasNoteLines(pos.kas_detail, awal, `Kas akhir ${fmt(pos.date)}`)
+  return (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <p className="font-semibold text-foreground">Catatan pergerakan kas</p>
+      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      {after && <p>Transaksi kas dari menu Transaksi bertanggal sebelum 1 Okt 2026 tidak dihitung (sudah termasuk dalam kas awal).</p>}
     </div>
   )
 }
