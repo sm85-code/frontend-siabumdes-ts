@@ -13,7 +13,7 @@ import { currentMonth, monthRange, searchRows, totals, type StockRow } from "@/l
 const BASE = "/v1/uu05_inventory";
 const PER_PAGE = 20;
 
-type Row = StockRow & { status?: string; kind?: string; reason?: string; notes?: string; hasRef: boolean; nota?: string; invoice?: string };
+type Row = StockRow & { status?: string; kind?: string; reason?: string; notes?: string; hasRef: boolean; nota?: string; invoice?: string; docNumber?: string };
 
 export default function StockLedgerTable({
   kind,
@@ -47,7 +47,7 @@ export default function StockLedgerTable({
         id: String(d.id), date: String(d.movement_date ?? ""), sku: String(d.sku ?? ""), product: String(d.product_name ?? ""),
         qty: Number(d.quantity) || 0, value: Number(d.total_value) || 0, status: String(d.finance_status ?? ""),
         kind: String(d.movement_kind ?? ""), hasRef: Boolean(d.reference),
-        nota: String(d.nota_id ?? d.id), invoice: String(d.invoice_number ?? ""),
+        nota: String(d.nota_id ?? d.id), invoice: String(d.invoice_number ?? ""), docNumber: String(d.doc_number ?? ""),
       }));
     }).catch((e) => alive && setErr(String((e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail ?? "Gagal memuat daftar")));
     return () => { alive = false; };
@@ -71,7 +71,7 @@ export default function StockLedgerTable({
     <Card className="p-0 overflow-hidden">
       <div className="flex flex-wrap gap-2 p-3">
         <Input type="month" aria-label="Periode" className="w-40" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }} />
-        <Input type="search" aria-label="Cari produk/SKU" placeholder="Cari produk/SKU" className="flex-1 min-w-40" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <Input type="search" aria-label="Cari produk/SKU" placeholder="Cari produk/SKU/No. Nota" className="flex-1 min-w-40" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
       </div>
       {err && <p className="px-3 pb-2 text-sm text-red-600">{err}</p>}
       <TableShell minWidth={720}>
@@ -89,7 +89,11 @@ export default function StockLedgerTable({
             ) : shown.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="whitespace-nowrap">{fmtDate(r.date)}</TableCell>
-                <TableCell><div>{r.product}</div><div className="text-xs" style={{ color: "var(--text-muted)" }}>{r.sku}{r.invoice ? ` · ${r.invoice}` : ""}</div></TableCell>
+                <TableCell>
+                  {r.docNumber && <div className="text-xs font-medium whitespace-nowrap" data-testid="doc-number">{r.docNumber}</div>}
+                  <div>{r.product}</div>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>{r.sku}{r.invoice ? ` · Ref ${r.invoice}` : ""}</div>
+                </TableCell>
                 <TableCell className="num">{isAdj && r.qty > 0 ? `+${r.qty}` : r.qty}</TableCell>
                 {isAdj ? <TableCell><Badge variant="secondary">{r.reason}</Badge></TableCell> : <TableCell className="num">{fmtRp(r.value ?? 0)}</TableCell>}
                 <TableCell>

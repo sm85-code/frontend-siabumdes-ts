@@ -28,6 +28,7 @@ type Source = {
   date: string;
   quantity: number;
   invoice_number: string;
+  doc_number?: string;
   total: string;
   paid: string;
   outstanding: string;
@@ -601,7 +602,7 @@ export default function CommercialDocuments() {
                   {detail.payments.map((p) => (
                     <div key={p.id} className="rounded border p-3 text-sm">
                       <p>
-                        {p.invoice_number || p.name} · Dibayar {fmtRp(p.paid)} · Sisa {fmtRp(p.outstanding)}
+                        {p.doc_number || p.invoice_number || p.name} · Dibayar {fmtRp(p.paid)} · Sisa {fmtRp(p.outstanding)}
                       </p>
                       {p.payments.map((pay, n) => (
                         <p key={n} className="text-muted-foreground">
@@ -698,7 +699,10 @@ export default function CommercialDocuments() {
                     <TableRow key={r.id}>
                       <TableCell>
                         {fmtDate(r.date)}
-                        <div>{weeklyNo[r.date] || r.invoice_number || "—"}</div>
+                        <div>{r.doc_number || weeklyNo[r.date] || r.invoice_number || "—"}</div>
+                        {r.doc_number && r.invoice_number && (
+                          <div className="text-xs" style={{ color: "var(--text-muted)" }}>Ref {r.invoice_number}</div>
+                        )}
                       </TableCell>
                       <TableCell>
                         {r.name} ×{r.quantity}
@@ -773,7 +777,7 @@ export default function CommercialDocuments() {
                   .map((r) => (
                     <TableRow key={r.id}>
                       <TableCell>
-                        {r.invoice_number || "Tanpa nomor"} · {r.name}
+                        {r.doc_number || r.invoice_number || "Tanpa nomor"} · {r.name}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">{fmtRp(r.outstanding)}</TableCell>
                       <TableCell>

@@ -21,7 +21,8 @@ export function currentMonth(d = new Date()): string {
 export function searchRows<T extends StockRow>(rows: T[], q: string): T[] {
   const t = q.trim().toLowerCase()
   if (!t) return rows
-  return rows.filter((r) => r.sku.toLowerCase().includes(t) || r.product.toLowerCase().includes(t))
+  return rows.filter((r) => r.sku.toLowerCase().includes(t) || r.product.toLowerCase().includes(t)
+    || String(r.docNumber ?? '').toLowerCase().includes(t) || String(r.invoice ?? '').toLowerCase().includes(t))
 }
 
 export function totals(rows: StockRow[]): { qty: number; value: number } {

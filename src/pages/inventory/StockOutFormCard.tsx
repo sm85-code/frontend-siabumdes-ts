@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { fmtRp } from '@/api/client'
+import DocNumberPreview from '@/pages/inventory/DocNumberPreview'
 import { CoaSelect, KAS_ACCOUNT_CODE, PIUTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
 import {
   emptyStockOutForm,
@@ -49,6 +50,8 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
   })
 
   const isInternal = watch('isInternal')
+  const customerId = watch('customer_id')
+  const movementDate = watch('movement_date')
   const paymentMethod = watch('payment_method')
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
   const lines = watch('lines')
@@ -147,6 +150,7 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <Input id="so-date" type="date" aria-invalid={Boolean(errors.movement_date)} {...register('movement_date')} />
         {fieldErr(errors.movement_date?.message)}
       </div>
+      <DocNumberPreview id="so-doc-number" kind={isInternal ? 'int' : 'invoice'} partnerId={customerId} date={movementDate} />
       {isInternal ? (
         <div className="sm:col-span-2">
           <label className="label" htmlFor="so-note">
@@ -158,9 +162,9 @@ export default function StockOutFormCard({ products, customers, onSubmit, onClie
         <>
           <div>
             <label className="label" htmlFor="so-invoice">
-              No. Invoice
+              No. Ref (opsional)
             </label>
-            <Input id="so-invoice" {...register('invoice_number')} />
+            <Input id="so-invoice" placeholder="mis. nomor PO dari pelanggan" {...register('invoice_number')} />
           </div>
           <div>
             <label className="label">Metode bayar</label>
