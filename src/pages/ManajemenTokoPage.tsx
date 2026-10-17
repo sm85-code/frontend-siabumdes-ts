@@ -46,6 +46,7 @@ import {
   isPiutangUtangUsaha,
   type JournalRec,
   kasNoteLines,
+  stokNoteLines,
   diffNoteItems,
   type Suspect,
   type KasDetail,
@@ -345,7 +346,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]> }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]>; stok_detail?: Record<string, string> }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[]; stok_manajemen?: string }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
@@ -488,12 +489,34 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
         </TableRow></tfoot>
       </Table></TableShell></Card>
       {started.size > 0 && <KasNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} opening={opening} />}
+      {started.size > 0 && <StokNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} period={period} stokManajemen={q.data.stok_manajemen} />}
       {started.size > 0 && <DiffNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} stokManajemen={q.data.stok_manajemen} />}
     </div>
   )
 }
 
 /** Catatan teks di bawah tabel Neraca: pergerakan Kas s.d. minggu terakhir yang tampil. */
+/** Catatan pergerakan stok s.d. minggu terakhir yang tampil; stok akhir = Stok di Neraca. */
+function StokNote({ pos, period, stokManajemen }: { pos?: NeracaPos; period: string; stokManajemen?: string }) {
+  if (!pos?.stok_detail) return null
+  const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  const [y, m] = period.split('-').map(Number)
+  const awal = new Date(y, m - 1, 0)
+  const awalIso = `${awal.getFullYear()}-${String(awal.getMonth() + 1).padStart(2, '0')}-${String(awal.getDate()).padStart(2, '0')}`
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const lines = stokNoteLines(pos.stok_detail, `Stok awal ${fmt(awalIso)}`, `Stok akhir ${fmt(pos.date)}`, pos.date >= today ? stokManajemen : undefined)
+  const gl = parseMoney(pos.stok_detail.gl_persediaan)
+  const akhir = parseMoney(pos.stok_detail.stok_akhir)
+  return (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <p className="font-semibold text-foreground">Catatan pergerakan stok</p>
+      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      {Math.abs(akhir - gl) >= 1 && <p>Kemungkinan penyebab selisih dengan Laporan Keuangan: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
+    </div>
+  )
+}
+
 function KasNote({ pos, opening }: { pos?: NeracaPos; opening?: string }) {
   if (!pos?.kas_detail) return null
   const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })

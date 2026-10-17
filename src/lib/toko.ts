@@ -228,3 +228,32 @@ export function diffNoteItems(
   }
   return out
 }
+
+const STOK_LINES: [string, string][] = [
+  ['masuk_reguler', 'Barang masuk (pembelian)'],
+  ['masuk_modal_awal', 'Barang masuk (Belanja Modal Awal)'],
+  ['masuk_lainnya', 'Barang masuk lainnya'],
+  ['keluar_penjualan', 'Barang keluar (HPP penjualan)'],
+  ['keluar_internal', 'Pemakaian internal'],
+  ['penyesuaian', 'Penyesuaian stok'],
+]
+
+/** Catatan pergerakan stok: stok awal, mutasi tidak nol (+/−), stok akhir, lalu pembanding. */
+export function stokNoteLines(detail: Record<string, string>, awalLabel: string, akhirLabel: string, stokManajemen?: string): string[] {
+  const lines = [`${awalLabel}: ${rp(parseMoney(detail.stok_awal))}`]
+  for (const [key, label] of STOK_LINES) {
+    const v = parseMoney(detail[key])
+    if (v) lines.push(`${v > 0 ? '+' : '−'} ${label}: ${rp(Math.abs(v))}`)
+  }
+  const akhir = parseMoney(detail.stok_akhir)
+  lines.push(`${akhirLabel}: ${rp(akhir)}`)
+  if (detail.gl_persediaan != null) {
+    const gl = parseMoney(detail.gl_persediaan)
+    lines.push(`Persediaan di Laporan Keuangan: ${rp(gl)}${Math.abs(akhir - gl) >= 1 ? `; selisih ${rp(akhir - gl)}` : ' (sama)'}`)
+  }
+  if (stokManajemen != null) {
+    const m = parseMoney(stokManajemen)
+    lines.push(`Nilai Persediaan Manajemen Stok hari ini: ${rp(m)}${Math.abs(akhir - m) >= 1 ? `; selisih ${rp(akhir - m)}` : ' (sama)'}`)
+  }
+  return lines
+}
