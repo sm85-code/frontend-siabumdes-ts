@@ -194,24 +194,37 @@ export function kasNoteLines(detail: KasDetail, awalLabel: string, akhirLabel: s
   return lines
 }
 
-/** Pembanding Neraca vs saldo akun menu Transaksi (ledger dari backend). */
+/** Pembanding Neraca vs menu Transaksi: hanya pos yang punya dua sumber (Stok, Utang Usaha). */
 const DIFF_ITEMS: [string, string, string][] = [
-  ['kas', 'Kas / Bank', 'Neraca'],
   ['stok', 'Stok Barang', 'Manajemen Stok'],
-  ['piutang', 'Piutang Usaha', 'Neraca'],
-  ['piutang_lainnya', 'Piutang Lainnya', 'Neraca'],
   ['utang', 'Utang Usaha', 'Neraca'],
-  ['modal', 'Modal BUMDes', 'Neraca'],
 ]
 
-/** Baris catatan hanya untuk pos yang selisihnya ≥ Rp 1. */
-export function diffNoteLines(neraca: Record<string, string | undefined>, ledger: Record<string, string>): string[] {
-  const out: string[] = []
+export type Suspect = { id: string; tanggal: string; reference: string; keterangan: string; debit: string; credit: string; nominal: string }
+export type DiffItem = { key: string; text: string; details: string[] }
+
+const fmtDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+
+export function suspectLine(x: Suspect): string {
+  return [fmtDate(x.tanggal), x.reference || null, x.keterangan || null, `D ${x.debit} / K ${x.credit}`, rp(parseMoney(x.nominal))]
+    .filter(Boolean).join(' · ')
+}
+
+/** Catatan hanya untuk selisih ≥ Rp 1, beserta transaksi manual yang diduga penyebabnya. */
+export function diffNoteItems(
+  neraca: Record<string, string | undefined>, ledger: Record<string, string>,
+  suspects: Record<string, Suspect[]> = {}, stokManajemen?: string,
+): DiffItem[] {
+  const out: DiffItem[] = []
+  if (stokManajemen != null && neraca.stok != null) {
+    const a = parseMoney(neraca.stok), b = parseMoney(stokManajemen)
+    if (Math.abs(a - b) >= 1) out.push({ key: 'stok-mgmt', text: `Stok Barang: Neraca ${rp(a)}; Manajemen Stok hari ini ${rp(b)}; selisih ${rp(a - b)}`, details: [] })
+  }
   for (const [key, label, source] of DIFF_ITEMS) {
     if (ledger[key] == null || neraca[key] == null) continue
     const a = parseMoney(neraca[key]), b = parseMoney(ledger[key])
     if (Math.abs(a - b) < 1) continue
-    out.push(`${label}: ${source} ${rp(a)}; menu Transaksi ${rp(b)}; selisih ${rp(a - b)}`)
+    out.push({ key, text: `${label}: ${source} ${rp(a)}; menu Transaksi ${rp(b)}; selisih ${rp(a - b)}`, details: (suspects[key] ?? []).map(suspectLine) })
   }
   return out
 }

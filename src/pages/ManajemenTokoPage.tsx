@@ -46,7 +46,8 @@ import {
   isPiutangUtangUsaha,
   type JournalRec,
   kasNoteLines,
-  diffNoteLines,
+  diffNoteItems,
+  type Suspect,
   type KasDetail,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
@@ -344,8 +345,8 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string> }
-type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[] }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]> }
+type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[]; stok_manajemen?: string }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
 function weekEnd(period: string, w: number): string {
@@ -487,7 +488,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
         </TableRow></tfoot>
       </Table></TableShell></Card>
       {started.size > 0 && <KasNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} opening={opening} />}
-      {started.size > 0 && <DiffNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} />}
+      {started.size > 0 && <DiffNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} stokManajemen={q.data.stok_manajemen} />}
     </div>
   )
 }
@@ -497,7 +498,7 @@ function KasNote({ pos, opening }: { pos?: NeracaPos; opening?: string }) {
   if (!pos?.kas_detail) return null
   const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
   const after = !!opening && pos.date > opening
-  const awal = after ? `Kas awal ${fmt(opening!)}` : 'Kas awal (Modal sebelum 1 Sep 2026 − Piutang Lainnya lama)'
+  const awal = after ? `Kas awal ${fmt(opening!)}` : 'Kas awal (Modal sebelum 1 Sep 2026)'
   const lines = kasNoteLines(pos.kas_detail, awal, `Kas akhir ${fmt(pos.date)}`)
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
@@ -509,14 +510,23 @@ function KasNote({ pos, opening }: { pos?: NeracaPos; opening?: string }) {
 }
 
 /** Catatan di bawah Neraca: selisih antara Neraca/Manajemen Stok dan saldo akun menu Transaksi. */
-function DiffNote({ pos }: { pos?: NeracaPos }) {
+function DiffNote({ pos, stokManajemen }: { pos?: NeracaPos; stokManajemen?: string }) {
   if (!pos?.ledger) return null
-  const lines = diffNoteLines({ kas: pos.kas, stok: pos.stok, piutang: pos.piutang, piutang_lainnya: pos.piutang_lainnya, utang: pos.utang, modal: pos.modal }, pos.ledger)
-  if (!lines.length) return null
+  // Bandingkan dengan Manajemen Stok hari ini hanya bila minggu ini sudah mencakup hari ini.
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const items = diffNoteItems({ stok: pos.stok, utang: pos.utang }, pos.ledger, pos.manual_suspects, pos.date >= today ? stokManajemen : undefined)
+  if (!items.length) return null
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
       <p className="font-semibold text-foreground">Catatan perbedaan data</p>
-      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      {items.map((it) => (
+        <div key={it.key} className="space-y-1">
+          <p className="tabular-nums break-words">{it.text}</p>
+          {it.details.length > 0 && <p>Transaksi manual di menu Transaksi yang perlu diperiksa:</p>}
+          {it.details.map((d) => <p key={d} className="pl-4 tabular-nums break-words">• {d}</p>)}
+        </div>
+      ))}
       <p>Menu Transaksi = saldo akun Unit 5 (termasuk jurnal otomatis) s.d. {new Date(`${pos.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}.</p>
     </div>
   )
