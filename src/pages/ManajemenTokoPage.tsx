@@ -533,20 +533,21 @@ function AutoTables({ period }: { period: string }) {
       <AutoTable title="Daftar Invoice untuk Pelanggan (Stock Out)" label="Customer" doc="invoice" period={period} rows={inRows} />
       <AutoTable title="Daftar Purchase Order untuk Pemasok (Stock In)" label="Pemasok" doc="po" period={period} rows={outRows} />
       <SkuStockTable period={period} />
+      <SkuStockTable period={period} internal />
     </>
   )
 }
 
-function InOut({ i, o, strong }: { i: number; o: number; strong?: boolean }) {
+function InOut({ i, o, strong, outOnly }: { i: number; o: number; strong?: boolean; outOnly?: boolean }) {
   return (
     <div className={`leading-tight ${strong ? 'font-semibold' : ''}`}>
-      <div>In {fmtNumber(i)}</div><div className="text-muted-foreground">Out {fmtNumber(o)}</div>
+      {!outOnly && <div>In {fmtNumber(i)}</div>}<div className={outOnly ? '' : 'text-muted-foreground'}>Out {fmtNumber(o)}</div>
     </div>
   )
 }
 
 /** Rincian qty In/Out per SKU per minggu; kolom sejajar dengan tabel PO di atasnya. */
-function SkuStockTable({ period }: { period: string }) {
+function SkuStockTable({ period, internal = false }: { period: string; internal?: boolean }) {
   const { data: units } = useUnitsQuery(true)
   const unitId = units?.find((u) => u.code === TOKO_UNIT_CODE)?.id
   const range = { date_from: weekStart(period, 1), date_to: weekEnd(period, weekCount(period)) }
@@ -554,8 +555,8 @@ function SkuStockTable({ period }: { period: string }) {
     queryKey: ['toko', 'sku-moves', period, unitId],
     queryFn: async () => (await api.get<StockMoveRec[]>(`${INV}/movements`, { params: { ...range, unit_usaha_id: unitId, limit: 2000 } })).data,
   })
-  const rows = useMemo(() => buildSkuStockRows(q.data ?? [], period), [q.data, period])
-  const title = 'Rincian Transaksi Stok Berdasarkan SKU'
+  const rows = useMemo(() => buildSkuStockRows(q.data ?? [], period, internal), [q.data, period, internal])
+  const title = internal ? 'Rincian Transaksi Stok Berdasarkan SKU (internal)' : 'Rincian Transaksi Stok Berdasarkan SKU'
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
   const pad = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
   const sum = (w: number, k: 'in' | 'out') => rows.reduce((a, r) => a + (r.weeks[w]?.[k] ?? 0), 0)
@@ -563,7 +564,9 @@ function SkuStockTable({ period }: { period: string }) {
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <SectionTitle>{title}</SectionTitle>
-        <HelpHint label={`Tentang tabel ${title}`}>Jumlah barang (qty, bukan rupiah) masuk (Stock In) dan keluar (Stock Out, termasuk pemakaian internal) per SKU per minggu (Senin–Sabtu), dari Manajemen Stok.</HelpHint>
+        <HelpHint label={`Tentang tabel ${title}`}>{internal
+          ? 'Jumlah barang (qty, bukan rupiah) keluar untuk pemakaian internal per SKU per minggu (Senin–Sabtu), dari Manajemen Stok.'
+          : 'Jumlah barang (qty, bukan rupiah) masuk (Stock In) dan keluar karena penjualan (Stock Out) per SKU per minggu (Senin–Sabtu), dari Manajemen Stok. Pemakaian internal ada di tabel (internal) di bawahnya.'}</HelpHint>
       </div>
       {q.isLoading ? <Spinner label="Memuat pergerakan stok..." /> : (
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
@@ -591,10 +594,10 @@ function SkuStockTable({ period }: { period: string }) {
               </TableCell>
               {WEEKS.map((w) => (
                 <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">
-                  {r.weeks[w] ? <InOut i={r.weeks[w].in} o={r.weeks[w].out} /> : <EmptyCellDash />}
+                  {r.weeks[w] ? <InOut i={r.weeks[w].in} o={r.weeks[w].out} outOnly={internal} /> : <EmptyCellDash />}
                 </TableCell>
               ))}
-              <TableCell className="text-right whitespace-nowrap tabular-nums"><InOut i={r.totalIn} o={r.totalOut} strong /></TableCell>
+              <TableCell className="text-right whitespace-nowrap tabular-nums"><InOut i={r.totalIn} o={r.totalOut} strong outOnly={internal} /></TableCell>
               <TableCell />
             </TableRow>
           ))}
@@ -608,9 +611,9 @@ function SkuStockTable({ period }: { period: string }) {
         </TableBody>
         <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
           <TableCell colSpan={2}>Total</TableCell>
-          {WEEKS.map((w) => <TableCell key={w} className="text-right whitespace-nowrap tabular-nums"><InOut i={sum(w, 'in')} o={sum(w, 'out')} strong /></TableCell>)}
+          {WEEKS.map((w) => <TableCell key={w} className="text-right whitespace-nowrap tabular-nums"><InOut i={sum(w, 'in')} o={sum(w, 'out')} strong outOnly={internal} /></TableCell>)}
           <TableCell className="text-right whitespace-nowrap tabular-nums">
-            <InOut i={rows.reduce((a, r) => a + r.totalIn, 0)} o={rows.reduce((a, r) => a + r.totalOut, 0)} strong />
+            <InOut i={rows.reduce((a, r) => a + r.totalIn, 0)} o={rows.reduce((a, r) => a + r.totalOut, 0)} strong outOnly={internal} />
           </TableCell>
           <TableCell />
         </TableRow></tfoot>

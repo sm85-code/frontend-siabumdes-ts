@@ -124,12 +124,15 @@ describe('minggu Senin–Sabtu menurut tanggal', () => {
 describe('buildSkuStockRows', () => {
   it('sums In/Out qty per SKU per trade week and skips other periods', async () => {
     const { buildSkuStockRows } = await import('@/lib/toko')
-    const rows = buildSkuStockRows([
+    const moves = [
       { id: '1', sku: 'B', product_name: 'Beras', direction: 'in', quantity: 10, movement_date: '2026-10-06' },
       { id: '2', sku: 'B', product_name: 'Beras', direction: 'out', quantity: 3, movement_date: '2026-10-11' },
       { id: '3', sku: 'B', product_name: 'Beras', direction: 'out', quantity: 2, movement_date: '2026-10-13' },
       { id: '4', sku: 'A', product_name: 'Gula', direction: 'in', quantity: 5, movement_date: '2026-10-02' },
-    ], '2026-10')
+      { id: '5', sku: 'B', product_name: 'Beras', direction: 'out', movement_kind: 'internal_use', quantity: 4, movement_date: '2026-10-07' },
+    ]
+    const rows = buildSkuStockRows(moves, '2026-10')
+    expect(buildSkuStockRows(moves, '2026-10', true)).toEqual([{ key: 'B', sku: 'B', name: 'Beras', weeks: { 1: { in: 0, out: 4 } }, totalIn: 0, totalOut: 4 }])
     expect(rows).toEqual([{ key: 'B', sku: 'B', name: 'Beras', weeks: { 1: { in: 10, out: 3 }, 2: { in: 0, out: 2 } }, totalIn: 10, totalOut: 5 }])
   })
 })
