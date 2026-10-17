@@ -343,7 +343,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
   )
 }
 
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail }
+type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[] }
 
 /** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
@@ -381,9 +381,9 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }, [period])
   const q = useQuery({
-    queryKey: ['toko', 'neraca', lastPrev, ends],
+    queryKey: ['toko', 'neraca', period, lastPrev, ends],
     queryFn: async () => (await api.get<NeracaResp>('/v1/toko/neraca', {
-      params: { dates: [lastPrev, ...ends] }, paramsSerializer: { indexes: null },
+      params: { dates: [lastPrev, ...ends], period }, paramsSerializer: { indexes: null },
     })).data,
   })
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
@@ -392,7 +392,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
   const [prev, ...pos] = q.data.positions
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
-  const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank()
+  const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank(), modal = blank()
   const labaLalu = parseMoney(prev.laba)
   const opening = q.data.opening_date
   keys.forEach((k, i) => {
@@ -402,14 +402,19 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
     utang[k] = parseMoney(p.utang)
-    // Laba setelah saldo awal dihitung sejak 1 Okt 2026 (laba sebelumnya sudah dibagi).
+    // Modal dan Laba/Rugi Lalu/Berjalan dari backend (menu Transaksi); fallback cara lama.
+    modal[k] = p.modal != null ? parseMoney(p.modal) : MODAL_BUMDES
+    if (p.laba_lalu != null && p.laba_berjalan != null) {
+      lalu[k] = parseMoney(p.laba_lalu)
+      lr[k] = parseMoney(p.laba_berjalan)
+      return
+    }
     const l = opening && p.date > opening && prev.date <= opening ? 0 : labaLalu
     lalu[k] = l
     lr[k] = parseMoney(p.laba) - l
   })
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
-  for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr]) v.jumlah = v[lastKey]
-  const modal: WeekVals = { w1: MODAL_BUMDES, w2: MODAL_BUMDES, w3: MODAL_BUMDES, w4: MODAL_BUMDES, w5: MODAL_BUMDES, jumlah: MODAL_BUMDES }
+  for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr, modal]) v.jumlah = v[lastKey]
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const sum = (...vs: WeekVals[]): WeekVals => Object.fromEntries(all.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
   const totalAset = sum(kas, stokV, piutang, piutangLain)
@@ -439,7 +444,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes Rp 30.000.000. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes dari menu Transaksi (akun Penyertaan Modal Unit 5). Laba/Rugi Periode Berjalan = laba bulan ini; Periode Lalu = laba sejak 1 Okt 2026 sebelum bulan ini. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
