@@ -113,6 +113,43 @@ export function tradeWeek(period: string, d: Date): number | null {
   return w <= WEEKS.length ? w : null
 }
 
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
+export function weekEnd(period: string, w: number): string {
+  const [y, m] = period.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  d.setDate(1 + ((8 - d.getDay()) % 7) + (w - 1) * 7 + 6)
+  return ymd(d)
+}
+
+/**
+ * Tanggal posisi kartu nilai persediaan untuk bulan terpilih.
+ * Mingguan: akhir minggu (Senin–Sabtu, Minggu ikut) yang memuat hari ini bila bulan berjalan,
+ * selain itu minggu terakhir bulan itu. Bulanan: akhir bulan, atau hari ini bila bulan belum selesai.
+ */
+export function stockValueDates(period: string, today: Date = new Date()): { week: string; weekNo: number; weekPeriod: string; month: string } {
+  const [y, m] = period.split('-').map(Number)
+  const t = ymd(today)
+  const monthEnd = ymd(new Date(y, m, 0))
+  const month = monthEnd < t ? monthEnd : t
+  const lastWeek = (p: string) => {
+    const [py, pm] = p.split('-').map(Number)
+    const firstMonday = 1 + ((8 - new Date(py, pm - 1, 1).getDay()) % 7)
+    return Math.min(WEEKS.length, Math.floor((new Date(py, pm, 0).getDate() - firstMonday) / 7) + 1)
+  }
+  let weekPeriod = period
+  let weekNo: number | null = month === t ? tradeWeek(period, today) : null
+  if (weekNo == null && month === t) {
+    // Hari sebelum Senin pertama ikut minggu terakhir bulan sebelumnya.
+    const prev = new Date(y, m - 2, 1)
+    weekPeriod = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
+    weekNo = lastWeek(weekPeriod)
+  }
+  if (weekNo == null) weekNo = lastWeek(period)
+  return { week: weekEnd(weekPeriod, weekNo), weekNo, weekPeriod, month }
+}
+
 /** Label minggu periode, mis. "Minggu 1 : 5 - 10 Oktober 2026" (Senin–Sabtu). */
 export function tradeWeekLabel(period: string, w: number): string {
   const [y, m] = period.split('-').map(Number)

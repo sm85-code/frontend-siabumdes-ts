@@ -7,6 +7,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Input } from '@/components/ui/input'
 import HelpHint from '@/components/HelpHint'
 import { Plus } from 'lucide-react'
+import { stockValueDates } from '@/lib/toko'
 import type {
   InventoryMovement,
   InventoryMovementReport,
@@ -291,6 +292,27 @@ export default function InventorySummary({
     const last = new Date(y, m, 0).getDate()
     return { date_from: `${month}-01`, date_to: `${month}-${String(last).padStart(2, '0')}` }
   }, [month])
+  // Nilai persediaan per tanggal (qty × HPP saat ini, dimundurkan ke tanggal) — sama dengan Stok di Neraca Manajemen Toko.
+  const posDates = useMemo(() => stockValueDates(month), [month])
+  const [posValues, setPosValues] = useState<Record<string, number> | null>(null)
+  useEffect(() => {
+    let alive = true
+    const params = new URLSearchParams()
+    params.append('dates', posDates.week)
+    params.append('dates', posDates.month)
+    api.get('/v1/uu05_inventory/reports/valuation-as-of', { params })
+      .then((r) => {
+        if (!alive) return
+        const out: Record<string, number> = {}
+        for (const v of r.data?.values ?? []) out[v.date] = Number(v.value)
+        setPosValues(out)
+      })
+      .catch(() => { if (alive) setPosValues(null) })
+    return () => { alive = false }
+  }, [posDates, products, movements])
+  const fmtTgl = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  const weekValue = posValues?.[posDates.week] ?? totalValue
+  const monthValue = posValues?.[posDates.month] ?? totalValue
   const [moves, setMoves] = useState<InventoryMovement[] | null>(null)
   const [report, setReport] = useState<InventoryMovementReport | null>(null)
   const [sisa, setSisa] = useState<{ reguler: SisaRow[]; modal_awal: SisaRow[] } | null>(null)
@@ -335,12 +357,15 @@ export default function InventorySummary({
         <label htmlFor="ringkasan-bulan" className="text-sm font-medium">Bulan</label>
         <Input id="ringkasan-bulan" type="month" className="w-44" value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)} />
-        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Kartu SKU, total stok, nilai persediaan, dan stok tipis selalu posisi saat ini.</HelpHint>
+        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Nilai persediaan mingguan = posisi akhir minggu (Senin–Sabtu), bulanan = posisi akhir bulan (atau hari ini bila bulan belum selesai). Kartu SKU, total stok, dan stok tipis selalu posisi saat ini.</HelpHint>
       </div>
-      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6 lg:gap-3" data-testid="inventory-stats">
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-3 xl:grid-cols-7" data-testid="inventory-stats">
         <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
         <Stat label="Total stok" value={totalQty} sub="unit" hint="Qty on hand seluruh SKU." />
-        <Stat label="Nilai persediaan" value={fmtRp(totalValue)} sub="Qty × HPP" hint="Qty × HPP seluruh SKU." />
+        <Stat label="Nilai persediaan mingguan" value={fmtRp(weekValue)} sub={`Minggu ${posDates.weekNo} · s.d. ${fmtTgl(posDates.week)}`}
+          hint="Qty × HPP seluruh SKU per akhir minggu (Senin–Sabtu; Minggu ikut minggu sebelumnya), sama dengan Stok di Neraca Manajemen Toko." testId="inventory-stat-nilai-mingguan" />
+        <Stat label="Nilai persediaan bulanan" value={fmtRp(monthValue)} sub={`per ${fmtTgl(posDates.month)}`}
+          hint="Qty × HPP seluruh SKU per akhir bulan terpilih, atau hari ini bila bulan belum selesai." testId="inventory-stat-nilai-bulanan" />
         <Stat label="Stok tipis" value={lowStockCount} sub="SKU" hint="SKU dengan qty ≤ 5." />
         <Stat
           label="Stock in"

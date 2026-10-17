@@ -50,6 +50,7 @@ import {
   diffNoteItems,
   type Suspect,
   type KasDetail,
+  weekEnd,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -352,14 +353,6 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
 
 type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]>; stok_detail?: Record<string, string> }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[]; stok_manajemen?: string }
-
-/** Akhir minggu ke-w (hari Minggu, karena transaksi Minggu ikut minggu sebelumnya). */
-function weekEnd(period: string, w: number): string {
-  const [y, m] = period.split('-').map(Number)
-  const d = new Date(y, m - 1, 1)
-  d.setDate(1 + ((8 - d.getDay()) % 7) + (w - 1) * 7 + 6)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
 
 /** Minggu yang sudah dimulai (Senin <= hari ini, waktu lokal). */
 function startedWeeks(period: string): Set<string> {
