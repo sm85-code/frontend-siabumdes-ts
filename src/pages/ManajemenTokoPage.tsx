@@ -44,7 +44,7 @@ import {
   type StockMoveRec,
   weekCount,
   type JournalRec,
-  KAS_FLOW,
+  kasFlowLines,
   weeklyFlowRows,
   type FlowRow,
   STOK_FLOW,
@@ -515,7 +515,7 @@ function WeeklyNoteTable({ label, rows }: { label: string; rows: FlowRow[] }) {
 /** Catatan di bawah Neraca: pergerakan Kas (jurnal menu Transaksi) per minggu; Jumlah = s.d. minggu terakhir yang tampil. */
 function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlResp['kas_opening'] }) {
   const rows = weeklyFlowRows(pos.map((p) => p?.kas_detail), 'kas_awal', 'kas_akhir',
-    { awal: 'Kas Awal', masuk: 'Kas Masuk', keluar: 'Kas Keluar', akhir: 'Kas Akhir' }, KAS_FLOW)
+    { awal: 'Kas Awal', masuk: 'Kas Masuk', keluar: 'Kas Keluar', akhir: 'Kas Akhir' }, kasFlowLines(pos.map((p) => p?.kas_detail)))
   if (!rows.length) return null
   const gl = opening ? parseMoney(opening.gl) : 0
   const set = opening ? parseMoney(opening.ditetapkan) : 0

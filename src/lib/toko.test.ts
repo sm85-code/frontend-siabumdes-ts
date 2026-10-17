@@ -69,7 +69,7 @@ describe('kasNoteLines', () => {
   it('menampilkan kas awal, pos tidak nol, dan kas akhir', async () => {
     const { kasNoteLines } = await import('./toko')
     const lines = kasNoteLines({ kas_awal: '2124500', masuk_penjualan_tunai: '700000', keluar_pembelian_tunai: '3000000', masuk_perduitan: '0', kas_akhir: '-175500' }, 'Kas awal 30 Sep 2026', 'Kas akhir')
-    expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Penjualan tunai: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
+    expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Pemasukan dari Penjualan Stok: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
   })
 })
 
@@ -88,7 +88,7 @@ describe('stokNoteLines', () => {
   it('stok awal + mutasi = stok akhir dengan pembanding', async () => {
     const { stokNoteLines } = await import('./toko')
     expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', transaksi: '500', stok_akhir: '6500' }, 'Stok awal', 'Stok akhir', '6000', 'Manajemen Stok per 18 Okt 2026'))
-      .toEqual(['Stok awal: Rp 10.000', '+ Barang masuk (pembelian): Rp 2.000', '− Barang keluar (HPP penjualan): Rp 5.000', '− Penyesuaian stok: Rp 1.000',
+      .toEqual(['Stok awal: Rp 10.000', '+ Belanja Reguler (Stock In): Rp 2.000', '− HPP Penjualan (Stock Out): Rp 5.000', '− Penyesuaian stok: Rp 1.000',
         '+ Menu Transaksi (akun Persediaan): Rp 500', 'Stok akhir: Rp 6.500', 'Manajemen Stok per 18 Okt 2026: Rp 6.000; selisih Rp 500'])
   })
 })
@@ -152,5 +152,13 @@ describe('weeklyFlowRows', () => {
     expect(by('Jumlah Keluar').w.slice(0, 2)).toEqual([5, 20])
     expect(by('Adj (kurang)').jumlah).toBe(5)
     expect(by('Akhir').w).toEqual([145, 165, null, null, null])
+  })
+})
+
+describe('kasFlowLines', () => {
+  it('menyisipkan baris per keterangan', async () => {
+    const { kasFlowLines } = await import('@/lib/toko')
+    const l = kasFlowLines([{ 'masuk_trx:Setoran': '5' }, undefined])
+    expect(l.find((x) => x.key === 'masuk_trx:Setoran')).toMatchObject({ label: 'Setoran', dir: 'in' })
   })
 })
