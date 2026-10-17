@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTxRows, defaultWeekDate, isFreeWeek, validateEntryDate, txTotals, fmtNumber, stockValueDates, type TokoItem, type TokoEntry } from '@/lib/toko'
+import { buildTxRows, defaultWeekDate, isFreeWeek, validateEntryDate, txTotals, fmtNumber, stockValueDates, tradeWeek, buildTxRowsByDate, type TokoItem, type TokoEntry } from '@/lib/toko'
 
 const items: TokoItem[] = [
   { id: 'a', name: 'Penjualan', jenis: 'pemasukan', keterangan: '', position: 1 },
@@ -102,5 +102,21 @@ describe('stockValueDates', () => {
   })
   it('sebelum Senin pertama ikut minggu terakhir bulan sebelumnya', () => {
     expect(stockValueDates('2026-10', new Date(2026, 9, 3)).week).toBe('2026-10-04')
+  })
+})
+
+describe('minggu Senin–Sabtu menurut tanggal', () => {
+  it('tradeWeek tidak memasukkan minggu bulan berikutnya ke Minggu ke-5', () => {
+    expect(tradeWeek('2026-09', new Date(2026, 9, 4))).toBe(4) // 4 Okt (Minggu) ikut Minggu ke-4 Sep
+    expect(tradeWeek('2026-09', new Date(2026, 9, 5))).toBeNull() // 5 Okt = Minggu ke-1 Okt
+    expect(tradeWeek('2026-10', new Date(2026, 9, 17))).toBe(2)
+    expect(tradeWeek('2026-10', new Date(2026, 9, 3))).toBeNull()
+  })
+  it('Laba Rugi Perduitan #1 memakai tanggal isian, bukan nomor minggu tersimpan', () => {
+    const it1: TokoItem = { id: 'x', name: 'Saldo', jenis: 'pemasukan', keterangan: '', position: 1 }
+    const e = (week: number, tanggal: string, nominal: string): TokoEntry => ({ id: tanggal, item_id: 'x', period: '2026-10', week, tanggal, nominal })
+    // nomor minggu lama: w1 = 1–3 Okt, w2 = 4–10 Okt, w3 = 11–17 Okt
+    const rows = buildTxRowsByDate([it1], [e(1, '2026-10-02', '10'), e(2, '2026-10-08', '20'), e(3, '2026-10-11', '5'), e(3, '2026-10-15', '30')], 'pemasukan', '2026-10')
+    expect(rows[0]).toMatchObject({ w1: 25, w2: 30, w3: null, jumlah: 55 })
   })
 })

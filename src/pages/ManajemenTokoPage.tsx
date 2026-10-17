@@ -52,6 +52,7 @@ import {
   type KasDetail,
   weekEnd,
   weekStart,
+  buildTxRowsByDate,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -257,15 +258,26 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     queryKey: ['toko', 'hpp-out', range],
     queryFn: async () => (await api.get<InventoryMovement[]>(`${INV}/movements`, { params: { direction: 'out', limit: 2000, ...range } })).data,
   })
-  const p1In = useMemo(() => buildTxRows(items, entries, 'pemasukan'), [items, entries])
-  const p1Out = useMemo(() => buildTxRows(items, entries, 'pengeluaran'), [items, entries])
+  // Perduitan #1 menurut tanggal isian (Senin–Sabtu), termasuk isian periode berikutnya yang tanggalnya
+  // masih minggu terakhir periode ini; tidak bergantung pada nomor minggu tersimpan di backend.
+  const nextPeriod = useMemo(() => {
+    const [y, m] = period.split('-').map(Number)
+    return currentPeriod(new Date(y, m, 1))
+  }, [period])
+  const nextEntries = useQuery({
+    queryKey: ['toko', 'entries', nextPeriod],
+    queryFn: async () => (await api.get<TokoEntry[]>('/v1/toko/entries', { params: { period: nextPeriod } })).data,
+  })
+  const allEntries = useMemo(() => [...entries, ...(nextEntries.data ?? [])], [entries, nextEntries.data])
+  const p1In = useMemo(() => buildTxRowsByDate(items, allEntries, 'pemasukan', period), [items, allEntries, period])
+  const p1Out = useMemo(() => buildTxRowsByDate(items, allEntries, 'pengeluaran', period), [items, allEntries, period])
   const journal = useJournal(period)
   const jIn = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pemasukan'), [journal.data, period])
   const jOut = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pengeluaran'), [journal.data, period])
   const jAll = useMemo(() => buildJournalRows(journal.data ?? [], period, () => true), [journal.data, period])
-  const error = sales.error || purchases.error || cogs.error || journal.error
+  const error = sales.error || purchases.error || cogs.error || journal.error || nextEntries.error
   if (error) return <p role="alert">{getApiError(error)}</p>
-  if (sales.isLoading || purchases.isLoading || cogs.isLoading || journal.isLoading) return <Spinner label="Memuat laporan..." />
+  if (sales.isLoading || purchases.isLoading || cogs.isLoading || journal.isLoading || nextEntries.isLoading) return <Spinner label="Memuat laporan..." />
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
   const add = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] + b[k]])) as WeekVals
   const sub = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] - b[k]])) as WeekVals
