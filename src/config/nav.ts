@@ -57,7 +57,7 @@ export const BOTTOM_NAV_PATHS = ['/dashboard', '/ledger', '/reports', '/transact
 export const NAV: NavItem[] = [
   { group: 'beranda', to: '/dashboard', label: 'Dashboard', icon: Home, roles: READ_MOST },
   { group: 'unit', to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
-  { group: 'unit', to: '/inventory', label: 'Manajemen Stok', icon: Package, roles: ROLES_INVENTORY, inventoryUnitOnly: true },
+  { group: 'unit', to: '/inventory', label: 'Manajemen Gudang', icon: Package, roles: ROLES_INVENTORY, inventoryUnitOnly: true },
   { group: 'unit', to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
   { group: 'keuangan', to: '/transactions', label: 'Transaksi', icon: Receipt, roles: READ_MOST },
   { group: 'keuangan', to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
