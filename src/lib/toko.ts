@@ -65,6 +65,29 @@ export function validateEntryDate(period: string, week: number, tanggal: string)
   return null
 }
 
+/**
+ * Baris Perduitan #1 untuk Laba Rugi, dikelompokkan menurut TANGGAL isian (minggu Senin–Sabtu),
+ * bukan nomor minggu yang tersimpan — benar walau isian lama masih bernomor minggu lama.
+ * entries boleh berisi isian periode ini dan periode berikutnya (1–4 Okt ikut Minggu ke-4 Sep).
+ */
+export function buildTxRowsByDate(items: TokoItem[], entries: TokoEntry[], jenis: TokoJenis, period: string): TxRow[] {
+  return items
+    .filter((it) => it.jenis === jenis)
+    .map((it) => {
+      const row: TxRow = { ...emptyTxRow(it.id), item: it, uraian: it.name }
+      for (const e of entries) {
+        if (e.item_id !== it.id) continue
+        const w = tradeWeek(period, new Date(`${e.tanggal}T00:00:00`))
+        if (!w) continue
+        const k = `w${w}` as 'w1'
+        const v = parseMoney(e.nominal)
+        row[k] = (row[k] ?? 0) + v
+        row.jumlah = (row.jumlah ?? 0) + v
+      }
+      return row
+    })
+}
+
 /** Baris tabel transaksi dari item berjenis tertentu (data asli saja, tanpa baris kosong). */
 export function buildTxRows(items: TokoItem[], entries: TokoEntry[], jenis: TokoJenis): TxRow[] {
   return items
@@ -111,7 +134,8 @@ export function tradeWeek(period: string, d: Date): number | null {
   const diff = Math.round((day.getTime() - first.getTime()) / 86400000)
   if (diff < 0) return null
   const w = Math.floor(diff / 7) + 1
-  return w <= WEEKS.length ? w : null
+  // Sesudah minggu terakhir periode (mis. Senin pertama bulan berikutnya) bukan milik periode ini.
+  return w <= weekCount(period) ? w : null
 }
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
