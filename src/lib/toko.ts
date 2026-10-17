@@ -320,13 +320,15 @@ export function stokNoteLines(detail: Record<string, string>, awalLabel: string,
 }
 
 /** Pergerakan stok dari GET /v1/uu05_inventory/movements (kolom yang dipakai saja). */
-export type StockMoveRec = { id: string; sku?: string | null; product_name?: string | null; direction?: string | null; quantity?: number | string | null; movement_date?: string | null }
+export type StockMoveRec = { id: string; sku?: string | null; product_name?: string | null; direction?: string | null; movement_kind?: string | null; quantity?: number | string | null; movement_date?: string | null }
 export type SkuStockRow = { key: string; sku: string; name: string; weeks: Record<number, { in: number; out: number }>; totalIn: number; totalOut: number }
 
-/** Qty In/Out per SKU per minggu (Senin–Sabtu, Minggu ikut) periode; urut SKU. */
-export function buildSkuStockRows(moves: StockMoveRec[], period: string): SkuStockRow[] {
+/** Qty In/Out per SKU per minggu (Senin–Sabtu, Minggu ikut) periode; urut SKU.
+ * internal=false: tanpa pemakaian internal (In = stock in, Out = penjualan); internal=true: hanya pemakaian internal. */
+export function buildSkuStockRows(moves: StockMoveRec[], period: string, internal = false): SkuStockRow[] {
   const map = new Map<string, SkuStockRow>()
   for (const m of moves) {
+    if ((m.movement_kind === 'internal_use') !== internal) continue
     if (!m.movement_date || (m.direction !== 'in' && m.direction !== 'out')) continue
     const w = tradeWeek(period, new Date(`${m.movement_date}T00:00:00`))
     if (!w) continue
