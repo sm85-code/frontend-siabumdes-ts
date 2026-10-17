@@ -120,3 +120,16 @@ describe('minggu Senin–Sabtu menurut tanggal', () => {
     expect(rows[0]).toMatchObject({ w1: 25, w2: 30, w3: null, jumlah: 55 })
   })
 })
+
+describe('buildSkuStockRows', () => {
+  it('sums In/Out qty per SKU per trade week and skips other periods', async () => {
+    const { buildSkuStockRows } = await import('@/lib/toko')
+    const rows = buildSkuStockRows([
+      { id: '1', sku: 'B', product_name: 'Beras', direction: 'in', quantity: 10, movement_date: '2026-10-06' },
+      { id: '2', sku: 'B', product_name: 'Beras', direction: 'out', quantity: 3, movement_date: '2026-10-11' },
+      { id: '3', sku: 'B', product_name: 'Beras', direction: 'out', quantity: 2, movement_date: '2026-10-13' },
+      { id: '4', sku: 'A', product_name: 'Gula', direction: 'in', quantity: 5, movement_date: '2026-10-02' },
+    ], '2026-10')
+    expect(rows).toEqual([{ key: 'B', sku: 'B', name: 'Beras', weeks: { 1: { in: 10, out: 3 }, 2: { in: 0, out: 2 } }, totalIn: 10, totalOut: 5 }])
+  })
+})
