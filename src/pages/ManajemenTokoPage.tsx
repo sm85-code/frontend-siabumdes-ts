@@ -300,9 +300,13 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
-  const started = startedWeeks(period)
+  // Minggu ke-n Perduitan #1 (tanggal 1 s.d. Sabtu pertama, lalu Minggu–Sabtu) bisa lebih awal dari
+  // minggu Senin–Sabtu Perduitan #2, jadi kolom yang sudah berisi selalu ditampilkan.
+  const hasData = (k: string) => lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null)
+  const started = new Set<string>([...startedWeeks(period), ...WEEKS.map((w) => `w${w}`).filter(hasData)])
+  if (started.size) started.add('jumlah')
   // Minggu yang Laba Rugi-nya sudah berisi (ada nilai ≠ 0) — Neraca hanya tampil untuk minggu ini.
-  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && (lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null))))
+  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && hasData(k)))
   if (filled.size) filled.add('jumlah')
   return (
     <div className="space-y-2">
