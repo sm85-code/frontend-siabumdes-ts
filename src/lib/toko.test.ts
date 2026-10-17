@@ -74,12 +74,12 @@ describe('kasNoteLines', () => {
 })
 
 describe('diffNoteItems', () => {
-  it('hanya pos dua sumber yang berbeda, dengan transaksi manual penyebab', async () => {
+  it('Neraca (menu Transaksi) vs pembanding, dengan transaksi manual terkait', async () => {
     const { diffNoteItems } = await import('./toko')
-    const items = diffNoteItems({ kas: '1', stok: '9000000', utang: '0', piutang: '5' }, { kas: '9', stok: '8500000', utang: '0', piutang: '0' }, {
+    const items = diffNoteItems({ stok: '8500000', utang: '0' }, { stok: '9000000', utang: '0' }, {
       stok: [{ id: 'x', tanggal: '2026-10-05', reference: 'R1', keterangan: 'Salah input', debit: '1.1.01.15 Kas', credit: '1.1.05.15 Persediaan', nominal: '500000' }],
-    }, '9000000')
-    expect(items.map((i) => i.text)).toEqual(['Stok Barang: Manajemen Stok Rp 9.000.000; menu Transaksi Rp 8.500.000; selisih Rp 500.000'])
+    })
+    expect(items.map((i) => i.text)).toEqual(['Stok Barang: menu Transaksi Rp 8.500.000; Manajemen Stok Rp 9.000.000; selisih (Rp 500.000)'])
     expect(items[0].details[0]).toContain('D 1.1.01.15 Kas / K 1.1.05.15 Persediaan · Rp 500.000')
   })
 })
@@ -87,9 +87,9 @@ describe('diffNoteItems', () => {
 describe('stokNoteLines', () => {
   it('stok awal + mutasi = stok akhir dengan pembanding', async () => {
     const { stokNoteLines } = await import('./toko')
-    expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', masuk_lainnya: '0', stok_akhir: '6000', gl_persediaan: '11500' }, 'Stok awal', 'Stok akhir', '6000'))
-      .toEqual(['Stok awal: Rp 10.000', '+ Barang masuk (pembelian): Rp 2.000', '− Barang keluar (HPP penjualan): Rp 5.000', '− Penyesuaian stok: Rp 1.000', 'Stok akhir: Rp 6.000',
-        'Persediaan di Laporan Keuangan: Rp 11.500; selisih (Rp 5.500)', 'Nilai Persediaan Manajemen Stok hari ini: Rp 6.000 (sama)'])
+    expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', transaksi: '500', stok_akhir: '6500' }, 'Stok awal', 'Stok akhir', '6000', 'Manajemen Stok per 18 Okt 2026'))
+      .toEqual(['Stok awal: Rp 10.000', '+ Barang masuk (pembelian): Rp 2.000', '− Barang keluar (HPP penjualan): Rp 5.000', '− Penyesuaian stok: Rp 1.000',
+        '+ Menu Transaksi (akun Persediaan): Rp 500', 'Stok akhir: Rp 6.500', 'Manajemen Stok per 18 Okt 2026: Rp 6.000; selisih Rp 500'])
   })
 })
 

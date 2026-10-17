@@ -9,7 +9,6 @@ import { useAuth } from '@/lib/auth'
 import { useUnitsQuery } from '@/hooks/useUnits'
 import { notify } from '@/lib/feedback'
 import { useSort } from '@/lib/useSort'
-import type { InventoryMovement } from '@/types'
 import { useConfirm } from '@/components/ConfirmProvider'
 import { TOKO_UNIT_CODE } from '@/config/roles'
 import TableShell from '@/components/TableShell'
@@ -29,7 +28,6 @@ import {
   buildTxRows,
   buildTradeRows,
   tradeWeekLabel,
-  tradeWeek,
   type TradeRecord,
   currentPeriod,
   defaultWeekDate,
@@ -52,7 +50,6 @@ import {
   type KasDetail,
   weekEnd,
   weekStart,
-  buildTxRowsByDate,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -143,7 +140,7 @@ export default function ManajemenTokoPage() {
             {tab === 'otomatis' && <AutoTables period={period} />}
           </section>
           <section hidden={tab !== 'labarugi'} role="tabpanel" id="toko-panel-labarugi" aria-labelledby="toko-tab-labarugi" className="min-w-0 space-y-6">
-            {tab === 'labarugi' && <LabaRugi period={period} items={items} entries={entries} />}
+            {tab === 'labarugi' && <LabaRugi period={period} />}
           </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
             <DataTable items={items} onChanged={refresh} />
@@ -244,62 +241,63 @@ function JournalTable({ period, title, keep }: { period: string; title: string; 
 }
 
 type WeekVals = { w1: number; w2: number; w3: number; w4: number; w5: number; jumlah: number }
-const isLainnya = (r: TxRow) => (r.uraian ?? '').trim().toUpperCase() === 'LAINNYA'
 
-function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[]; entries: TokoEntry[] }) {
-  const { sales, purchases, inRows } = useTradeRows(period)
-  // HPP penjualan: Stock Out jenis penjualan (bukan pemakaian internal), per minggu movement_date.
-  const range = useMemo(() => {
-    const [y, m] = period.split('-').map(Number)
-    const pad = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    return { date_from: pad(new Date(y, m - 1, 1)), date_to: pad(new Date(y, m, 14)) }
-  }, [period])
-  const cogs = useQuery({
-    queryKey: ['toko', 'hpp-out', range],
-    queryFn: async () => (await api.get<InventoryMovement[]>(`${INV}/movements`, { params: { direction: 'out', limit: 2000, ...range } })).data,
+type GlPos = {
+  date: string; kas: string; stok: string; piutang: string; piutang_lainnya: string; utang: string; modal: string
+  laba_lalu: string; laba_berjalan: string; kas_detail?: KasDetail; stok_detail?: Record<string, string>
+  pembanding?: Record<string, string>; manual_suspects?: Record<string, Suspect[]>
+}
+type GlResp = {
+  period: string; laba_rugi: Record<string, Record<string, string>>; positions: GlPos[]
+  kas_opening?: { date: string; ditetapkan: string; gl: string }; stok_manajemen?: string
+}
+
+const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const fmtTgl = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** Perduitan #3 dari menu Transaksi: Laba Rugi mingguan + posisi Neraca akhir tiap minggu (Minggu). */
+function useGl(period: string) {
+  const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
+  return useQuery({
+    queryKey: ['toko', 'gl', period, ends],
+    queryFn: async () => (await api.get<GlResp>('/v1/toko/gl', { params: { period, dates: ends }, paramsSerializer: { indexes: null } })).data,
   })
-  // Perduitan #1 menurut tanggal isian (Senin–Sabtu), termasuk isian periode berikutnya yang tanggalnya
-  // masih minggu terakhir periode ini; tidak bergantung pada nomor minggu tersimpan di backend.
-  const nextPeriod = useMemo(() => {
-    const [y, m] = period.split('-').map(Number)
-    return currentPeriod(new Date(y, m, 1))
-  }, [period])
-  const nextEntries = useQuery({
-    queryKey: ['toko', 'entries', nextPeriod],
-    queryFn: async () => (await api.get<TokoEntry[]>('/v1/toko/entries', { params: { period: nextPeriod } })).data,
+}
+
+/** Minggu yang sudah sampai hari Sabtu-nya (Sabtu <= hari ini, waktu lokal). */
+function saturdayWeeks(period: string): Set<string> {
+  const today = isoDate(new Date())
+  const set = new Set<string>()
+  WEEKS.forEach((w) => {
+    const [y, m, d] = weekEnd(period, w).split('-').map(Number)
+    if (isoDate(new Date(y, m - 1, d - 1)) <= today) set.add(`w${w}`)
   })
-  const allEntries = useMemo(() => [...entries, ...(nextEntries.data ?? [])], [entries, nextEntries.data])
-  const p1In = useMemo(() => buildTxRowsByDate(items, allEntries, 'pemasukan', period), [items, allEntries, period])
-  const p1Out = useMemo(() => buildTxRowsByDate(items, allEntries, 'pengeluaran', period), [items, allEntries, period])
-  const journal = useJournal(period)
-  const jIn = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pemasukan'), [journal.data, period])
-  const jOut = useMemo(() => buildJournalRows(journal.data ?? [], period, (r) => r.jenis === 'pengeluaran'), [journal.data, period])
-  const jAll = useMemo(() => buildJournalRows(journal.data ?? [], period, () => true), [journal.data, period])
-  const error = sales.error || purchases.error || cogs.error || journal.error || nextEntries.error
-  if (error) return <p role="alert">{getApiError(error)}</p>
-  if (sales.isLoading || purchases.isLoading || cogs.isLoading || journal.isLoading || nextEntries.isLoading) return <Spinner label="Memuat laporan..." />
+  return set
+}
+
+/** Minggu yang sudah dimulai (Senin <= hari ini) dan ada di periode. */
+function startedWeeks(period: string): Set<string> {
+  const today = isoDate(new Date())
+  const set = new Set<string>()
+  WEEKS.forEach((w) => {
+    if (!isFreeWeek(period, w) && weekStart(period, w) <= today) set.add(`w${w}`)
+  })
+  if (set.size) set.add('jumlah')
+  return set
+}
+
+function LabaRugi({ period }: { period: string }) {
+  const q = useGl(period)
+  if (q.error) return <p role="alert">{getApiError(q.error)}</p>
+  if (q.isLoading || !q.data) return <Spinner label="Memuat laporan..." />
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
-  const add = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] + b[k]])) as WeekVals
-  const sub = (a: WeekVals, b: WeekVals): WeekVals => Object.fromEntries(keys.map((k) => [k, a[k] - b[k]])) as WeekVals
-  const saldo = txTotals(p1In.filter((r) => !isLainnya(r)))
-  const jual = txTotals(inRows)
-  const lain = txTotals(p1In.filter(isLainnya))
-  const trxIn = txTotals(jIn)
-  const totalIn = add(add(add(saldo, jual), lain), trxIn)
-  const umum = txTotals(p1Out)
-  const trxOut = txTotals(jOut)
-  const hpp: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
-  const internal: WeekVals = { w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 }
-  for (const mv of cogs.data ?? []) {
-    const w = mv.movement_date ? tradeWeek(period, new Date(`${String(mv.movement_date).slice(0, 10)}T00:00:00`)) : null
-    if (!w) continue
-    const v = parseMoney(String(mv.total_value ?? 0))
-    const target = mv.movement_kind && mv.movement_kind !== 'sale' ? internal : hpp
-    target[`w${w}` as 'w1'] += v
-    target.jumlah += v
-  }
-  const totalOut = add(add(add(umum, hpp), internal), trxOut)
-  const laba = sub(totalIn, totalOut)
+  const row = (name: string): WeekVals => Object.fromEntries(keys.map((k) => [k, parseMoney(q.data.laba_rugi[name]?.[k] ?? '0')])) as WeekVals
+  const add = (...vs: WeekVals[]): WeekVals => Object.fromEntries(keys.map((k) => [k, vs.reduce((t, v) => t + v[k], 0)])) as WeekVals
+  const saldo = row('saldo'), jual = row('jual'), lain = row('lain'), trxIn = row('trx_in')
+  const umum = row('umum'), hpp = row('hpp'), internal = row('internal'), trxOut = row('trx_out')
+  const totalIn = add(saldo, jual, lain, trxIn)
+  const totalOut = add(umum, hpp, internal, trxOut)
+  const laba = Object.fromEntries(keys.map((k) => [k, totalIn[k] - totalOut[k]])) as WeekVals
   type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
     { no: 1, label: 'Pemasukan Saldo Penjual', v: saldo },
@@ -314,15 +312,15 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
-  // Kolom minggu Laba Rugi dan Neraca tampil mulai hari Sabtu minggu itu, atau lebih awal bila sudah berisi.
-  const hasData = (k: string) => lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null)
-  const started = new Set<string>([...startedWeeks(period), ...WEEKS.map((w) => `w${w}`).filter(hasData)])
+  // Kolom minggu Laba Rugi tampil mulai hari Sabtu minggu itu, atau lebih awal bila sudah berisi.
+  const hasData = (k: string) => lines.some((l) => l.v[k as keyof WeekVals] !== 0)
+  const started = new Set<string>([...saturdayWeeks(period), ...WEEKS.map((w) => `w${w}`).filter(hasData)])
   if (started.size) started.add('jumlah')
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <SectionTitle>Laporan Laba Rugi</SectionTitle>
-        <HelpHint label="Tentang Laporan Laba Rugi">Dari Perduitan #1, Pemasukan Perduitan #2, HPP barang terjual (Stock Out penjualan), dan transaksi Unit 5 di menu Transaksi yang memakai akun Pendapatan/Beban. Negatif: merah dalam kurung.</HelpHint>
+        <HelpHint label="Tentang Laporan Laba Rugi">Dari jurnal Unit 5 di menu Transaksi (otomatis dari Perduitan #1 dan Manajemen Stok, serta transaksi manual) yang memakai akun Pendapatan, Beban, atau HPP; per minggu Senin–Sabtu. Jurnal penutup, bagi hasil, dan imbal hasil tidak dihitung. Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -355,79 +353,33 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <Neraca period={period} shown={started} labaMingguan={laba} />
+      <Neraca period={period} />
     </div>
   )
 }
 
-type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]>; stok_detail?: Record<string, string> }
-type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[]; stok_manajemen?: string }
-
-/** Minggu yang sudah sampai hari Sabtu-nya (Sabtu <= hari ini, waktu lokal). */
-function startedWeeks(period: string): Set<string> {
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const set = new Set<string>()
-  WEEKS.forEach((w) => {
-    const [y, m, d] = weekEnd(period, w).split('-').map(Number)
-    const sat = new Date(y, m - 1, d - 1)
-    const iso = `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`
-    if (iso <= today) set.add(`w${w}`)
-  })
-  if (set.size) set.add('jumlah')
-  return set
-}
-
-function Neraca({ period, shown, labaMingguan }: { period: string; shown: Set<string>; labaMingguan?: WeekVals }) {
-  const started = shown
+function Neraca({ period }: { period: string }) {
+  const q = useGl(period)
+  const started = useMemo(() => startedWeeks(period), [period])
   const lastKey = (['w5', 'w4', 'w3', 'w2', 'w1'] as const).find((k) => started.has(k)) ?? 'w5'
-  const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
-  // Akhir periode lalu = sehari sebelum Senin Minggu ke-1.
-  const lastPrev = useMemo(() => {
-    const [y, m] = period.split('-').map(Number)
-    const d = new Date(y, m - 1, 1)
-    d.setDate(((8 - d.getDay()) % 7))
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }, [period])
-  const q = useQuery({
-    queryKey: ['toko', 'neraca', period, lastPrev, ends],
-    queryFn: async () => (await api.get<NeracaResp>('/v1/toko/neraca', {
-      params: { dates: [lastPrev, ...ends], period }, paramsSerializer: { indexes: null },
-    })).data,
-  })
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
   if (q.isLoading || !q.data) return <Spinner label="Memuat neraca..." />
-  const MODAL_BUMDES = parseMoney(q.data.modal)
-  const [prev, ...pos] = q.data.positions
+  const pos = q.data.positions
   const keys = ['w1', 'w2', 'w3', 'w4', 'w5'] as const
   const blank = (): WeekVals => ({ w1: 0, w2: 0, w3: 0, w4: 0, w5: 0, jumlah: 0 })
   const kas = blank(), stokV = blank(), piutang = blank(), piutangLain = blank(), utang = blank(), lalu = blank(), lr = blank(), modal = blank()
-  const labaLalu = parseMoney(prev.laba)
-  const opening = q.data.opening_date
   keys.forEach((k, i) => {
     const p = pos[i]
+    if (!p) return
     kas[k] = parseMoney(p.kas)
-    piutangLain[k] = parseMoney(p.piutang_lainnya)
     stokV[k] = parseMoney(p.stok)
     piutang[k] = parseMoney(p.piutang)
+    piutangLain[k] = parseMoney(p.piutang_lainnya)
     utang[k] = parseMoney(p.utang)
-    // Modal dan Laba/Rugi Lalu/Berjalan dari backend (menu Transaksi); fallback cara lama.
-    modal[k] = p.modal != null ? parseMoney(p.modal) : MODAL_BUMDES
-    if (p.laba_lalu != null && p.laba_berjalan != null) {
-      lalu[k] = parseMoney(p.laba_lalu)
-      lr[k] = parseMoney(p.laba_berjalan)
-      return
-    }
-    const l = opening && p.date > opening && prev.date <= opening ? 0 : labaLalu
-    lalu[k] = l
-    lr[k] = parseMoney(p.laba) - l
+    modal[k] = parseMoney(p.modal)
+    lalu[k] = parseMoney(p.laba_lalu)
+    lr[k] = parseMoney(p.laba_berjalan)
   })
-  // Laba/Rugi Periode Berjalan = kumulatif LABA/RUGI BERSIH tabel Laba Rugi mingguan di atas
-  // (Neraca mingguan mengikuti Laba Rugi mingguan).
-  if (labaMingguan) {
-    let run = 0
-    keys.forEach((k) => { run += labaMingguan[k]; lr[k] = run })
-  }
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
   for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr, modal]) v.jumlah = v[lastKey]
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
@@ -455,11 +407,12 @@ function Neraca({ period, shown, labaMingguan }: { period: string; shown: Set<st
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
   const cell = (n: number) => <span className={n < 0 ? 'text-destructive' : undefined}>{money(n)}</span>
+  const last = pos[keys.indexOf(lastKey as typeof keys[number])]
   return (
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes dari menu Transaksi (akun Penyertaan Modal Unit 5). Laba/Rugi Periode Berjalan = laba bulan ini; Periode Lalu = laba sejak 1 Okt 2026 sebelum bulan ini. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Laba/Rugi Periode Berjalan = jumlah LABA/RUGI BERSIH tabel Laba Rugi s.d. minggu tersebut. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sebelum Minggu ke-1 bulan ini; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -500,57 +453,55 @@ function Neraca({ period, shown, labaMingguan }: { period: string; shown: Set<st
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      {started.size > 0 && <KasNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} opening={opening} />}
-      {started.size > 0 && <StokNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} period={period} stokManajemen={q.data.stok_manajemen} />}
-      {started.size > 0 && <DiffNote pos={pos[keys.indexOf(lastKey as typeof keys[number])]} stokManajemen={q.data.stok_manajemen} />}
+      {started.size > 0 && <KasNote pos={last} period={period} opening={q.data.kas_opening} />}
+      {started.size > 0 && <StokNote pos={last} period={period} />}
+      {started.size > 0 && <DiffNote pos={last} />}
     </div>
   )
 }
 
-/** Catatan teks di bawah tabel Neraca: pergerakan Kas s.d. minggu terakhir yang tampil. */
-/** Catatan pergerakan stok s.d. minggu terakhir yang tampil; stok akhir = Stok di Neraca. */
-function StokNote({ pos, period, stokManajemen }: { pos?: NeracaPos; period: string; stokManajemen?: string }) {
-  if (!pos?.stok_detail) return null
-  const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-  const [y, m] = period.split('-').map(Number)
-  const awal = new Date(y, m - 1, 0)
-  const awalIso = `${awal.getFullYear()}-${String(awal.getMonth() + 1).padStart(2, '0')}-${String(awal.getDate()).padStart(2, '0')}`
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const lines = stokNoteLines(pos.stok_detail, `Stok awal ${fmt(awalIso)}`, `Stok akhir ${fmt(pos.date)}`, pos.date >= today ? stokManajemen : undefined)
-  const gl = parseMoney(pos.stok_detail.gl_persediaan)
-  const akhir = parseMoney(pos.stok_detail.stok_akhir)
-  return (
-    <div className="space-y-1 text-sm text-muted-foreground">
-      <p className="font-semibold text-foreground">Catatan pergerakan stok</p>
-      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
-      {Math.abs(akhir - gl) >= 1 && <p>Kemungkinan penyebab selisih dengan Laporan Keuangan: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
-    </div>
-  )
+/** Sehari sebelum Senin Minggu ke-1 (akhir periode lalu). */
+function periodAwal(period: string): string {
+  const [y, m, d] = weekStart(period, 1).split('-').map(Number)
+  return isoDate(new Date(y, m - 1, d - 1))
 }
 
-function KasNote({ pos, opening }: { pos?: NeracaPos; opening?: string }) {
+/** Catatan teks di bawah tabel Neraca: pergerakan Kas (jurnal menu Transaksi) s.d. minggu terakhir yang tampil. */
+function KasNote({ pos, period, opening }: { pos?: GlPos; period: string; opening?: GlResp['kas_opening'] }) {
   if (!pos?.kas_detail) return null
-  const fmt = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-  const after = !!opening && pos.date > opening
-  const awal = after ? `Kas awal ${fmt(opening!)}` : 'Kas awal (Modal sebelum 1 Sep 2026)'
-  const lines = kasNoteLines(pos.kas_detail, awal, `Kas akhir ${fmt(pos.date)}`)
+  const lines = kasNoteLines(pos.kas_detail, `Kas awal ${fmtTgl(periodAwal(period))}`, `Kas akhir ${fmtTgl(pos.date)}`)
+  const gl = opening ? parseMoney(opening.gl) : 0
+  const set = opening ? parseMoney(opening.ditetapkan) : 0
+  const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
       <p className="font-semibold text-foreground">Catatan pergerakan kas</p>
       {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
-      {after && <p>Transaksi kas dari menu Transaksi bertanggal sebelum 1 Okt 2026 tidak dihitung (sudah termasuk dalam kas awal).</p>}
+      {opening && <p className="tabular-nums break-words">Saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}; saldo awal yang pernah ditetapkan: {rp(set)}{Math.abs(gl - set) >= 1 ? `; selisih ${rp(gl - set)}. Neraca memakai saldo menu Transaksi.` : ' (sama).'}</p>}
     </div>
   )
 }
 
-/** Catatan di bawah Neraca: selisih antara Neraca/Manajemen Stok dan saldo akun menu Transaksi. */
-function DiffNote({ pos, stokManajemen }: { pos?: NeracaPos; stokManajemen?: string }) {
-  if (!pos?.ledger) return null
-  // Bandingkan dengan Manajemen Stok hari ini hanya bila minggu ini sudah mencakup hari ini.
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const items = diffNoteItems({ stok: pos.stok, utang: pos.utang }, pos.ledger, pos.manual_suspects, pos.date >= today ? stokManajemen : undefined)
+/** Catatan pergerakan akun Persediaan (jurnal menu Transaksi); stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Stok. */
+function StokNote({ pos, period }: { pos?: GlPos; period: string }) {
+  if (!pos?.stok_detail) return null
+  const mgmt = pos.pembanding?.stok
+  const lines = stokNoteLines(pos.stok_detail, `Stok awal ${fmtTgl(periodAwal(period))}`, `Stok akhir ${fmtTgl(pos.date)}`, mgmt,
+    `Nilai Persediaan Manajemen Stok per ${fmtTgl(pos.date)}`)
+  const diff = mgmt != null && Math.abs(parseMoney(pos.stok_detail.stok_akhir) - parseMoney(mgmt)) >= 1
+  return (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <p className="font-semibold text-foreground">Catatan pergerakan stok</p>
+      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      {diff && <p>Kemungkinan penyebab selisih dengan Manajemen Stok: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
+    </div>
+  )
+}
+
+/** Catatan di bawah Neraca: selisih saldo menu Transaksi dengan data Manajemen Stok. */
+function DiffNote({ pos }: { pos?: GlPos }) {
+  if (!pos?.pembanding) return null
+  const items = diffNoteItems({ stok: pos.stok, utang: pos.utang }, pos.pembanding, pos.manual_suspects)
   if (!items.length) return null
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
@@ -562,7 +513,7 @@ function DiffNote({ pos, stokManajemen }: { pos?: NeracaPos; stokManajemen?: str
           {it.details.map((d) => <p key={d} className="pl-4 tabular-nums break-words">• {d}</p>)}
         </div>
       ))}
-      <p>Menu Transaksi = saldo akun Unit 5 (termasuk jurnal otomatis) s.d. {new Date(`${pos.date}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}.</p>
+      <p>Neraca = saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) s.d. {fmtTgl(pos.date)}.</p>
     </div>
   )
 }

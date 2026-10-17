@@ -223,7 +223,7 @@ export function buildJournalRows(recs: JournalRec[], period: string, keep: (r: J
 
 export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos].some((p) => p === 'piutang' || p === 'utang')
 
-/** Rincian pergerakan Kas dari /v1/toko/neraca (kas_detail); kas_akhir = Kas di Neraca. */
+/** Rincian pergerakan Kas dari /v1/toko/gl (kas_detail, dari jurnal); kas_akhir = Kas di Neraca. */
 export type KasDetail = Record<string, string>
 
 const KAS_LINES: [string, string, 1 | -1][] = [
@@ -237,6 +237,11 @@ const KAS_LINES: [string, string, 1 | -1][] = [
   ['keluar_pelunasan_utang', 'Pembayaran utang usaha', -1],
   ['keluar_kasbon', 'Kasbon diberikan', -1],
   ['keluar_transaksi', 'Menu Transaksi (kredit Kas)', -1],
+  // Arah kebalikan (koreksi/pembatalan) — jarang, tetap ditampilkan agar awal + mutasi = akhir.
+  ['masuk_pembelian_tunai', 'Koreksi pembelian tunai', 1],
+  ['masuk_pelunasan_utang', 'Koreksi pembayaran utang usaha', 1],
+  ['keluar_penjualan_tunai', 'Koreksi penjualan tunai', -1],
+  ['keluar_pelunasan_piutang', 'Koreksi pelunasan piutang usaha', -1],
 ]
 
 const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
@@ -252,10 +257,10 @@ export function kasNoteLines(detail: KasDetail, awalLabel: string, akhirLabel: s
   return lines
 }
 
-/** Pembanding Neraca vs menu Transaksi: hanya pos yang punya dua sumber (Stok, Utang Usaha). */
+/** Pembanding Neraca (saldo akun menu Transaksi) vs data operasional. */
 const DIFF_ITEMS: [string, string, string][] = [
   ['stok', 'Stok Barang', 'Manajemen Stok'],
-  ['utang', 'Utang Usaha', 'Neraca'],
+  ['utang', 'Utang Usaha', 'sisa pembelian kredit (Manajemen Stok)'],
 ]
 
 export type Suspect = { id: string; tanggal: string; reference: string; keterangan: string; debit: string; credit: string; nominal: string }
@@ -268,21 +273,17 @@ export function suspectLine(x: Suspect): string {
     .filter(Boolean).join(' · ')
 }
 
-/** Catatan hanya untuk selisih ≥ Rp 1, beserta transaksi manual yang diduga penyebabnya. */
+/** Catatan hanya untuk selisih ≥ Rp 1 antara Neraca (menu Transaksi) dan pembanding, beserta transaksi manual terkait. */
 export function diffNoteItems(
-  neraca: Record<string, string | undefined>, ledger: Record<string, string>,
-  suspects: Record<string, Suspect[]> = {}, stokManajemen?: string,
+  neraca: Record<string, string | undefined>, pembanding: Record<string, string | undefined>,
+  suspects: Record<string, Suspect[]> = {},
 ): DiffItem[] {
   const out: DiffItem[] = []
-  if (stokManajemen != null && neraca.stok != null) {
-    const a = parseMoney(neraca.stok), b = parseMoney(stokManajemen)
-    if (Math.abs(a - b) >= 1) out.push({ key: 'stok-mgmt', text: `Stok Barang: Neraca ${rp(a)}; Manajemen Stok hari ini ${rp(b)}; selisih ${rp(a - b)}`, details: [] })
-  }
   for (const [key, label, source] of DIFF_ITEMS) {
-    if (ledger[key] == null || neraca[key] == null) continue
-    const a = parseMoney(neraca[key]), b = parseMoney(ledger[key])
+    if (pembanding[key] == null || neraca[key] == null) continue
+    const a = parseMoney(neraca[key]), b = parseMoney(pembanding[key])
     if (Math.abs(a - b) < 1) continue
-    out.push({ key, text: `${label}: ${source} ${rp(a)}; menu Transaksi ${rp(b)}; selisih ${rp(a - b)}`, details: (suspects[key] ?? []).map(suspectLine) })
+    out.push({ key, text: `${label}: menu Transaksi ${rp(a)}; ${source} ${rp(b)}; selisih ${rp(a - b)}`, details: (suspects[key] ?? []).map(suspectLine) })
   }
   return out
 }
@@ -294,10 +295,12 @@ const STOK_LINES: [string, string][] = [
   ['keluar_penjualan', 'Barang keluar (HPP penjualan)'],
   ['keluar_internal', 'Pemakaian internal'],
   ['penyesuaian', 'Penyesuaian stok'],
+  ['transaksi', 'Menu Transaksi (akun Persediaan)'],
 ]
 
 /** Catatan pergerakan stok: stok awal, mutasi tidak nol (+/−), stok akhir, lalu pembanding. */
-export function stokNoteLines(detail: Record<string, string>, awalLabel: string, akhirLabel: string, stokManajemen?: string): string[] {
+export function stokNoteLines(detail: Record<string, string>, awalLabel: string, akhirLabel: string, stokManajemen?: string,
+  manajemenLabel = 'Nilai Persediaan Manajemen Stok hari ini'): string[] {
   const lines = [`${awalLabel}: ${rp(parseMoney(detail.stok_awal))}`]
   for (const [key, label] of STOK_LINES) {
     const v = parseMoney(detail[key])
@@ -311,7 +314,7 @@ export function stokNoteLines(detail: Record<string, string>, awalLabel: string,
   }
   if (stokManajemen != null) {
     const m = parseMoney(stokManajemen)
-    lines.push(`Nilai Persediaan Manajemen Stok hari ini: ${rp(m)}${Math.abs(akhir - m) >= 1 ? `; selisih ${rp(akhir - m)}` : ' (sama)'}`)
+    lines.push(`${manajemenLabel}: ${rp(m)}${Math.abs(akhir - m) >= 1 ? `; selisih ${rp(akhir - m)}` : ' (sama)'}`)
   }
   return lines
 }
