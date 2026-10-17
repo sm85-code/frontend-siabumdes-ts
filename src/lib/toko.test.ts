@@ -73,10 +73,13 @@ describe('kasNoteLines', () => {
   })
 })
 
-describe('diffNoteLines', () => {
-  it('hanya menampilkan pos yang berbeda', async () => {
-    const { diffNoteLines } = await import('./toko')
-    expect(diffNoteLines({ kas: '100', stok: '9000000' }, { kas: '100', stok: '8500000' }))
-      .toEqual(['Stok Barang: Manajemen Stok Rp 9.000.000; menu Transaksi Rp 8.500.000; selisih Rp 500.000'])
+describe('diffNoteItems', () => {
+  it('hanya pos dua sumber yang berbeda, dengan transaksi manual penyebab', async () => {
+    const { diffNoteItems } = await import('./toko')
+    const items = diffNoteItems({ kas: '1', stok: '9000000', utang: '0', piutang: '5' }, { kas: '9', stok: '8500000', utang: '0', piutang: '0' }, {
+      stok: [{ id: 'x', tanggal: '2026-10-05', reference: 'R1', keterangan: 'Salah input', debit: '1.1.01.15 Kas', credit: '1.1.05.15 Persediaan', nominal: '500000' }],
+    }, '9000000')
+    expect(items.map((i) => i.text)).toEqual(['Stok Barang: Manajemen Stok Rp 9.000.000; menu Transaksi Rp 8.500.000; selisih Rp 500.000'])
+    expect(items[0].details[0]).toContain('D 1.1.01.15 Kas / K 1.1.05.15 Persediaan · Rp 500.000')
   })
 })
