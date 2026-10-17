@@ -412,7 +412,7 @@ function Neraca({ period }: { period: string }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sebelum Minggu ke-1 bulan ini; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Kas/Bank = saldo awal Rp 2.124.500 per 30 Sep 2026 + pergerakan Kas sejak 1 Okt 2026. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sebelum Minggu ke-1 bulan ini; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -469,7 +469,8 @@ function periodAwal(period: string): string {
 /** Catatan teks di bawah tabel Neraca: pergerakan Kas (jurnal menu Transaksi) s.d. minggu terakhir yang tampil. */
 function KasNote({ pos, period, opening }: { pos?: GlPos; period: string; opening?: GlResp['kas_opening'] }) {
   if (!pos?.kas_detail) return null
-  const lines = kasNoteLines(pos.kas_detail, `Kas awal ${fmtTgl(periodAwal(period))}`, `Kas akhir ${fmtTgl(pos.date)}`)
+  const awalDate = pos.kas_detail.kas_awal_date ?? periodAwal(period)
+  const lines = kasNoteLines(pos.kas_detail, `Kas awal ${fmtTgl(awalDate)}`, `Kas akhir ${fmtTgl(pos.date)}`)
   const gl = opening ? parseMoney(opening.gl) : 0
   const set = opening ? parseMoney(opening.ditetapkan) : 0
   const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
@@ -477,7 +478,7 @@ function KasNote({ pos, period, opening }: { pos?: GlPos; period: string; openin
     <div className="space-y-1 text-sm text-muted-foreground">
       <p className="font-semibold text-foreground">Catatan pergerakan kas</p>
       {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
-      {opening && <p className="tabular-nums break-words">Saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}; saldo awal yang pernah ditetapkan: {rp(set)}{Math.abs(gl - set) >= 1 ? `; selisih ${rp(gl - set)}. Neraca memakai saldo menu Transaksi.` : ' (sama).'}</p>}
+      {opening && <p className="tabular-nums break-words">Kas di Neraca = saldo awal {rp(set)} per {fmtTgl(opening.date)} + pergerakan akun Kas/Bank Unit 5 di menu Transaksi sejak 1 Okt 2026 (transaksi Kas bertanggal sebelumnya tidak dihitung). Sebagai informasi, saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}.</p>}
     </div>
   )
 }
