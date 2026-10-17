@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   DEFAULT_DATA_ROWS,
@@ -80,7 +79,7 @@ export default function ManajemenTokoPage() {
   const { data: units, isLoading: unitsLoading } = useUnitsQuery(true)
   const unit = units?.find((u) => u.code === TOKO_UNIT_CODE)
   const allowed = user?.role !== 'pengelola' || (!!unit && user.unit_usaha_id === unit.id)
-  const [tab, setTab] = useState<'transaksi' | 'data' | 'otomatis' | 'labarugi'>('data')
+  const [tab, setTab] = useState<'transaksi' | 'data' | 'otomatis' | 'labarugi'>('transaksi')
   const [period, setPeriod] = useState(currentPeriod)
   const [cell, setCell] = useState<CellTarget | null>(null)
   const queryClient = useQueryClient()
@@ -108,14 +107,14 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <PageHeader title={<>Manajemen Toko</>} hintLabel="Tentang Manajemen Toko" hint={<><p>Uraian diambil dari tab Bahan Perduitan sesuai Jenis Transaksi. Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></>} />
+      <PageHeader title={<>Manajemen Toko</>} hintLabel="Tentang Manajemen Toko" hint={<><p>Uraian diambil dari tab Bahan Perduitan (tabel Uraian Pemasukan / Uraian Pengeluaran). Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></>} />
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'data', label: 'Bahan Perduitan', icon: Database }, { id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }, { id: 'labarugi', label: 'Perduitan #3', icon: FileBarChart }] as const).map((t) => {
+        {([{ id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }, { id: 'labarugi', label: 'Perduitan #3', icon: FileBarChart }, { id: 'data', label: 'Bahan Perduitan', icon: Database }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -132,7 +131,7 @@ export default function ManajemenTokoPage() {
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
-                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Transaksi di tab Bahan Perduitan untuk menambah uraian.') }} />
+                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Baris di tab Bahan Perduitan untuk menambah uraian.') }} />
             ))}
             {tab === 'transaksi' && <JournalSection period={period} />}
           </section>
@@ -143,7 +142,10 @@ export default function ManajemenTokoPage() {
             {tab === 'labarugi' && <LabaRugi period={period} />}
           </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
-            <DataTable items={items} onChanged={refresh} />
+            <HelpHint label="Tentang tab Bahan Perduitan">Isi Nama Baris di tabel Uraian Pemasukan atau Uraian Pengeluaran; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran Perduitan #1.</HelpHint>
+            {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
+              <DataTable key={jenis} jenis={jenis} items={items.filter((it) => it.jenis === jenis)} onChanged={refresh} />
+            ))}
           </section>
         </>
       )}
@@ -702,7 +704,8 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   )
 }
 
-function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => Promise<unknown> | void }) {
+function DataTable({ jenis, items, onChanged }: { jenis: TokoJenis; items: TokoItem[]; onChanged: () => Promise<unknown> | void }) {
+  const title = jenis === 'pemasukan' ? 'Uraian Pemasukan' : 'Uraian Pengeluaran'
   const [extra, setExtra] = useState(0)
   const pad = Math.max(DEFAULT_DATA_ROWS - items.length, 0) + extra
   const { sorted, headerProps, sortIndicator } = useSort(items as unknown as Record<string, unknown>[])
@@ -711,49 +714,49 @@ function DataTable({ items, onChanged }: { items: TokoItem[]; onChanged: () => P
     <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${cls}`}>{label}{sortIndicator(key)}</TableHead>
   )
   return (
-    <>
+    <div className="space-y-2" data-testid={`toko-data-${jenis}`}>
       <div className="flex items-center justify-between gap-3">
-        <HelpHint label="Tentang tab Bahan Perduitan">Isi Nama Transaksi dan pilih Jenis Transaksi; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran.</HelpHint>
+        <h3 className="font-semibold">{title}</h3>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
-      <Card className="overflow-hidden p-0"><TableShell minWidth={760} label="Tabel Data Transaksi"><Table className={tableClass}>
+      <Card className="overflow-hidden p-0"><TableShell minWidth={640} label={`Tabel ${title}`}><Table className={tableClass}>
         <TableHeader className={headerClass}><TableRow>
-          <TableHead className="w-14">No.</TableHead>{sortHead('name', 'Nama Transaksi')}{sortHead('jenis', 'Jenis Transaksi', 'w-48')}{sortHead('keterangan', 'Keterangan')}<TableHead className="w-14" />
+          <TableHead className="w-14">No.</TableHead>{sortHead('name', 'Nama Baris')}{sortHead('keterangan', 'Keterangan')}<TableHead className="w-14" />
         </TableRow></TableHeader>
         <TableBody>
-          {sortedItems.map((it, i) => <DataRow key={it.id} no={i + 1} item={it} onChanged={onChanged} />)}
+          {sortedItems.map((it, i) => <DataRow key={it.id} no={i + 1} jenis={jenis} item={it} onChanged={onChanged} />)}
           {Array.from({ length: pad }, (_, i) => (
-            <DataRow key={`new-${items.length + i}`} no={items.length + i + 1} item={null}
+            <DataRow key={`new-${items.length + i}`} no={items.length + i + 1} jenis={jenis} item={null}
               onChanged={async () => { setExtra((n) => Math.max(n - 1, 0)); await onChanged() }} />
           ))}
         </TableBody>
       </Table></TableShell></Card>
-    </>
+    </div>
   )
 }
 
-function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; onChanged: () => Promise<unknown> | void }) {
+function DataRow({ no, jenis, item, onChanged }: { no: number; jenis: TokoJenis; item: TokoItem | null; onChanged: () => Promise<unknown> | void }) {
   const confirm = useConfirm()
   const [name, setName] = useState(item?.name ?? '')
-  const [jenis, setJenis] = useState<TokoJenis | ''>(item?.jenis ?? '')
   const [keterangan, setKeterangan] = useState(item?.keterangan ?? '')
   const [busy, setBusy] = useState(false)
 
-  const persist = async (next: { name: string; jenis: TokoJenis | ''; keterangan: string }) => {
+  // Jenis ditentukan tabel tempat baris berada (Uraian Pemasukan / Uraian Pengeluaran).
+  const persist = async (next: { name: string; keterangan: string }) => {
     const trimmed = next.name.trim()
     if (busy) return
     try {
       if (item) {
-        if (!trimmed) { setName(item.name); notify('Nama Transaksi tidak boleh kosong'); return }
-        if (trimmed === item.name && next.jenis === item.jenis && next.keterangan === item.keterangan) return
+        if (!trimmed) { setName(item.name); notify('Nama Baris tidak boleh kosong'); return }
+        if (trimmed === item.name && next.keterangan === item.keterangan) return
         setBusy(true)
-        await api.put(`/v1/toko/items/${item.id}`, { name: trimmed, jenis: next.jenis || item.jenis, keterangan: next.keterangan })
+        await api.put(`/v1/toko/items/${item.id}`, { name: trimmed, keterangan: next.keterangan })
         await onChanged()
       } else {
-        if (!trimmed || !next.jenis) return
+        if (!trimmed) return
         setBusy(true)
-        await api.post('/v1/toko/items', { name: trimmed, jenis: next.jenis, keterangan: next.keterangan })
-        setName(''); setJenis(''); setKeterangan('')
+        await api.post('/v1/toko/items', { name: trimmed, jenis, keterangan: next.keterangan })
+        setName(''); setKeterangan('')
         await onChanged()
       }
     } catch (e) {
@@ -773,24 +776,14 @@ function DataRow({ no, item, onChanged }: { no: number; item: TokoItem | null; o
     <TableRow data-testid="toko-data-row">
       <TableCell>{no}</TableCell>
       <TableCell>
-        <Input aria-label={`Nama Transaksi baris ${no}`} title={HINT_A11Y} value={name} disabled={busy} placeholder={EMPTY_CELL_DASH}
+        <Input aria-label={`Nama Baris ${jenis} baris ${no}`} title={HINT_A11Y} value={name} disabled={busy} placeholder={EMPTY_CELL_DASH}
           className="placeholder:text-muted-foreground/60"
-          onChange={(e) => setName(e.target.value)} onBlur={() => void persist({ name, jenis, keterangan })} />
+          onChange={(e) => setName(e.target.value)} onBlur={() => void persist({ name, keterangan })} />
       </TableCell>
       <TableCell>
-        <Select value={jenis} onValueChange={(v) => { const j = v as TokoJenis; setJenis(j); void persist({ name, jenis: j, keterangan }) }} disabled={busy}>
-          <SelectTrigger aria-label={`Jenis Transaksi baris ${no}`} title={HINT_A11Y} className="h-11 w-full px-3"><SelectValue placeholder={<span className="text-muted-foreground/60">{EMPTY_CELL_DASH}</span>} /></SelectTrigger>
-          <SelectContent position="popper" align="start" sideOffset={4}
-            className="toko-table w-(--radix-select-trigger-width) min-w-(--radix-select-trigger-width) p-1">
-            <SelectItem value="pemasukan" className="min-h-11 px-3 text-sm">Pemasukan</SelectItem>
-            <SelectItem value="pengeluaran" className="min-h-11 px-3 text-sm">Pengeluaran</SelectItem>
-          </SelectContent>
-        </Select>
-      </TableCell>
-      <TableCell>
-        <Input aria-label={`Keterangan baris ${no}`} title={HINT_A11Y} value={keterangan} disabled={busy} placeholder={EMPTY_CELL_DASH}
+        <Input aria-label={`Keterangan ${jenis} baris ${no}`} title={HINT_A11Y} value={keterangan} disabled={busy} placeholder={EMPTY_CELL_DASH}
           className="placeholder:text-muted-foreground/60"
-          onChange={(e) => setKeterangan(e.target.value)} onBlur={() => void persist({ name, jenis, keterangan })} />
+          onChange={(e) => setKeterangan(e.target.value)} onBlur={() => void persist({ name, keterangan })} />
       </TableCell>
       <TableCell>
         {item && (item.has_entries ? (
