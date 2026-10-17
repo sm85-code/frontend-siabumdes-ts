@@ -63,7 +63,7 @@ const TX_TABLE_MIN_WIDTH = 980
 const TX_COL = { no: 56, uraian: 200, week: 120, jumlah: 124 } as const
 const headerClass = 'bg-muted [&_th]:text-foreground [&_tr:hover]:bg-transparent'
 const HINT_A11Y = 'Klik untuk input'
-const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Perduitan #1. Hapus isian nominalnya dulu.'
+const LOCKED_HINT = 'Tidak dapat dihapus: baris ini sudah memiliki nominal di tab Catatan Toko. Hapus isian nominalnya dulu.'
 const JENIS_LABEL: Record<TokoJenis, string> = { pemasukan: 'Pemasukan', pengeluaran: 'Pengeluaran' }
 
 /** Placeholder samar untuk sel kosong; aksesibilitas lewat aria-label/title. */
@@ -111,14 +111,17 @@ export default function ManajemenTokoPage() {
 
   return (
     <div className="min-w-0 space-y-5">
-      <PageHeader title={<>Manajemen Toko</>} hintLabel="Tentang Manajemen Toko" hint={<><p>Uraian diambil dari tab Bahan Perduitan (tabel Uraian Pemasukan / Uraian Pengeluaran). Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></>} />
+      <div>
+        <p className="label mb-1">Unit Usaha UU05 : Karya Raharja Store (KRS)</p>
+        <PageHeader title={<>Manajemen Toko</>} hintLabel="Tentang Manajemen Toko" hint={<><p>Uraian diambil dari tab Data (tabel Uraian Pemasukan / Uraian Pengeluaran). Klik sel Minggu untuk mengisi tanggal dan nominal.</p><p>Setiap nominal otomatis tercatat sebagai transaksi Unit 5; bukti diunggah dari halaman Transaksi.</p></>} />
+      </div>
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="toko-period">Periode</Label>
         <Input id="toko-period" type="month" className="w-44" value={period}
           onChange={(e) => e.target.value && setPeriod(e.target.value)} />
       </div>
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Tab Manajemen Toko">
-        {([{ id: 'transaksi', label: 'Perduitan #1', icon: ClipboardList }, { id: 'otomatis', label: 'Perduitan #2', icon: Receipt }, { id: 'labarugi', label: 'Perduitan #3', icon: FileBarChart }, { id: 'data', label: 'Bahan Perduitan', icon: Database }] as const).map((t) => {
+        {([{ id: 'transaksi', label: 'Catatan Toko', icon: ClipboardList }, { id: 'otomatis', label: 'Catatan Gudang', icon: Receipt }, { id: 'labarugi', label: 'Laporan', icon: FileBarChart }, { id: 'data', label: 'Data', icon: Database }] as const).map((t) => {
           const Icon = t.icon
           return (
             <Button key={t.id} type="button" role="tab" aria-selected={tab === t.id} aria-controls={`toko-panel-${t.id}`}
@@ -135,7 +138,7 @@ export default function ManajemenTokoPage() {
           <section hidden={tab !== 'transaksi'} role="tabpanel" id="toko-panel-transaksi" aria-labelledby="toko-tab-transaksi" className="min-w-0 space-y-6">
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <TxTable key={jenis} jenis={jenis} items={items} entries={entries}
-                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Baris di tab Bahan Perduitan untuk menambah uraian.') }} />
+                onCell={setCell} onEmptyUraian={() => { setTab('data'); notify('Isi Nama Baris di tab Data untuk menambah uraian.') }} />
             ))}
             {tab === 'transaksi' && <JournalSection period={period} />}
           </section>
@@ -146,7 +149,7 @@ export default function ManajemenTokoPage() {
             {tab === 'labarugi' && <LabaRugi period={period} />}
           </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
-            <HelpHint label="Tentang tab Bahan Perduitan">Isi Nama Baris di tabel Uraian Pemasukan atau Uraian Pengeluaran; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran Perduitan #1.</HelpHint>
+            <HelpHint label="Tentang tab Data">Isi Nama Baris di tabel Uraian Pemasukan atau Uraian Pengeluaran; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran Catatan Toko.</HelpHint>
             {(['pemasukan', 'pengeluaran'] as const).map((jenis) => (
               <DataTable key={jenis} jenis={jenis} items={items.filter((it) => it.jenis === jenis)} onChanged={refresh} />
             ))}
@@ -212,7 +215,7 @@ function JournalTable({ period, title, keep }: { period: string; title: string; 
     <div className="space-y-2">
       <div className="flex items-center gap-1">
         <SectionTitle>{title}</SectionTitle>
-        <HelpHint label={`Tentang ${title}`}>Transaksi Unit 5 yang dicatat langsung di menu Transaksi (bukan dari Perduitan atau stok). Ubah atau hapus dari halaman Transaksi.</HelpHint>
+        <HelpHint label={`Tentang ${title}`}>Transaksi Unit 5 yang dicatat langsung di menu Transaksi (bukan dari Catatan Toko atau stok). Ubah atau hapus dari halaman Transaksi.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={title}><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -260,7 +263,7 @@ type GlResp = {
 const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmtTgl = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 
-/** Perduitan #3 dari menu Transaksi: Laba Rugi mingguan + posisi Neraca akhir tiap minggu (Minggu). */
+/** Laporan dari menu Transaksi: Laba Rugi mingguan + posisi Neraca akhir tiap minggu (Minggu). */
 function useGl(period: string) {
   const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
   return useQuery({
@@ -305,14 +308,14 @@ function LabaRugi({ period }: { period: string }) {
   const laba = Object.fromEntries(keys.map((k) => [k, totalIn[k] - totalOut[k]])) as WeekVals
   type Line = { no?: number; label: string; v: WeekVals; strong?: boolean }
   const lines: Line[] = [
-    { no: 1, label: 'Pemasukan Saldo Penjual', v: saldo },
-    { no: 2, label: 'Pemasukan Penjualan Barang (Stock Out)', v: jual },
+    { no: 1, label: 'Pemasukan Toko', v: saldo },
+    { no: 2, label: 'Pemasukan Penjualan Stok', v: jual },
     { no: 3, label: 'Pemasukan Lainnya', v: lain },
     { no: 4, label: 'Pemasukan dari menu Transaksi', v: trxIn },
     { label: 'TOTAL PEMASUKAN', v: totalIn, strong: true },
     { no: 5, label: 'Pengeluaran Umum', v: umum },
-    { no: 6, label: 'Pengeluaran HPP Penjualan Barang', v: hpp },
-    { no: 7, label: 'Pengeluaran Pemakaian Internal', v: internal },
+    { no: 6, label: 'HPP Penjualan', v: hpp },
+    { no: 7, label: 'Penjualan Internal', v: internal },
     { no: 8, label: 'Pengeluaran dari menu Transaksi', v: trxOut },
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
@@ -326,7 +329,7 @@ function LabaRugi({ period }: { period: string }) {
       <ArusSection period={period} />
       <div className="flex items-center gap-1 pt-4">
         <SectionTitle>Laporan Laba Rugi</SectionTitle>
-        <HelpHint label="Tentang Laporan Laba Rugi">Dari jurnal Unit 5 di menu Transaksi (otomatis dari Perduitan #1 dan Manajemen Stok, serta transaksi manual) yang memakai akun Pendapatan, Beban, atau HPP; per minggu Senin–Sabtu. Jurnal penutup, bagi hasil, dan imbal hasil tidak dihitung. Negatif: merah dalam kurung.</HelpHint>
+        <HelpHint label="Tentang Laporan Laba Rugi">Dari jurnal Unit 5 di menu Transaksi (otomatis dari Catatan Toko dan Manajemen Gudang, serta transaksi manual) yang memakai akun Pendapatan, Beban, atau HPP; per minggu Senin–Sabtu. Jurnal penutup, bagi hasil, dan imbal hasil tidak dihitung. Negatif: merah dalam kurung.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Laporan Laba Rugi"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -529,7 +532,7 @@ function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlRes
   )
 }
 
-/** Catatan pergerakan akun Persediaan per minggu; stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Stok. */
+/** Catatan pergerakan akun Persediaan per minggu; stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Gudang. */
 function StokNote({ pos, last }: { pos: (GlPos | undefined)[]; last?: GlPos }) {
   const rows = weeklyFlowRows(pos.map((p) => p?.stok_detail), 'stok_awal', 'stok_akhir',
     { awal: 'Stok Awal', masuk: 'Stok Masuk', keluar: 'Stok Keluar', akhir: 'Stok Akhir' }, STOK_FLOW)
@@ -541,13 +544,13 @@ function StokNote({ pos, last }: { pos: (GlPos | undefined)[]; last?: GlPos }) {
     <div className="space-y-1 text-sm text-muted-foreground">
       <SectionTitle>Laporan Arus Stok</SectionTitle>
       <WeeklyNoteTable label="Tabel Laporan Arus Stok" rows={rows} />
-      {mgmt != null && <p className="tabular-nums break-words">Nilai Persediaan Manajemen Stok per {fmtTgl(last.date)}: Rp {fmtNumber(Math.round(parseMoney(mgmt)))} (selisih Rp {fmtNumber(Math.round(akhir - parseMoney(mgmt)))}).</p>}
-      {diff && <p>Kemungkinan penyebab selisih dengan Manajemen Stok: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
+      {mgmt != null && <p className="tabular-nums break-words">Nilai Persediaan Manajemen Gudang per {fmtTgl(last.date)}: Rp {fmtNumber(Math.round(parseMoney(mgmt)))} (selisih Rp {fmtNumber(Math.round(akhir - parseMoney(mgmt)))}).</p>}
+      {diff && <p>Kemungkinan penyebab selisih dengan Manajemen Gudang: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
     </div>
   )
 }
 
-/** Catatan di bawah Neraca: selisih saldo menu Transaksi dengan data Manajemen Stok. */
+/** Catatan di bawah Neraca: selisih saldo menu Transaksi dengan data Manajemen Gudang. */
 function DiffNote({ pos }: { pos?: GlPos }) {
   if (!pos?.pembanding) return null
   const items = diffNoteItems({ stok: pos.stok, utang: pos.utang }, pos.pembanding, pos.manual_suspects)
@@ -609,8 +612,8 @@ function SkuStockTable({ period, internal = false }: { period: string; internal?
       <div className="flex items-center gap-1">
         <SectionTitle>{title}</SectionTitle>
         <HelpHint label={`Tentang tabel ${title}`}>{internal
-          ? 'Jumlah barang (qty, bukan rupiah) keluar untuk pemakaian internal per SKU per minggu (Senin–Sabtu), dari Manajemen Stok.'
-          : 'Jumlah barang (qty, bukan rupiah) masuk (Stock In) dan keluar karena penjualan (Stock Out) per SKU per minggu (Senin–Sabtu), dari Manajemen Stok. Pemakaian internal ada di tabel (internal) di bawahnya.'}</HelpHint>
+          ? 'Jumlah barang (qty, bukan rupiah) keluar untuk pemakaian internal per SKU per minggu (Senin–Sabtu), dari Manajemen Gudang.'
+          : 'Jumlah barang (qty, bukan rupiah) masuk (Stock In) dan keluar karena penjualan (Stock Out) per SKU per minggu (Senin–Sabtu), dari Manajemen Gudang. Pemakaian internal ada di tabel (internal) di bawahnya.'}</HelpHint>
       </div>
       {q.isLoading ? <Spinner label="Memuat pergerakan stok..." /> : (
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
@@ -900,7 +903,7 @@ function DataRow({ no, jenis, item, onChanged }: { no: number; jenis: TokoJenis;
 
   const remove = async () => {
     if (!item) return
-    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Bahan Perduitan.`, confirmLabel: 'Hapus' }))) return
+    if (!(await confirm({ title: 'Hapus data transaksi?', description: `"${item.name}" akan dihapus dari tab Data.`, confirmLabel: 'Hapus' }))) return
     try { await api.delete(`/v1/toko/items/${item.id}`); await onChanged() } catch (e) { notify(getApiError(e), { type: 'error' }) }
   }
 

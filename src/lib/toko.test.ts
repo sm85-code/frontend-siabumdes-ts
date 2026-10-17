@@ -69,7 +69,7 @@ describe('kasNoteLines', () => {
   it('menampilkan kas awal, pos tidak nol, dan kas akhir', async () => {
     const { kasNoteLines } = await import('./toko')
     const lines = kasNoteLines({ kas_awal: '2124500', masuk_penjualan_tunai: '700000', keluar_pembelian_tunai: '3000000', masuk_perduitan: '0', kas_akhir: '-175500' }, 'Kas awal 30 Sep 2026', 'Kas akhir')
-    expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Pemasukan dari Penjualan Stok: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
+    expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Pemasukan Penjualan Stok: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
   })
 })
 
@@ -79,7 +79,7 @@ describe('diffNoteItems', () => {
     const items = diffNoteItems({ stok: '8500000', utang: '0' }, { stok: '9000000', utang: '0' }, {
       stok: [{ id: 'x', tanggal: '2026-10-05', reference: 'R1', keterangan: 'Salah input', debit: '1.1.01.15 Kas', credit: '1.1.05.15 Persediaan', nominal: '500000' }],
     })
-    expect(items.map((i) => i.text)).toEqual(['Stok Barang: menu Transaksi Rp 8.500.000; Manajemen Stok Rp 9.000.000; selisih (Rp 500.000)'])
+    expect(items.map((i) => i.text)).toEqual(['Stok Barang: menu Transaksi Rp 8.500.000; Manajemen Gudang Rp 9.000.000; selisih (Rp 500.000)'])
     expect(items[0].details[0]).toContain('D 1.1.01.15 Kas / K 1.1.05.15 Persediaan · Rp 500.000')
   })
 })
@@ -87,9 +87,9 @@ describe('diffNoteItems', () => {
 describe('stokNoteLines', () => {
   it('stok awal + mutasi = stok akhir dengan pembanding', async () => {
     const { stokNoteLines } = await import('./toko')
-    expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', transaksi: '500', stok_akhir: '6500' }, 'Stok awal', 'Stok akhir', '6000', 'Manajemen Stok per 18 Okt 2026'))
+    expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', transaksi: '500', stok_akhir: '6500' }, 'Stok awal', 'Stok akhir', '6000', 'Manajemen Gudang per 18 Okt 2026'))
       .toEqual(['Stok awal: Rp 10.000', '+ Belanja Reguler (Stock In): Rp 2.000', '− HPP Penjualan (Stock Out): Rp 5.000', '− Penyesuaian stok: Rp 1.000',
-        '+ Menu Transaksi (akun Persediaan): Rp 500', 'Stok akhir: Rp 6.500', 'Manajemen Stok per 18 Okt 2026: Rp 6.000; selisih Rp 500'])
+        '+ Menu Transaksi (akun Persediaan): Rp 500', 'Stok akhir: Rp 6.500', 'Manajemen Gudang per 18 Okt 2026: Rp 6.000; selisih Rp 500'])
   })
 })
 
@@ -112,7 +112,7 @@ describe('minggu Senin–Sabtu menurut tanggal', () => {
     expect(tradeWeek('2026-10', new Date(2026, 9, 17))).toBe(2)
     expect(tradeWeek('2026-10', new Date(2026, 9, 3))).toBeNull()
   })
-  it('Laba Rugi Perduitan #1 memakai tanggal isian, bukan nomor minggu tersimpan', () => {
+  it('Laba Rugi Catatan Toko memakai tanggal isian, bukan nomor minggu tersimpan', () => {
     const it1: TokoItem = { id: 'x', name: 'Saldo', jenis: 'pemasukan', keterangan: '', position: 1 }
     const e = (week: number, tanggal: string, nominal: string): TokoEntry => ({ id: tanggal, item_id: 'x', period: '2026-10', week, tanggal, nominal })
     // nomor minggu lama: w1 = 1–3 Okt, w2 = 4–10 Okt, w3 = 11–17 Okt

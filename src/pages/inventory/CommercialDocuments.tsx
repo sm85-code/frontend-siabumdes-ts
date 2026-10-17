@@ -229,7 +229,7 @@ export default function CommercialDocuments() {
       <Input type={type} value={value} onChange={(e) => change(e.target.value)} />
     </label>
   );
-  // Unduh PDF per minggu, sama seperti Perduitan #2 (Manajemen Toko).
+  // Unduh PDF per minggu, sama seperti Catatan Gudang (Manajemen Toko).
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [weeklyNo, setWeeklyNo] = useState<Record<string, string>>({});
   // Nomor mingguan untuk dokumen otomatis (registri backend, tetap per mitra per minggu).
@@ -285,7 +285,7 @@ export default function CommercialDocuments() {
     if (key && ids) void exportPdf(`${BASE}/transactions-pdf`, docFile(d, key), false, { kind: d.kind, source_ids: ids, week: day });
     else void exportPdf(`${BASE}/${d.id}/pdf`, docFile(d, (d.period_end ?? d.issued_date).slice(0, 7)));
   };
-  // Rekap per Mitra: unduh langsung dari transaksi (tanpa dokumen terbit), sama seperti Perduitan #2.
+  // Rekap per Mitra: unduh langsung dari transaksi (tanpa dokumen terbit), sama seperti Catatan Gudang.
   const txKind = kind === "invoice" ? "invoice" : "po";
   const txLabel = kind === "invoice" ? "Invoice" : "PO";
   const groupFile = (g: Statement, suffix: string) => `${txLabel}-${(g.name ?? "").replace(/[^\w-]+/g, "_")}-${suffix}.pdf`;
@@ -315,7 +315,7 @@ export default function CommercialDocuments() {
       </PopoverContent>
     </Popover>
   );
-  // Dokumen otomatis dari transaksi: satu baris per mitra per minggu (seperti Perduitan #2).
+  // Dokumen otomatis dari transaksi: satu baris per mitra per minggu (seperti Catatan Gudang).
   const autoDocs = groups
     .flatMap((g) => weeksOf(g.rows.map((r) => ({ source_id: r.id, date: r.date }))).map(([key, w]) => ({
       g, key, w, total: g.rows.filter((r) => w.ids.includes(r.id)).reduce((t, r) => t + Number(r.total), 0),
@@ -335,7 +335,7 @@ export default function CommercialDocuments() {
     };
   });
   const tableSort = useSort(tableRows, "week");
-  // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Perduitan #2): isi periode & tanggal dokumen (Sabtu).
+  // Pilih minggu (Senin–Sabtu, seperti Unduh PDF Catatan Gudang): isi periode & tanggal dokumen (Sabtu).
   const weekPeriod = (start || today()).slice(0, 7);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   const pickWeek = (w: string) => {

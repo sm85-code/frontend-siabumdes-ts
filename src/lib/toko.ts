@@ -66,7 +66,7 @@ export function validateEntryDate(period: string, week: number, tanggal: string)
 }
 
 /**
- * Baris Perduitan #1 untuk Laba Rugi, dikelompokkan menurut TANGGAL isian (minggu Senin–Sabtu),
+ * Baris Catatan Toko untuk Laba Rugi, dikelompokkan menurut TANGGAL isian (minggu Senin–Sabtu),
  * bukan nomor minggu yang tersimpan — benar walau isian lama masih bernomor minggu lama.
  * entries boleh berisi isian periode ini dan periode berikutnya (1–4 Okt ikut Minggu ke-4 Sep).
  */
@@ -214,7 +214,7 @@ export type JournalRec = {
   debit: { code: string; name: string; pos: JournalPos }; credit: { code: string; name: string; pos: JournalPos }
 }
 
-/** Baris per keterangan per minggu (Senin–Sabtu, sama dengan Perduitan #2) untuk transaksi terpilih. */
+/** Baris per keterangan per minggu (Senin–Sabtu, sama dengan Catatan Gudang) untuk transaksi terpilih. */
 export function buildJournalRows(recs: JournalRec[], period: string, keep: (r: JournalRec) => boolean): TxRow[] {
   return buildTradeRows(recs.filter((r) => r.counted && keep(r)).map((r) => ({
     id: r.id, name: r.keterangan || `${r.debit.name} / ${r.credit.name}`, total_amount: r.nominal, created_at: null, transaction_date: r.tanggal,
@@ -227,8 +227,8 @@ export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos
 export type KasDetail = Record<string, string>
 
 export const KAS_LINES: [string, string, 1 | -1][] = [
-  ['masuk_perduitan', 'Pemasukan dari Toko', 1],
-  ['masuk_penjualan_tunai', 'Pemasukan dari Penjualan Stok', 1],
+  ['masuk_perduitan', 'Pemasukan Toko', 1],
+  ['masuk_penjualan_tunai', 'Pemasukan Penjualan Stok', 1],
   ['masuk_pelunasan_piutang', 'Pelunasan piutang usaha', 1],
   ['masuk_pelunasan_kasbon', 'Pelunasan Kasbon', 1],
   ['masuk_transaksi', 'Menu Transaksi (debit Kas)', 1],
@@ -261,8 +261,8 @@ export function kasNoteLines(detail: KasDetail, awalLabel: string, akhirLabel: s
 
 /** Pembanding Neraca (saldo akun menu Transaksi) vs data operasional. */
 const DIFF_ITEMS: [string, string, string][] = [
-  ['stok', 'Stok Barang', 'Manajemen Stok'],
-  ['utang', 'Utang Usaha', 'sisa pembelian kredit (Manajemen Stok)'],
+  ['stok', 'Stok Barang', 'Manajemen Gudang'],
+  ['utang', 'Utang Usaha', 'sisa pembelian kredit (Manajemen Gudang)'],
 ]
 
 export type Suspect = { id: string; tanggal: string; reference: string; keterangan: string; debit: string; credit: string; nominal: string }
@@ -302,7 +302,7 @@ export const STOK_LINES: [string, string][] = [
 
 /** Catatan pergerakan stok: stok awal, mutasi tidak nol (+/−), stok akhir, lalu pembanding. */
 export function stokNoteLines(detail: Record<string, string>, awalLabel: string, akhirLabel: string, stokManajemen?: string,
-  manajemenLabel = 'Nilai Persediaan Manajemen Stok hari ini'): string[] {
+  manajemenLabel = 'Nilai Persediaan Manajemen Gudang hari ini'): string[] {
   const lines = [`${awalLabel}: ${rp(parseMoney(detail.stok_awal))}`]
   for (const [key, label] of STOK_LINES) {
     const v = parseMoney(detail[key])
