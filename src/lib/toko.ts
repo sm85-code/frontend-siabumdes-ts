@@ -27,41 +27,41 @@ export function currentPeriod(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-function monthInfo(period: string) {
+/** Jumlah minggu periode (Senin–Sabtu) = jumlah Senin di bulan itu (4 atau 5). */
+export function weekCount(period: string): number {
   const [y, m] = period.split('-').map(Number)
-  const last = new Date(y, m, 0).getDate()
-  const firstDow = new Date(y, m - 1, 1).getDay() // 0 = Minggu, 6 = Sabtu
-  const firstSaturday = 1 + ((6 - firstDow + 7) % 7)
-  return { last, firstSaturday }
+  const firstMonday = 1 + ((8 - new Date(y, m - 1, 1).getDay()) % 7)
+  return Math.min(WEEKS.length, Math.floor((new Date(y, m, 0).getDate() - firstMonday) / 7) + 1)
 }
 
-/** True bila Sabtu minggu ke-5 masih jatuh di bulan periode. */
+/** True bila periode punya Minggu ke-5 (Senin ke-5 masih di bulan periode). */
 export function week5HasSaturday(period: string): boolean {
-  const { last, firstSaturday } = monthInfo(period)
-  return firstSaturday + 28 <= last
+  return weekCount(period) >= 5
 }
 
-/** Minggu ke-5 tanpa Sabtu: tanggal bebas, asalkan masih dalam bulan periode. */
+/** Minggu ke-N yang tidak ada di periode (mis. Minggu ke-5 Okt 2026). */
 export function isFreeWeek(period: string, week: number): boolean {
-  return week === 5 && !week5HasSaturday(period)
+  return week > weekCount(period)
 }
 
-/**
- * Default tanggal popup: hari Sabtu minggu ke-N dalam periode.
- * Minggu ke-1 = tanggal 1 s.d. Sabtu pertama; minggu berikutnya Minggu–Sabtu.
- * Bila bulan tidak punya Sabtu ke-5, minggu ke-5 default ke hari setelah
- * Sabtu minggu ke-4 (atau akhir bulan bila tidak ada sisa hari).
- */
+/** Senin minggu ke-N (YYYY-MM-DD). */
+export function weekStart(period: string, w: number): string {
+  const [y, m, d] = weekEnd(period, w).split('-').map(Number)
+  return ymd(new Date(y, m - 1, d - 6))
+}
+
+/** Default tanggal popup: Sabtu minggu ke-N (Senin–Sabtu); minggu yang tidak ada -> Sabtu minggu terakhir. */
 export function defaultWeekDate(period: string, week: number): string {
-  const { last, firstSaturday } = monthInfo(period)
-  const saturday = firstSaturday + (week - 1) * 7
-  const day = saturday <= last ? saturday : Math.min(firstSaturday + 22, last)
-  return `${period}-${String(day).padStart(2, '0')}`
+  const [y, m, d] = weekEnd(period, Math.min(week, weekCount(period))).split('-').map(Number)
+  return ymd(new Date(y, m - 1, d - 1))
 }
 
-/** Semua minggu: tanggal bebas asalkan dalam bulan periode (null = valid). */
-export function validateEntryDate(period: string, tanggal: string): string | null {
-  if (!tanggal.startsWith(`${period}-`)) return 'Tanggal transaksi harus berada dalam periode bulan yang dipilih.'
+/** Tanggal harus di dalam Senin–Minggu minggu ke-N periode (null = valid). */
+export function validateEntryDate(period: string, week: number, tanggal: string): string | null {
+  if (isFreeWeek(period, week)) return `Periode ${period} hanya punya ${weekCount(period)} minggu (Senin–Sabtu).`
+  const start = weekStart(period, week)
+  const end = weekEnd(period, week)
+  if (tanggal < start || tanggal > end) return `Tanggal Minggu ke-${week} harus antara ${start} dan ${end} (Senin–Sabtu, hari Minggu ikut).`
   return null
 }
 
@@ -101,7 +101,8 @@ export function fmtNumber(n: number): string {
 
 export type TradeRecord = { id: string; name: string | null; total_amount: string; created_at: string | null; transaction_date?: string | null }
 
-/** Minggu ke-n periode: Senin–Sabtu mulai Senin pertama bulan (Minggu ikut minggu sebelumnya). */
+/** Minggu ke-n periode: Senin–Sabtu mulai Senin pertama bulan (Minggu ikut minggu sebelumnya).
+ * Hari sebelum Senin pertama (mis. 1–4 Okt 2026) -> null; ikut minggu terakhir periode sebelumnya. */
 export function tradeWeek(period: string, d: Date): number | null {
   const [y, m] = period.split('-').map(Number)
   const first = new Date(y, m - 1, 1)
@@ -133,11 +134,7 @@ export function stockValueDates(period: string, today: Date = new Date()): { wee
   const t = ymd(today)
   const monthEnd = ymd(new Date(y, m, 0))
   const month = monthEnd < t ? monthEnd : t
-  const lastWeek = (p: string) => {
-    const [py, pm] = p.split('-').map(Number)
-    const firstMonday = 1 + ((8 - new Date(py, pm - 1, 1).getDay()) % 7)
-    return Math.min(WEEKS.length, Math.floor((new Date(py, pm, 0).getDate() - firstMonday) / 7) + 1)
-  }
+  const lastWeek = weekCount
   let weekPeriod = period
   let weekNo: number | null = month === t ? tradeWeek(period, today) : null
   if (weekNo == null && month === t) {

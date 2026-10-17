@@ -24,27 +24,27 @@ describe('manajemen toko helpers', () => {
     expect(rows[0].w2).toBeNull()
     expect(txTotals(rows)).toMatchObject({ w1: 1_500_000, w3: 750_000, jumlah: 2_250_000 })
   })
-  it('defaults to the Saturday of week N, clamped to the month', () => {
-    // Oktober 2026: tgl 1 = Kamis, Sabtu pertama = 3
-    expect(defaultWeekDate('2026-10', 1)).toBe('2026-10-03')
-    expect(defaultWeekDate('2026-10', 2)).toBe('2026-10-10')
-    expect(defaultWeekDate('2026-10', 5)).toBe('2026-10-31')
-    // Agustus 2026: tgl 1 = Sabtu
-    expect(defaultWeekDate('2026-08', 1)).toBe('2026-08-01')
-    // Februari 2026: Sabtu 7,14,21,28 → tidak ada sisa hari → akhir bulan
+  it('defaults to the Saturday of week N (Senin–Sabtu)', () => {
+    // Oktober 2026: Senin pertama = 5, Minggu ke-1 = 5–10 Okt
+    expect(defaultWeekDate('2026-10', 1)).toBe('2026-10-10')
+    expect(defaultWeekDate('2026-10', 2)).toBe('2026-10-17')
+    expect(defaultWeekDate('2026-10', 5)).toBe('2026-10-31') // hanya 4 minggu
+    expect(defaultWeekDate('2026-08', 1)).toBe('2026-08-08')
     expect(defaultWeekDate('2026-02', 5)).toBe('2026-02-28')
-    // November 2026: Sabtu 7,14,21,28 → minggu ke-5 default 29
-    expect(defaultWeekDate('2026-11', 5)).toBe('2026-11-29')
+    // November 2026: Senin 2,9,16,23,30 → Minggu ke-5 = 30 Nov–5 Des
+    expect(defaultWeekDate('2026-11', 5)).toBe('2026-12-05')
   })
-  it('week 5 without Saturday is free but must stay in the month', () => {
-    expect(isFreeWeek('2026-11', 5)).toBe(true)
-    expect(isFreeWeek('2026-10', 5)).toBe(false)
-    expect(isFreeWeek('2026-11', 4)).toBe(false)
+  it('flags weeks that do not exist in the period', () => {
+    expect(isFreeWeek('2026-10', 5)).toBe(true)
+    expect(isFreeWeek('2026-11', 5)).toBe(false)
+    expect(isFreeWeek('2026-10', 4)).toBe(false)
   })
-  it('every week accepts any date in the selected month only', () => {
-    expect(validateEntryDate('2026-11', '2026-11-02')).toBeNull()
-    expect(validateEntryDate('2026-11', '2026-12-01')).toMatch(/periode bulan/)
-    expect(validateEntryDate('2026-10', '2026-09-30')).toMatch(/periode bulan/)
+  it('accepts only dates inside the Monday–Sunday range of the week', () => {
+    expect(validateEntryDate('2026-10', 1, '2026-10-05')).toBeNull()
+    expect(validateEntryDate('2026-10', 1, '2026-10-11')).toBeNull() // Minggu ikut minggu sebelumnya
+    expect(validateEntryDate('2026-10', 1, '2026-10-03')).toMatch(/2026-10-05/)
+    expect(validateEntryDate('2026-09', 4, '2026-10-03')).toBeNull() // 1–4 Okt = Minggu ke-4 Sep
+    expect(validateEntryDate('2026-10', 5, '2026-10-31')).toMatch(/4 minggu/)
   })
   it('formats with Indonesian thousands separator', () => {
     expect(fmtNumber(1500000)).toBe('1.500.000')
