@@ -300,9 +300,13 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
-  const started = startedWeeks(period)
+  // Minggu ke-n Perduitan #1 (tanggal 1 s.d. Sabtu pertama, lalu Minggu–Sabtu) bisa lebih awal dari
+  // minggu Senin–Sabtu Perduitan #2, jadi kolom yang sudah berisi selalu ditampilkan.
+  const hasData = (k: string) => lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null)
+  const started = new Set<string>([...startedWeeks(period), ...WEEKS.map((w) => `w${w}`).filter(hasData)])
+  if (started.size) started.add('jumlah')
   // Minggu yang Laba Rugi-nya sudah berisi (ada nilai ≠ 0) — Neraca hanya tampil untuk minggu ini.
-  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && (lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null))))
+  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && hasData(k)))
   if (filled.size) filled.add('jumlah')
   return (
     <div className="space-y-2">
@@ -341,7 +345,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <Neraca period={period} shown={filled} />
+      <Neraca period={period} shown={filled} labaMingguan={laba} />
     </div>
   )
 }
@@ -372,7 +376,7 @@ function startedWeeks(period: string): Set<string> {
   return set
 }
 
-function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
+function Neraca({ period, shown, labaMingguan }: { period: string; shown: Set<string>; labaMingguan?: WeekVals }) {
   const started = shown
   const lastKey = (['w5', 'w4', 'w3', 'w2', 'w1'] as const).find((k) => started.has(k)) ?? 'w5'
   const ends = useMemo(() => WEEKS.map((w) => weekEnd(period, w)), [period])
@@ -416,6 +420,12 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
     lalu[k] = l
     lr[k] = parseMoney(p.laba) - l
   })
+  // Laba/Rugi Periode Berjalan = kumulatif LABA/RUGI BERSIH tabel Laba Rugi mingguan di atas
+  // (Neraca mingguan mengikuti Laba Rugi mingguan).
+  if (labaMingguan) {
+    let run = 0
+    keys.forEach((k) => { run += labaMingguan[k]; lr[k] = run })
+  }
   // Posisi neraca: Jumlah = posisi akhir minggu terakhir.
   for (const v of [kas, stokV, piutang, piutangLain, utang, lalu, lr, modal]) v.jumlah = v[lastKey]
   const all = ['w1', 'w2', 'w3', 'w4', 'w5', 'jumlah'] as const
@@ -447,7 +457,7 @@ function Neraca({ period, shown }: { period: string; shown: Set<string> }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes dari menu Transaksi (akun Penyertaan Modal Unit 5). Laba/Rugi Periode Berjalan = laba bulan ini; Periode Lalu = laba sejak 1 Okt 2026 sebelum bulan ini. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Posisi akhir tiap minggu (kumulatif); Jumlah = posisi minggu terakhir yang sudah berjalan. Modal BUMDes dari menu Transaksi (akun Penyertaan Modal Unit 5). Laba/Rugi Periode Berjalan = laba bulan ini; Periode Lalu = laba sejak 1 Okt 2026 sebelum bulan ini. Laba/Rugi termasuk pemakaian internal dan penyesuaian stok. Laba/Rugi Periode Berjalan = jumlah LABA/RUGI BERSIH tabel Laba Rugi s.d. minggu tersebut. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
