@@ -46,6 +46,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import PageHeader from '@/components/typography/PageHeader'
+import { notifySuccess } from "@/lib/feedback";
 
 function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
   const detail = (err as { response?: { data?: { detail?: unknown }; message?: string }; message?: string })
@@ -74,6 +75,11 @@ function formatApiError(err: unknown, fallback = "Terjadi kesalahan"): string {
 
 const BASE = "/v1/uu05_inventory";
 const today = () => new Date().toISOString().slice(0, 10);
+const savedNotice = (data: unknown) => {
+  const d = data as { doc_number?: string; cards?: { doc_number?: string }[] } | undefined;
+  const no = d?.doc_number || d?.cards?.[0]?.doc_number;
+  notifySuccess(no ? `Nota tersimpan · No. Nota ${no}` : "Nota tersimpan");
+};
 
 // Tab utama -> sub tab (id sub tab = id tab lama, sehingga state & loader tetap sama).
 const TAB_GROUPS = [
@@ -218,13 +224,14 @@ export default function Inventory() {
 
   const submitStockIn = async (values: StockInFormValues) => {
     try {
-      await api.post(`${BASE}/stock-in-nota`, {
+      const res = await api.post(`${BASE}/stock-in-nota`, {
         ...values,
         lines: values.lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), unit_cost: Number(l.unit_cost) })),
         due_date: values.payment_method === "credit" ? values.due_date : null,
         vendor_id: values.vendor_id || null,
         unit_usaha_id: meta?.unit_usaha_id,
       });
+      savedNotice(res.data);
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
     } catch (err) {
       setError(formatApiError(err));
@@ -235,7 +242,7 @@ export default function Inventory() {
   const submitStockOut = async (values: StockOutFormValues) => {
     try {
       if (values.isInternal) {
-        await api.post(`${BASE}/stock-out-internal`, {
+        savedNotice((await api.post(`${BASE}/stock-out-internal`, {
           product_id: values.lines[0].product_id,
           quantity: Number(values.lines[0].quantity),
           movement_date: values.movement_date,
@@ -243,15 +250,15 @@ export default function Inventory() {
           credit_account_code: values.credit_account_code,
           note: values.note,
           unit_usaha_id: meta?.unit_usaha_id,
-        });
+        })).data);
       } else {
         const { isInternal: _internal, note: _note, ...header } = values;
-        await api.post(`${BASE}/stock-out-nota`, {
+        savedNotice((await api.post(`${BASE}/stock-out-nota`, {
           ...header,
           lines: values.lines.map((l) => ({ product_id: l.product_id, quantity: Number(l.quantity), sell_price: Number(l.sell_price) })),
           due_date: values.payment_method === "piutang" ? values.due_date : null,
           unit_usaha_id: meta?.unit_usaha_id,
-        });
+        })).data);
       }
       await Promise.all([loadCore(), loadOps(), loadTrade()]);
     } catch (err) {

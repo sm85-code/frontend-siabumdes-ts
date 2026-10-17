@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import HelpHint from '@/components/HelpHint'
+import DocNumberPreview from '@/pages/inventory/DocNumberPreview'
 import { CoaSelect, KAS_ACCOUNT_CODE, PERSEDIAAN_ACCOUNT_CODE, UTANG_ACCOUNT_CODE } from '@/lib/uu05InventoryCoa'
 import { emptyStockInForm, emptyStockInLine, stockInFormSchema, type StockInFormValues } from '@/schemas/inventory'
 import type { InventoryPartner, InventoryProduct } from '@/types'
@@ -44,6 +45,8 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
 
   const paymentMethod = watch('payment_method')
   const modalAwal = paymentMethod === 'modal_awal'
+  const vendorId = watch('vendor_id')
+  const movementDate = watch('movement_date')
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
   const lines = watch('lines')
   const total = lines.reduce((sum, l) => sum + Number(l.quantity || 0) * Number(l.unit_cost || 0), 0)
@@ -100,11 +103,12 @@ export default function StockInFormCard({ products, vendors, onSubmit, onOpenCat
         <Input id="si-date" type="date" aria-invalid={Boolean(errors.movement_date)} {...register('movement_date')} />
         {fieldErr(errors.movement_date?.message)}
       </div>
+      <DocNumberPreview id="si-doc-number" kind={modalAwal && !vendorId ? 'ma' : 'po'} partnerId={vendorId} date={movementDate} />
       <div>
         <label className="label" htmlFor="si-invoice">
-          No. Invoice
+          No. Ref (opsional)
         </label>
-        <Input id="si-invoice" {...register('invoice_number')} />
+        <Input id="si-invoice" placeholder="mis. nomor nota dari pemasok" {...register('invoice_number')} />
       </div>
       <div className="sm:col-span-2 space-y-2">
         <label className="label inline-flex items-center gap-1">
