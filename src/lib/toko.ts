@@ -193,3 +193,25 @@ export function kasNoteLines(detail: KasDetail, awalLabel: string, akhirLabel: s
   lines.push(`${akhirLabel}: ${rp(parseMoney(detail.kas_akhir))}`)
   return lines
 }
+
+/** Pembanding Neraca vs saldo akun menu Transaksi (ledger dari backend). */
+const DIFF_ITEMS: [string, string, string][] = [
+  ['kas', 'Kas / Bank', 'Neraca'],
+  ['stok', 'Stok Barang', 'Manajemen Stok'],
+  ['piutang', 'Piutang Usaha', 'Neraca'],
+  ['piutang_lainnya', 'Piutang Lainnya', 'Neraca'],
+  ['utang', 'Utang Usaha', 'Neraca'],
+  ['modal', 'Modal BUMDes', 'Neraca'],
+]
+
+/** Baris catatan hanya untuk pos yang selisihnya ≥ Rp 1. */
+export function diffNoteLines(neraca: Record<string, string | undefined>, ledger: Record<string, string>): string[] {
+  const out: string[] = []
+  for (const [key, label, source] of DIFF_ITEMS) {
+    if (ledger[key] == null || neraca[key] == null) continue
+    const a = parseMoney(neraca[key]), b = parseMoney(ledger[key])
+    if (Math.abs(a - b) < 1) continue
+    out.push(`${label}: ${source} ${rp(a)}; menu Transaksi ${rp(b)}; selisih ${rp(a - b)}`)
+  }
+  return out
+}

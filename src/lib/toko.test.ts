@@ -72,3 +72,11 @@ describe('kasNoteLines', () => {
     expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Penjualan tunai: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
   })
 })
+
+describe('diffNoteLines', () => {
+  it('hanya menampilkan pos yang berbeda', async () => {
+    const { diffNoteLines } = await import('./toko')
+    expect(diffNoteLines({ kas: '100', stok: '9000000' }, { kas: '100', stok: '8500000' }))
+      .toEqual(['Stok Barang: Manajemen Stok Rp 9.000.000; menu Transaksi Rp 8.500.000; selisih Rp 500.000'])
+  })
+})
