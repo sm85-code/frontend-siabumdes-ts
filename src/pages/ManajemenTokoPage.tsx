@@ -51,6 +51,7 @@ import {
   type Suspect,
   type KasDetail,
   weekEnd,
+  weekStart,
 } from '@/lib/toko'
 import PageHeader from '@/components/typography/PageHeader'
 import SectionTitle from '@/components/typography/SectionTitle'
@@ -301,14 +302,10 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
     { label: 'TOTAL PENGELUARAN', v: totalOut, strong: true },
   ]
   const money = (n: number) => (n < 0 ? `(${fmtNumber(-n)})` : fmtNumber(n))
-  // Minggu ke-n Perduitan #1 (tanggal 1 s.d. Sabtu pertama, lalu Minggu–Sabtu) bisa lebih awal dari
-  // minggu Senin–Sabtu Perduitan #2, jadi kolom yang sudah berisi selalu ditampilkan.
+  // Kolom minggu Laba Rugi dan Neraca tampil mulai hari Sabtu minggu itu, atau lebih awal bila sudah berisi.
   const hasData = (k: string) => lines.some((l) => l.v[k as keyof WeekVals] !== 0) || jAll.some((r) => r[k] != null)
   const started = new Set<string>([...startedWeeks(period), ...WEEKS.map((w) => `w${w}`).filter(hasData)])
   if (started.size) started.add('jumlah')
-  // Minggu yang Laba Rugi-nya sudah berisi (ada nilai ≠ 0) — Neraca hanya tampil untuk minggu ini.
-  const filled = new Set<string>(WEEKS.map((w) => `w${w}`).filter((k) => started.has(k) && hasData(k)))
-  if (filled.size) filled.add('jumlah')
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
@@ -346,7 +343,7 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
           ))}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      <Neraca period={period} shown={filled} labaMingguan={laba} />
+      <Neraca period={period} shown={started} labaMingguan={laba} />
     </div>
   )
 }
@@ -354,15 +351,15 @@ function LabaRugi({ period, items, entries }: { period: string; items: TokoItem[
 type NeracaPos = { date: string; kas: string; stok: string; piutang: string; utang: string; laba: string; piutang_lainnya: string; kas_detail?: KasDetail; modal?: string; laba_lalu?: string; laba_berjalan?: string; ledger?: Record<string, string>; manual_suspects?: Record<string, Suspect[]>; stok_detail?: Record<string, string> }
 type NeracaResp = { modal: string; opening_date?: string; positions: NeracaPos[]; stok_manajemen?: string }
 
-/** Minggu yang sudah dimulai (Senin <= hari ini, waktu lokal). */
+/** Minggu yang sudah sampai hari Sabtu-nya (Sabtu <= hari ini, waktu lokal). */
 function startedWeeks(period: string): Set<string> {
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const set = new Set<string>()
   WEEKS.forEach((w) => {
     const [y, m, d] = weekEnd(period, w).split('-').map(Number)
-    const start = new Date(y, m - 1, d - 6)
-    const iso = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`
+    const sat = new Date(y, m - 1, d - 1)
+    const iso = `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`
     if (iso <= today) set.add(`w${w}`)
   })
   if (set.size) set.add('jumlah')
@@ -855,13 +852,13 @@ function EntryDialog({ target, period, onClose, onSaved }: {
   const [busy, setBusy] = useState(false)
   const [dateMsg, setDateMsg] = useState('')
   const free = isFreeWeek(period, target.week)
-  const [y, m] = period.split('-').map(Number)
-  const monthEnd = `${period}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`
+  const wStart = weekStart(period, target.week)
+  const wEnd = weekEnd(period, target.week)
 
   const save = async (e: FormEvent) => {
     e.preventDefault()
     if (!tanggal) { notify('Tanggal transaksi wajib diisi'); return }
-    const dateError = validateEntryDate(period, tanggal)
+    const dateError = validateEntryDate(period, target.week, tanggal)
     if (dateError) { setDateMsg(dateError); return }
     if (!nominal || Number(nominal) <= 0) { notify('Nominal transaksi harus lebih dari nol'); return }
     setBusy(true)
@@ -892,10 +889,10 @@ function EntryDialog({ target, period, onClose, onSaved }: {
           <div className="space-y-2">
             <Label htmlFor="toko-tanggal">Tanggal transaksi</Label>
             <Input id="toko-tanggal" type="date" required value={tanggal} aria-invalid={!!dateMsg}
-              min={`${period}-01`} max={monthEnd}
+              min={wStart} max={wEnd}
               onChange={(e) => { setTanggal(e.target.value); setDateMsg('') }} />
-            {free && !dateMsg && <p className="help-text">Bulan ini tidak memiliki Sabtu di Minggu ke-5; pilih tanggal bebas dalam periode {period}.</p>}
-            {!free && !dateMsg && <p className="help-text">Tanggal dapat diubah ke tanggal mana pun dalam periode {period}.</p>}
+            {free && !dateMsg && <p className="help-text">Periode {period} tidak memiliki Minggu ke-{target.week} (minggu Senin–Sabtu).</p>}
+            {!free && !dateMsg && <p className="help-text">Minggu ke-{target.week}: {wStart} s.d. {wEnd} (Senin–Sabtu, hari Minggu ikut minggu ini).</p>}
             {dateMsg && <p role="alert" className="text-xs text-destructive">{dateMsg}</p>}
           </div>
           <div className="space-y-2">
