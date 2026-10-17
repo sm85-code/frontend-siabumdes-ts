@@ -137,19 +137,20 @@ describe('buildSkuStockRows', () => {
   })
 })
 
-describe('weeklyNoteRows', () => {
-  it('turns cumulative details into weekly movements with running balances', async () => {
-    const { weeklyNoteRows } = await import('@/lib/toko')
-    const rows = weeklyNoteRows([
-      { kas_awal: '100', masuk_x: '50', keluar_y: '0', kas_akhir: '150' },
-      { kas_awal: '100', masuk_x: '80', keluar_y: '20', kas_akhir: '160' },
+describe('weeklyFlowRows', () => {
+  it('awal + masuk − keluar = akhir per minggu; baris bertanda dipecah', async () => {
+    const { weeklyFlowRows } = await import('@/lib/toko')
+    const rows = weeklyFlowRows([
+      { stok_awal: '100', masuk_x: '50', keluar_y: '0', adj: '-5', stok_akhir: '145' },
+      { stok_awal: '100', masuk_x: '80', keluar_y: '-20', adj: '5', stok_akhir: '165' },
       undefined, undefined, undefined,
-    ], 'kas_awal', 'kas_akhir', 'Kas awal', 'Kas akhir', [['masuk_x', 'Masuk', 1], ['keluar_y', 'Keluar', -1], ['nol', 'Nol', 1]])
-    expect(rows).toEqual([
-      { label: 'Kas awal', saldo: true, jumlah: 100, w: [100, 150, null, null, null] },
-      { label: 'Masuk', jumlah: 80, w: [50, 30, null, null, null] },
-      { label: 'Keluar', jumlah: -20, w: [-0, -20, null, null, null] },
-      { label: 'Kas akhir', saldo: true, jumlah: 160, w: [150, 160, null, null, null] },
-    ])
+    ], 'stok_awal', 'stok_akhir', { awal: 'Awal', masuk: 'Masuk', keluar: 'Keluar', akhir: 'Akhir' },
+    [{ key: 'masuk_x', label: 'X', f: 1, dir: 'in' }, { key: 'keluar_y', label: 'Y', f: 1, dir: 'out' }, { key: 'adj', label: 'Adj', f: 1, dir: 'both' }])
+    const by = (l: string) => rows.find((r) => r.label === l)!
+    expect(by('Awal').w.slice(0, 2)).toEqual([100, 145])
+    expect(by('Jumlah Masuk').w.slice(0, 2)).toEqual([50, 40])
+    expect(by('Jumlah Keluar').w.slice(0, 2)).toEqual([5, 20])
+    expect(by('Adj (kurang)').jumlah).toBe(5)
+    expect(by('Akhir').w).toEqual([145, 165, null, null, null])
   })
 })
