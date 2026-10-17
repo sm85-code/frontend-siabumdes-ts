@@ -64,3 +64,11 @@ describe('buildJournalRows', () => {
     expect(rows[0].w1).toBe(150)
   })
 })
+
+describe('kasNoteLines', () => {
+  it('menampilkan kas awal, pos tidak nol, dan kas akhir', async () => {
+    const { kasNoteLines } = await import('./toko')
+    const lines = kasNoteLines({ kas_awal: '2124500', masuk_penjualan_tunai: '700000', keluar_pembelian_tunai: '3000000', masuk_perduitan: '0', kas_akhir: '-175500' }, 'Kas awal 30 Sep 2026', 'Kas akhir')
+    expect(lines).toEqual(['Kas awal 30 Sep 2026: Rp 2.124.500', '+ Penjualan tunai: Rp 700.000', '− Pembelian tunai/modal awal: Rp 3.000.000', 'Kas akhir: (Rp 175.500)'])
+  })
+})
