@@ -56,13 +56,13 @@ export const BOTTOM_NAV_PATHS = ['/dashboard', '/ledger', '/reports', '/transact
 
 export const NAV: NavItem[] = [
   { group: 'beranda', to: '/dashboard', label: 'Dashboard', icon: Home, roles: READ_MOST },
+  { group: 'unit', to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
   { group: 'unit', to: '/manajemen-toko', label: 'Manajemen Toko', shortLabel: 'Toko', icon: Store, roles: ROLES_TOKO, tokoUnitOnly: true },
   { group: 'unit', to: '/inventory', label: 'Manajemen Gudang', icon: Package, roles: ROLES_INVENTORY, inventoryUnitOnly: true },
-  { group: 'unit', to: '/imbal-hasil', label: 'Manajemen Setoran', icon: Receipt, roles: ROLES_INVENTORY, yieldUnitOnly: true },
   { group: 'keuangan', to: '/transactions', label: 'Transaksi', icon: Receipt, roles: READ_MOST },
   { group: 'keuangan', to: '/ledger', label: 'Buku Besar', icon: BookOpenText, roles: READ_MOST },
-  { group: 'keuangan', to: '/accounts', label: 'Kode Akun (COA)', icon: Library, roles: ROLES_COA },
   { group: 'keuangan', to: '/reports', label: 'Laporan Keuangan', shortLabel: 'Laporan', icon: ChartLine, roles: ROLES_REPORTS },
+  { group: 'keuangan', to: '/accounts', label: 'Kode Akun (COA)', icon: Library, roles: ROLES_COA },
   { group: 'profil', to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
   { group: 'profil', to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
   { group: 'admin', to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
