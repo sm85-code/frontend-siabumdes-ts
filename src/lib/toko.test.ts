@@ -83,3 +83,12 @@ describe('diffNoteItems', () => {
     expect(items[0].details[0]).toContain('D 1.1.01.15 Kas / K 1.1.05.15 Persediaan · Rp 500.000')
   })
 })
+
+describe('stokNoteLines', () => {
+  it('stok awal + mutasi = stok akhir dengan pembanding', async () => {
+    const { stokNoteLines } = await import('./toko')
+    expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', masuk_lainnya: '0', stok_akhir: '6000', gl_persediaan: '11500' }, 'Stok awal', 'Stok akhir', '6000'))
+      .toEqual(['Stok awal: Rp 10.000', '+ Barang masuk (pembelian): Rp 2.000', '− Barang keluar (HPP penjualan): Rp 5.000', '− Penyesuaian stok: Rp 1.000', 'Stok akhir: Rp 6.000',
+        'Persediaan di Laporan Keuangan: Rp 11.500; selisih (Rp 5.500)', 'Nilai Persediaan Manajemen Stok hari ini: Rp 6.000 (sama)'])
+  })
+})
