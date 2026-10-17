@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTxRows, defaultWeekDate, isFreeWeek, validateEntryDate, txTotals, fmtNumber, type TokoItem, type TokoEntry } from '@/lib/toko'
+import { buildTxRows, defaultWeekDate, isFreeWeek, validateEntryDate, txTotals, fmtNumber, stockValueDates, type TokoItem, type TokoEntry } from '@/lib/toko'
 
 const items: TokoItem[] = [
   { id: 'a', name: 'Penjualan', jenis: 'pemasukan', keterangan: '', position: 1 },
@@ -90,5 +90,17 @@ describe('stokNoteLines', () => {
     expect(stokNoteLines({ stok_awal: '10000', masuk_reguler: '2000', keluar_penjualan: '-5000', penyesuaian: '-1000', masuk_lainnya: '0', stok_akhir: '6000', gl_persediaan: '11500' }, 'Stok awal', 'Stok akhir', '6000'))
       .toEqual(['Stok awal: Rp 10.000', '+ Barang masuk (pembelian): Rp 2.000', '− Barang keluar (HPP penjualan): Rp 5.000', '− Penyesuaian stok: Rp 1.000', 'Stok akhir: Rp 6.000',
         'Persediaan di Laporan Keuangan: Rp 11.500; selisih (Rp 5.500)', 'Nilai Persediaan Manajemen Stok hari ini: Rp 6.000 (sama)'])
+  })
+})
+
+describe('stockValueDates', () => {
+  it('bulan berjalan: akhir minggu ini dan hari ini', () => {
+    expect(stockValueDates('2026-10', new Date(2026, 9, 17))).toEqual({ week: '2026-10-18', weekNo: 2, weekPeriod: '2026-10', month: '2026-10-17' })
+  })
+  it('bulan lalu: minggu terakhir dan akhir bulan', () => {
+    expect(stockValueDates('2026-09', new Date(2026, 9, 17))).toEqual({ week: '2026-10-04', weekNo: 4, weekPeriod: '2026-09', month: '2026-09-30' })
+  })
+  it('sebelum Senin pertama ikut minggu terakhir bulan sebelumnya', () => {
+    expect(stockValueDates('2026-10', new Date(2026, 9, 3)).week).toBe('2026-10-04')
   })
 })
