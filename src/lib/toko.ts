@@ -227,13 +227,15 @@ export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos
 export type KasDetail = Record<string, string>
 
 export const KAS_LINES: [string, string, 1 | -1][] = [
-  ['masuk_perduitan', 'Pemasukan Perduitan #1', 1],
-  ['masuk_penjualan_tunai', 'Penjualan tunai', 1],
+  ['masuk_perduitan', 'Pemasukan dari Toko', 1],
+  ['masuk_penjualan_tunai', 'Pemasukan dari Penjualan Stok', 1],
   ['masuk_pelunasan_piutang', 'Pelunasan piutang usaha', 1],
-  ['masuk_pelunasan_kasbon', 'Pelunasan kasbon', 1],
+  ['masuk_pelunasan_kasbon', 'Pelunasan Kasbon', 1],
   ['masuk_transaksi', 'Menu Transaksi (debit Kas)', 1],
-  ['keluar_perduitan', 'Pengeluaran Perduitan #1', -1],
-  ['keluar_pembelian_tunai', 'Pembelian tunai/modal awal', -1],
+  ['keluar_perduitan', 'Pengeluaran Umum', -1],
+  ['keluar_pembelian_modal_awal', 'Belanja Stok (Modal Awal)', -1],
+  ['keluar_pembelian_reguler', 'Belanja Stok (Reguler)', -1],
+  ['keluar_pembelian_tunai', 'Pembelian tunai/modal awal', -1], // data lama (/neraca)
   ['keluar_pelunasan_utang', 'Pembayaran utang usaha', -1],
   ['keluar_kasbon', 'Kasbon diberikan', -1],
   ['keluar_transaksi', 'Menu Transaksi (kredit Kas)', -1],
@@ -289,11 +291,11 @@ export function diffNoteItems(
 }
 
 export const STOK_LINES: [string, string][] = [
-  ['masuk_reguler', 'Barang masuk (pembelian)'],
+  ['masuk_reguler', 'Belanja Reguler (Stock In)'],
   ['masuk_modal_awal', 'Barang masuk (Belanja Modal Awal)'],
   ['masuk_lainnya', 'Barang masuk lainnya'],
-  ['keluar_penjualan', 'Barang keluar (HPP penjualan)'],
-  ['keluar_internal', 'Pemakaian internal'],
+  ['keluar_penjualan', 'HPP Penjualan (Stock Out)'],
+  ['keluar_internal', 'Penjualan Internal'],
   ['penyesuaian', 'Penyesuaian stok'],
   ['transaksi', 'Menu Transaksi (akun Persediaan)'],
 ]
@@ -348,6 +350,14 @@ export type FlowRow = { label: string; kind: 'saldo' | 'head' | 'detail' | 'subt
 export type FlowLine = { key: string; label: string; f: 1 | -1; dir: 'in' | 'out' | 'both' }
 
 export const KAS_FLOW: FlowLine[] = KAS_LINES.map(([key, label, f]) => ({ key, label, f, dir: key.startsWith('masuk_') ? 'in' : 'out' }))
+/** KAS_FLOW + baris debit Kas manual per keterangan (kunci masuk_trx:<keterangan>) setelah Pelunasan Kasbon. */
+export function kasFlowLines(details: (Record<string, string> | undefined)[]): FlowLine[] {
+  const keys = [...new Set(details.flatMap((d) => Object.keys(d ?? {}).filter((k) => k.startsWith('masuk_trx:'))))].sort()
+  const extra: FlowLine[] = keys.map((key) => ({ key, label: key.slice('masuk_trx:'.length), f: 1, dir: 'in' }))
+  const at = KAS_FLOW.findIndex((l) => l.key === 'masuk_pelunasan_kasbon') + 1
+  return [...KAS_FLOW.slice(0, at), ...extra, ...KAS_FLOW.slice(at)]
+}
+
 export const STOK_FLOW: FlowLine[] = STOK_LINES.map(([key, label]) => ({
   key, label, f: 1, dir: key.startsWith('masuk_') ? 'in' : key.startsWith('keluar_') ? 'out' : 'both' }))
 
