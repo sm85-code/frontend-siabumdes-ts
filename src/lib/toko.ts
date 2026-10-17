@@ -318,3 +318,24 @@ export function stokNoteLines(detail: Record<string, string>, awalLabel: string,
   }
   return lines
 }
+
+/** Pergerakan stok dari GET /v1/uu05_inventory/movements (kolom yang dipakai saja). */
+export type StockMoveRec = { id: string; sku?: string | null; product_name?: string | null; direction?: string | null; quantity?: number | string | null; movement_date?: string | null }
+export type SkuStockRow = { key: string; sku: string; name: string; weeks: Record<number, { in: number; out: number }>; totalIn: number; totalOut: number }
+
+/** Qty In/Out per SKU per minggu (Senin–Sabtu, Minggu ikut) periode; urut SKU. */
+export function buildSkuStockRows(moves: StockMoveRec[], period: string): SkuStockRow[] {
+  const map = new Map<string, SkuStockRow>()
+  for (const m of moves) {
+    if (!m.movement_date || (m.direction !== 'in' && m.direction !== 'out')) continue
+    const w = tradeWeek(period, new Date(`${m.movement_date}T00:00:00`))
+    if (!w) continue
+    const sku = m.sku?.trim() || '-'
+    const row = map.get(sku) ?? { key: sku, sku, name: m.product_name ?? '', weeks: {}, totalIn: 0, totalOut: 0 }
+    const cell = (row.weeks[w] ??= { in: 0, out: 0 })
+    const qty = Number(m.quantity) || 0
+    if (m.direction === 'in') { cell.in += qty; row.totalIn += qty } else { cell.out += qty; row.totalOut += qty }
+    map.set(sku, row)
+  }
+  return [...map.values()].sort((a, b) => a.sku.localeCompare(b.sku))
+}

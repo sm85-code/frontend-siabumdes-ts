@@ -40,7 +40,9 @@ import {
   type TokoJenis,
   type TxRow,
   buildJournalRows,
-  isPiutangUtangUsaha,
+  buildSkuStockRows,
+  type StockMoveRec,
+  weekCount,
   type JournalRec,
   kasNoteLines,
   stokNoteLines,
@@ -530,8 +532,91 @@ function AutoTables({ period }: { period: string }) {
     <>
       <AutoTable title="Daftar Invoice untuk Pelanggan (Stock Out)" label="Customer" doc="invoice" period={period} rows={inRows} />
       <AutoTable title="Daftar Purchase Order untuk Pemasok (Stock In)" label="Pemasok" doc="po" period={period} rows={outRows} />
-      <JournalTable period={period} title="Pelunasan Piutang/Utang Usaha dari menu Transaksi" keep={isPiutangUtangUsaha} />
+      <SkuStockTable period={period} />
     </>
+  )
+}
+
+function InOut({ i, o, strong }: { i: number; o: number; strong?: boolean }) {
+  return (
+    <div className={`leading-tight ${strong ? 'font-semibold' : ''}`}>
+      <div>In {fmtNumber(i)}</div><div className="text-muted-foreground">Out {fmtNumber(o)}</div>
+    </div>
+  )
+}
+
+/** Rincian qty In/Out per SKU per minggu; kolom sejajar dengan tabel PO di atasnya. */
+function SkuStockTable({ period }: { period: string }) {
+  const { data: units } = useUnitsQuery(true)
+  const unitId = units?.find((u) => u.code === TOKO_UNIT_CODE)?.id
+  const range = { date_from: weekStart(period, 1), date_to: weekEnd(period, weekCount(period)) }
+  const q = useQuery({
+    queryKey: ['toko', 'sku-moves', period, unitId],
+    queryFn: async () => (await api.get<StockMoveRec[]>(`${INV}/movements`, { params: { ...range, unit_usaha_id: unitId, limit: 2000 } })).data,
+  })
+  const rows = useMemo(() => buildSkuStockRows(q.data ?? [], period), [q.data, period])
+  const title = 'Rincian Transaksi Stok Berdasarkan SKU'
+  if (q.error) return <p role="alert">{getApiError(q.error)}</p>
+  const pad = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
+  const sum = (w: number, k: 'in' | 'out') => rows.reduce((a, r) => a + (r.weeks[w]?.[k] ?? 0), 0)
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <SectionTitle>{title}</SectionTitle>
+        <HelpHint label={`Tentang tabel ${title}`}>Jumlah barang (qty, bukan rupiah) masuk (Stock In) dan keluar (Stock Out, termasuk pemakaian internal) per SKU per minggu (Senin–Sabtu), dari Manajemen Stok.</HelpHint>
+      </div>
+      {q.isLoading ? <Spinner label="Memuat pergerakan stok..." /> : (
+      <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH + DOC_COL} label={`Tabel ${title}`}><Table className={`${tableClass} table-fixed`}>
+        <colgroup>
+          <col style={{ width: TX_COL.no }} />
+          <col style={{ width: TX_COL.uraian }} />
+          {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+          <col style={{ width: TX_COL.jumlah }} />
+          <col style={{ width: DOC_COL }} />
+        </colgroup>
+        <TableHeader className={headerClass}><TableRow>
+          <TableHead>No.</TableHead>
+          <TableHead>SKU</TableHead>
+          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
+          <TableHead className="text-right">Jumlah</TableHead>
+          <TableHead />
+        </TableRow></TableHeader>
+        <TableBody>
+          {rows.map((r, idx) => (
+            <TableRow key={r.key}>
+              <TableCell>{idx + 1}</TableCell>
+              <TableCell className="min-w-0" title={r.name ? `${r.sku} — ${r.name}` : r.sku}>
+                <div className="truncate">{r.sku}</div>
+                {r.name && <div className="truncate text-xs text-muted-foreground">{r.name}</div>}
+              </TableCell>
+              {WEEKS.map((w) => (
+                <TableCell key={w} className="text-right whitespace-nowrap tabular-nums">
+                  {r.weeks[w] ? <InOut i={r.weeks[w].in} o={r.weeks[w].out} /> : <EmptyCellDash />}
+                </TableCell>
+              ))}
+              <TableCell className="text-right whitespace-nowrap tabular-nums"><InOut i={r.totalIn} o={r.totalOut} strong /></TableCell>
+              <TableCell />
+            </TableRow>
+          ))}
+          {Array.from({ length: pad }, (_, i) => (
+            <TableRow key={`empty-${i}`}>
+              <TableCell>{rows.length + i + 1}</TableCell><TableCell><EmptyCellDash /></TableCell>
+              {WEEKS.map((w) => <TableCell key={w} className="text-right"><EmptyCellDash /></TableCell>)}
+              <TableCell /><TableCell />
+            </TableRow>
+          ))}
+        </TableBody>
+        <tfoot className="border-t bg-muted/50 font-semibold"><TableRow>
+          <TableCell colSpan={2}>Total</TableCell>
+          {WEEKS.map((w) => <TableCell key={w} className="text-right whitespace-nowrap tabular-nums"><InOut i={sum(w, 'in')} o={sum(w, 'out')} strong /></TableCell>)}
+          <TableCell className="text-right whitespace-nowrap tabular-nums">
+            <InOut i={rows.reduce((a, r) => a + r.totalIn, 0)} o={rows.reduce((a, r) => a + r.totalOut, 0)} strong />
+          </TableCell>
+          <TableCell />
+        </TableRow></tfoot>
+      </Table></TableShell></Card>
+      )}
+    </div>
   )
 }
 
