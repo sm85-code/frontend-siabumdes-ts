@@ -136,3 +136,20 @@ describe('buildSkuStockRows', () => {
     expect(rows).toEqual([{ key: 'B', sku: 'B', name: 'Beras', weeks: { 1: { in: 10, out: 3 }, 2: { in: 0, out: 2 } }, totalIn: 10, totalOut: 5 }])
   })
 })
+
+describe('weeklyNoteRows', () => {
+  it('turns cumulative details into weekly movements with running balances', async () => {
+    const { weeklyNoteRows } = await import('@/lib/toko')
+    const rows = weeklyNoteRows([
+      { kas_awal: '100', masuk_x: '50', keluar_y: '0', kas_akhir: '150' },
+      { kas_awal: '100', masuk_x: '80', keluar_y: '20', kas_akhir: '160' },
+      undefined, undefined, undefined,
+    ], 'kas_awal', 'kas_akhir', 'Kas awal', 'Kas akhir', [['masuk_x', 'Masuk', 1], ['keluar_y', 'Keluar', -1], ['nol', 'Nol', 1]])
+    expect(rows).toEqual([
+      { label: 'Kas awal', saldo: true, jumlah: 100, w: [100, 150, null, null, null] },
+      { label: 'Masuk', jumlah: 80, w: [50, 30, null, null, null] },
+      { label: 'Keluar', jumlah: -20, w: [-0, -20, null, null, null] },
+      { label: 'Kas akhir', saldo: true, jumlah: 160, w: [150, 160, null, null, null] },
+    ])
+  })
+})
