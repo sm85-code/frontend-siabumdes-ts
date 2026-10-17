@@ -44,8 +44,10 @@ import {
   type StockMoveRec,
   weekCount,
   type JournalRec,
-  kasNoteLines,
-  stokNoteLines,
+  KAS_LINES,
+  weeklyNoteRows,
+  type WeeklyNoteRow,
+  STOK_LINES,
   diffNoteItems,
   type Suspect,
   type KasDetail,
@@ -181,7 +183,6 @@ function JournalSection({ period }: { period: string }) {
     <>
       <JournalTable period={period} title="Pemasukan dari menu Transaksi" keep={(r) => r.jenis === 'pemasukan'} />
       <JournalTable period={period} title="Pengeluaran dari menu Transaksi" keep={(r) => r.jenis === 'pengeluaran'} />
-      <JournalTable period={period} title="Mutasi Kas/Piutang/Utang dari menu Transaksi" keep={(r) => r.jenis === 'mutasi'} />
       <JournalSkipped period={period} />
     </>
   )
@@ -457,47 +458,74 @@ function Neraca({ period }: { period: string }) {
           })}
         </TableRow></tfoot>
       </Table></TableShell></Card>
-      {started.size > 0 && <KasNote pos={last} period={period} opening={q.data.kas_opening} />}
-      {started.size > 0 && <StokNote pos={last} period={period} />}
+      {started.size > 0 && <KasNote pos={keys.map((k, i) => (started.has(k) ? pos[i] : undefined))} opening={q.data.kas_opening} />}
+      {started.size > 0 && <StokNote pos={keys.map((k, i) => (started.has(k) ? pos[i] : undefined))} last={last} />}
       {started.size > 0 && <DiffNote pos={last} />}
     </div>
   )
 }
 
-/** Sehari sebelum Senin Minggu ke-1 (akhir periode lalu). */
-function periodAwal(period: string): string {
-  const [y, m, d] = weekStart(period, 1).split('-').map(Number)
-  return isoDate(new Date(y, m - 1, d - 1))
+/** Tabel mingguan catatan pergerakan (gaya sama dengan tabel mingguan lain). */
+function WeeklyNoteTable({ label, rows }: { label: string; rows: WeeklyNoteRow[] }) {
+  const money = (n: number) => (n < 0 ? `(${fmtNumber(-Math.round(n))})` : fmtNumber(Math.round(n)))
+  return (
+    <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label={label}><Table className={`${tableClass} table-fixed`}>
+      <colgroup>
+        <col style={{ width: TX_COL.no }} />
+        <col style={{ width: TX_COL.uraian }} />
+        {WEEKS.map((w) => <col key={w} style={{ width: TX_COL.week }} />)}
+        <col style={{ width: TX_COL.jumlah }} />
+      </colgroup>
+      <TableHeader className={headerClass}><TableRow>
+        <TableHead>No.</TableHead>
+        <TableHead className="col-name">Uraian</TableHead>
+        {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap tabular-nums">Minggu ke-{w}</TableHead>)}
+        <TableHead className="text-right whitespace-nowrap tabular-nums">Jumlah</TableHead>
+      </TableRow></TableHeader>
+      <TableBody>
+        {rows.map((r, i) => (
+          <TableRow key={r.label} className={r.saldo ? 'bg-muted/50 font-semibold' : undefined}>
+            <TableCell>{r.saldo ? '' : i}</TableCell>
+            <TableCell className="min-w-0 whitespace-normal break-words" title={r.label}>{r.label}</TableCell>
+            {[...r.w, r.jumlah].map((v, k) => (
+              <TableCell key={k} className={`text-right whitespace-nowrap tabular-nums${v != null && v < 0 ? ' text-destructive' : ''}`}>{v == null ? <EmptyCellDash /> : money(v)}</TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table></TableShell></Card>
+  )
 }
 
-/** Catatan teks di bawah tabel Neraca: pergerakan Kas (jurnal menu Transaksi) s.d. minggu terakhir yang tampil. */
-function KasNote({ pos, period, opening }: { pos?: GlPos; period: string; opening?: GlResp['kas_opening'] }) {
-  if (!pos?.kas_detail) return null
-  const awalDate = pos.kas_detail.kas_awal_date ?? periodAwal(period)
-  const lines = kasNoteLines(pos.kas_detail, `Kas awal ${fmtTgl(awalDate)}`, `Kas akhir ${fmtTgl(pos.date)}`)
+/** Catatan di bawah Neraca: pergerakan Kas (jurnal menu Transaksi) per minggu; Jumlah = s.d. minggu terakhir yang tampil. */
+function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlResp['kas_opening'] }) {
+  const rows = weeklyNoteRows(pos.map((p) => p?.kas_detail), 'kas_awal', 'kas_akhir', 'Kas awal', 'Kas akhir', KAS_LINES)
+  if (!rows.length) return null
   const gl = opening ? parseMoney(opening.gl) : 0
   const set = opening ? parseMoney(opening.ditetapkan) : 0
   const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
       <p className="font-semibold text-foreground">Catatan pergerakan kas</p>
-      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      <WeeklyNoteTable label="Tabel catatan pergerakan kas" rows={rows} />
       {opening && <p className="tabular-nums break-words">Kas di Neraca = saldo awal {rp(set)} per {fmtTgl(opening.date)} + pergerakan akun Kas/Bank Unit 5 di menu Transaksi sejak 1 Okt 2026 (transaksi Kas bertanggal sebelumnya tidak dihitung). Sebagai informasi, saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}.</p>}
     </div>
   )
 }
 
-/** Catatan pergerakan akun Persediaan (jurnal menu Transaksi); stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Stok. */
-function StokNote({ pos, period }: { pos?: GlPos; period: string }) {
-  if (!pos?.stok_detail) return null
-  const mgmt = pos.pembanding?.stok
-  const lines = stokNoteLines(pos.stok_detail, `Stok awal ${fmtTgl(periodAwal(period))}`, `Stok akhir ${fmtTgl(pos.date)}`, mgmt,
-    `Nilai Persediaan Manajemen Stok per ${fmtTgl(pos.date)}`)
-  const diff = mgmt != null && Math.abs(parseMoney(pos.stok_detail.stok_akhir) - parseMoney(mgmt)) >= 1
+/** Catatan pergerakan akun Persediaan per minggu; stok akhir = Stok di Neraca, dibandingkan dengan Manajemen Stok. */
+function StokNote({ pos, last }: { pos: (GlPos | undefined)[]; last?: GlPos }) {
+  const rows = weeklyNoteRows(pos.map((p) => p?.stok_detail), 'stok_awal', 'stok_akhir', 'Stok awal', 'Stok akhir',
+    STOK_LINES.map(([k, l]) => [k, l, 1] as [string, string, number]))
+  if (!rows.length || !last?.stok_detail) return null
+  const mgmt = last.pembanding?.stok
+  const akhir = parseMoney(last.stok_detail.stok_akhir)
+  const diff = mgmt != null && Math.abs(akhir - parseMoney(mgmt)) >= 1
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
       <p className="font-semibold text-foreground">Catatan pergerakan stok</p>
-      {lines.map((l) => <p key={l} className="tabular-nums break-words">{l}</p>)}
+      <WeeklyNoteTable label="Tabel catatan pergerakan stok" rows={rows} />
+      {mgmt != null && <p className="tabular-nums break-words">Nilai Persediaan Manajemen Stok per {fmtTgl(last.date)}: Rp {fmtNumber(Math.round(parseMoney(mgmt)))} (selisih Rp {fmtNumber(Math.round(akhir - parseMoney(mgmt)))}).</p>}
       {diff && <p>Kemungkinan penyebab selisih dengan Manajemen Stok: transaksi manual akun Persediaan di menu Transaksi (lihat Catatan perbedaan data), penyesuaian stok yang tidak dijurnal ke Persediaan, atau HPP lama di kartu stok yang berbeda dengan HPP produk saat ini.</p>}
     </div>
   )

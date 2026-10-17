@@ -226,7 +226,7 @@ export const isPiutangUtangUsaha = (r: JournalRec) => [r.debit.pos, r.credit.pos
 /** Rincian pergerakan Kas dari /v1/toko/gl (kas_detail, dari jurnal); kas_akhir = Kas di Neraca. */
 export type KasDetail = Record<string, string>
 
-const KAS_LINES: [string, string, 1 | -1][] = [
+export const KAS_LINES: [string, string, 1 | -1][] = [
   ['masuk_perduitan', 'Pemasukan Perduitan #1', 1],
   ['masuk_penjualan_tunai', 'Penjualan tunai', 1],
   ['masuk_pelunasan_piutang', 'Pelunasan piutang usaha', 1],
@@ -288,7 +288,7 @@ export function diffNoteItems(
   return out
 }
 
-const STOK_LINES: [string, string][] = [
+export const STOK_LINES: [string, string][] = [
   ['masuk_reguler', 'Barang masuk (pembelian)'],
   ['masuk_modal_awal', 'Barang masuk (Belanja Modal Awal)'],
   ['masuk_lainnya', 'Barang masuk lainnya'],
@@ -340,4 +340,29 @@ export function buildSkuStockRows(moves: StockMoveRec[], period: string, interna
     map.set(sku, row)
   }
   return [...map.values()].sort((a, b) => a.sku.localeCompare(b.sku))
+}
+
+/** Baris tabel catatan mingguan: saldo awal, mutasi (+/−) yang pernah tidak nol, saldo akhir. */
+export type WeeklyNoteRow = { label: string; saldo?: boolean; w: (number | null)[]; jumlah: number }
+
+/**
+ * details[i] = rincian kumulatif s.d. akhir Minggu ke-(i+1) (awal sama untuk semua minggu); undefined = minggu belum
+ * berjalan. Mutasi per minggu = selisih kumulatif dengan minggu sebelumnya; awal minggu = akhir minggu sebelumnya.
+ */
+export function weeklyNoteRows(details: (Record<string, string> | undefined)[], awalKey: string, akhirKey: string,
+  awalLabel: string, akhirLabel: string, lines: [string, string, number][]): WeeklyNoteRow[] {
+  const n = (d: Record<string, string> | undefined, k: string) => (d ? parseMoney(d[k]) : 0)
+  const idx = details.map((d, i) => (d ? i : -1)).filter((i) => i >= 0)
+  if (!idx.length) return []
+  const first = details[idx[0]], last = details[idx[idx.length - 1]]
+  const rows: WeeklyNoteRow[] = [{
+    label: awalLabel, saldo: true, jumlah: n(first, awalKey),
+    w: details.map((d, i) => (d ? (i === 0 || !details[i - 1] ? n(d, awalKey) : n(details[i - 1], akhirKey)) : null)),
+  }]
+  for (const [key, label, sign] of lines) {
+    const w = details.map((d, i) => (d ? sign * (n(d, key) - (i > 0 ? n(details[i - 1], key) : 0)) : null))
+    if (w.some((v) => v)) rows.push({ label, w, jumlah: sign * n(last, key) })
+  }
+  rows.push({ label: akhirLabel, saldo: true, w: details.map((d) => (d ? n(d, akhirKey) : null)), jumlah: n(last, akhirKey) })
+  return rows
 }
