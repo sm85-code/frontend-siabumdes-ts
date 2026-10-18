@@ -1,8 +1,8 @@
-import { Fragment, useMemo, useState, type FormEvent } from 'react'
+import { Fragment, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
 import api, { getApiError, parseMoney } from '@/api/client'
 import { triggerBlobDownload } from '@/api/transactions'
 import { useAuth } from '@/lib/auth'
@@ -602,7 +602,7 @@ function SkuStockTable({ period, internal = false }: { period: string; internal?
     queryFn: async () => (await api.get<StockMoveRec[]>(`${INV}/movements`, { params: { ...range, unit_usaha_id: unitId, limit: 2000 } })).data,
   })
   const rows = useMemo(() => buildSkuStockRows(q.data ?? [], period, internal), [q.data, period, internal])
-  const title = internal ? 'Rincian Transaksi Stok Berdasarkan SKU (internal)' : 'Rincian Transaksi Stok Berdasarkan SKU'
+  const title = internal ? 'Rincian Transaksi Stok (Internal)' : 'Rincian Transaksi Stok (Eksternal)'
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
   const pad = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
   const sum = (w: number, k: 'in' | 'out') => rows.reduce((a, r) => a + (r.weeks[w]?.[k] ?? 0), 0)
@@ -774,7 +774,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
   onEmptyUraian: () => void
 }) {
   const rows = useMemo(() => buildTxRows(items, entries, jenis), [items, entries, jenis])
-  const { sorted, headerProps, sortIndicator } = useSort<TxRow>(rows)
+  const { sorted, headerProps, sortIndicator } = useSort<TxRow>(rows, null, 'asc', true)
   const padCount = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
   const display = [...sorted, ...Array.from({ length: padCount }, (_, i) => emptyTxRow(`empty-${i}`))]
   const totals = txTotals(rows)
@@ -799,7 +799,7 @@ function TxTable({ jenis, items, entries, onCell, onEmptyUraian }: {
         </colgroup>
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
-          {sortHead('uraian', 'Uraian')}
+          <TableHead className="col-name" title="Urutan mengikuti tab Data">Uraian</TableHead>
           {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`, true)}</Fragment>)}
           {sortHead('jumlah', 'Jumlah', true)}
         </TableRow></TableHeader>
@@ -842,29 +842,65 @@ function DataTable({ jenis, items, onChanged }: { jenis: TokoJenis; items: TokoI
   const title = jenis === 'pemasukan' ? 'Uraian Pemasukan' : 'Uraian Pengeluaran'
   const [extra, setExtra] = useState(0)
   const pad = Math.max(DEFAULT_DATA_ROWS - items.length, 0) + extra
-  const { sorted, headerProps, sortIndicator } = useSort(items as unknown as Record<string, unknown>[])
-  const sortedItems = sorted as unknown as TokoItem[]
-  const sortHead = (key: string, label: string, cls = '') => (
-    <TableHead {...headerProps(key)} className={`cursor-pointer select-none whitespace-nowrap ${cls}`}>{label}{sortIndicator(key)}</TableHead>
-  )
+  const [moving, setMoving] = useState(false)
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
+  const [rowBoxes, setRowBoxes] = useState<{ top: number; height: number }[]>([])
+  // Tombol naik/turun di luar tabel, sejajar dengan baris masing-masing.
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+    const measure = () => {
+      const card = body.closest('[data-toko-card]') as HTMLElement | null
+      const base = card?.getBoundingClientRect().top ?? 0
+      setRowBoxes(Array.from(body.rows).slice(0, items.length).map((r) => {
+        const b = r.getBoundingClientRect()
+        return { top: b.top - base, height: b.height }
+      }))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(body)
+    return () => ro.disconnect()
+  }, [items])
+  const move = async (it: TokoItem, direction: 'up' | 'down') => {
+    if (moving) return
+    setMoving(true)
+    try { await api.post(`/v1/toko/items/${it.id}/move`, { direction }); await onChanged() }
+    catch (e) { notify(getApiError(e), { type: 'error' }) }
+    finally { setMoving(false) }
+  }
   return (
     <div className="space-y-2" data-testid={`toko-data-${jenis}`}>
       <div className="flex items-center justify-between gap-3">
         <h3 className="font-semibold">{title}</h3>
         <Button size="sm" variant="outline" onClick={() => setExtra((n) => n + 1)}><Plus className="size-4" />Tambah baris</Button>
       </div>
+      <div className="flex gap-1">
+      <div className="relative min-w-0 flex-1" data-toko-card>
       <Card className="overflow-hidden p-0"><TableShell minWidth={640} label={`Tabel ${title}`}><Table className={tableClass}>
         <TableHeader className={headerClass}><TableRow>
-          <TableHead className="w-14">No.</TableHead>{sortHead('name', 'Nama Baris')}{sortHead('keterangan', 'Keterangan')}<TableHead className="w-14" />
+          <TableHead className="w-14">No.</TableHead><TableHead>Nama Baris</TableHead><TableHead>Keterangan</TableHead><TableHead className="w-14" />
         </TableRow></TableHeader>
-        <TableBody>
-          {sortedItems.map((it, i) => <DataRow key={it.id} no={i + 1} jenis={jenis} item={it} onChanged={onChanged} />)}
+        <TableBody ref={bodyRef}>
+          {items.map((it, i) => <DataRow key={it.id} no={i + 1} jenis={jenis} item={it} onChanged={onChanged} />)}
           {Array.from({ length: pad }, (_, i) => (
             <DataRow key={`new-${items.length + i}`} no={items.length + i + 1} jenis={jenis} item={null}
               onChanged={async () => { setExtra((n) => Math.max(n - 1, 0)); await onChanged() }} />
           ))}
         </TableBody>
       </Table></TableShell></Card>
+      </div>
+      <div className="relative w-16 shrink-0" aria-label={`Urutan ${title}`}>
+        {items.map((it, i) => rowBoxes[i] && (
+          <div key={it.id} className="absolute inset-x-0 flex items-center justify-center" style={{ top: rowBoxes[i].top, height: rowBoxes[i].height }}>
+            <Button variant="ghost" size="icon" className="size-7" disabled={moving || i === 0} onClick={() => void move(it, 'up')}
+              aria-label={`Naikkan ${it.name}`} title="Naikkan baris"><ArrowUp className="size-4" /></Button>
+            <Button variant="ghost" size="icon" className="size-7" disabled={moving || i === items.length - 1} onClick={() => void move(it, 'down')}
+              aria-label={`Turunkan ${it.name}`} title="Turunkan baris"><ArrowDown className="size-4" /></Button>
+          </div>
+        ))}
+      </div>
+      </div>
     </div>
   )
 }
