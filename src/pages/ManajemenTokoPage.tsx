@@ -400,7 +400,7 @@ function Neraca({ period }: { period: string }) {
   type Line = { no?: number; label: string; v?: WeekVals; kind?: 'head' | 'total'; warn?: boolean }
   const lines: Line[] = [
     { label: 'ASET', kind: 'head' },
-    { no: 1, label: 'Kas / Bank', v: kas, warn: true },
+    { no: 1, label: 'Kas / Bank', v: kas },
     { no: 2, label: 'Stok Barang', v: stokV },
     { no: 3, label: 'Piutang Usaha', v: piutang },
     { no: 4, label: 'Piutang Lainnya', v: piutangLain },
@@ -421,7 +421,7 @@ function Neraca({ period }: { period: string }) {
     <div className="space-y-2 pt-4">
       <div className="flex items-center gap-1">
         <SectionTitle>Neraca</SectionTitle>
-        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Kas/Bank = saldo awal Rp 2.124.500 per 30 Sep 2026 + pergerakan Kas sejak 1 Okt 2026. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sejak 1 Okt 2026 (saldo awal laba ditahan per 30 Sep 2026 = 0) s.d. sebelum Minggu ke-1 bulan ini, dikurangi bagi hasil yang dibayar; Periode Berjalan = sejak Minggu ke-1. Kas ditandai merah: perlu diverifikasi dengan saldo kas riil.</HelpHint>
+        <HelpHint label="Tentang Neraca">Saldo akun Unit 5 di menu Transaksi (termasuk jurnal otomatis) per akhir tiap minggu; Jumlah = posisi minggu terakhir yang sudah berjalan. Minggu tampil sejak hari Senin-nya, apa adanya walau belum seimbang. Kas/Bank = saldo awal Rp 2.124.500 per 30 Sep 2026 + pergerakan Kas sejak 1 Okt 2026. Laba/Rugi Periode Lalu = akun Pendapatan/Beban/HPP sejak 1 Okt 2026 (saldo awal laba ditahan per 30 Sep 2026 = 0) s.d. sebelum Minggu ke-1 bulan ini, dikurangi bagi hasil yang dibayar; Periode Berjalan = sejak Minggu ke-1.</HelpHint>
       </div>
       <Card className="overflow-hidden p-0"><TableShell minWidth={TX_TABLE_MIN_WIDTH} label="Tabel Neraca"><Table className={`${tableClass} table-fixed`}>
         <colgroup>
@@ -520,14 +520,13 @@ function KasNote({ pos, opening }: { pos: (GlPos | undefined)[]; opening?: GlRes
   const rows = weeklyFlowRows(pos.map((p) => p?.kas_detail), 'kas_awal', 'kas_akhir',
     { awal: 'Kas Awal', masuk: 'Kas Masuk', keluar: 'Kas Keluar', akhir: 'Kas Akhir' }, kasFlowLines(pos.map((p) => p?.kas_detail)))
   if (!rows.length) return null
-  const gl = opening ? parseMoney(opening.gl) : 0
   const set = opening ? parseMoney(opening.ditetapkan) : 0
   const rp = (n: number) => (n < 0 ? `(Rp ${fmtNumber(Math.round(-n))})` : `Rp ${fmtNumber(Math.round(n))}`)
   return (
     <div className="space-y-1 text-sm text-muted-foreground">
       <SectionTitle>Laporan Arus Kas</SectionTitle>
       <WeeklyNoteTable label="Tabel Laporan Arus Kas" rows={rows} />
-      {opening && <p className="tabular-nums break-words">Kas di Neraca = saldo awal {rp(set)} per {fmtTgl(opening.date)} + pergerakan akun Kas/Bank Unit 5 di menu Transaksi sejak 1 Okt 2026 (transaksi Kas bertanggal sebelumnya tidak dihitung). Sebagai informasi, saldo Kas menu Transaksi per {fmtTgl(opening.date)}: {rp(gl)}.</p>}
+      {opening && <p className="tabular-nums break-words">Saldo awal {rp(set)} adalah saldo Akun Kas/Bank per 30 September 2026, setelah laba bersih dibagikan kepada Pengelola dan BUMDes.</p>}
     </div>
   )
 }
