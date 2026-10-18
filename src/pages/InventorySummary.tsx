@@ -311,7 +311,6 @@ export default function InventorySummary({
     return () => { alive = false }
   }, [posDates, products, movements])
   const fmtTgl = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-  const weekValue = posValues?.[posDates.week] ?? totalValue
   const monthValue = posValues?.[posDates.month] ?? totalValue
   const [moves, setMoves] = useState<InventoryMovement[] | null>(null)
   const [report, setReport] = useState<InventoryMovementReport | null>(null)
@@ -357,16 +356,9 @@ export default function InventorySummary({
         <label htmlFor="ringkasan-bulan" className="text-sm font-medium">Bulan</label>
         <Input id="ringkasan-bulan" type="month" className="w-44" value={month}
           onChange={(e) => e.target.value && setMonth(e.target.value)} />
-        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Nilai persediaan mingguan = posisi akhir minggu (Senin–Sabtu), bulanan = posisi akhir bulan (atau hari ini bila bulan belum selesai). Kartu SKU, total stok, dan stok tipis selalu posisi saat ini.</HelpHint>
+        <HelpHint label="Tentang filter bulan">Kartu Stock in/out, Rekap Belanja Reguler, dan Rekap Penjualan mengikuti tanggal transaksi di bulan ini; Rekap Belanja Modal Awal selalu seluruh riwayat. Sisa Stok = posisi akhir bulan. Nilai persediaan = posisi akhir bulan (atau hari ini bila bulan belum selesai). Kartu SKU aktif (termasuk total stok) dan stok tipis selalu posisi saat ini.</HelpHint>
       </div>
-      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-3 xl:grid-cols-7" data-testid="inventory-stats">
-        <Stat label="SKU aktif" value={skuCount} sub="produk" hint="Jumlah produk di katalog." />
-        <Stat label="Total stok" value={totalQty} sub="unit" hint="Qty on hand seluruh SKU." />
-        <Stat label="Nilai persediaan mingguan" value={fmtRp(weekValue)} sub={`Minggu ${posDates.weekNo} · s.d. ${fmtTgl(posDates.week)}`}
-          hint="Qty × HPP seluruh SKU per akhir minggu (Senin–Sabtu; Minggu ikut minggu sebelumnya), sama dengan Stok di Neraca Manajemen Toko." testId="inventory-stat-nilai-mingguan" />
-        <Stat label="Nilai persediaan bulanan" value={fmtRp(monthValue)} sub={`per ${fmtTgl(posDates.month)}`}
-          hint="Qty × HPP seluruh SKU per akhir bulan terpilih, atau hari ini bila bulan belum selesai." testId="inventory-stat-nilai-bulanan" />
-        <Stat label="Stok tipis" value={lowStockCount} sub="SKU" hint="SKU dengan qty ≤ 5." />
+      <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-3 xl:grid-cols-5" data-testid="inventory-stats">
         <Stat
           label="Stock in"
           value={`${inQty} unit`}
@@ -385,6 +377,10 @@ export default function InventorySummary({
           cta="Input Stock Out"
           testId={onOpenTab ? 'shortcut-stock-out' : undefined}
         />
+        <Stat label="SKU aktif" value={skuCount} sub={`produk · ${totalQty} unit stok`} hint="Jumlah produk di katalog dan total qty on hand seluruh SKU (posisi saat ini)." />
+        <Stat label="Stok tipis" value={lowStockCount} sub="SKU" hint="SKU dengan qty ≤ 5." />
+        <Stat label="Nilai persediaan" value={fmtRp(monthValue)} sub={`per ${fmtTgl(posDates.month)}`}
+          hint="Qty × HPP seluruh SKU per akhir bulan terpilih, atau hari ini bila bulan belum selesai." testId="inventory-stat-nilai" />
       </div>
 
       <div className="grid grid-cols-1 gap-6">
