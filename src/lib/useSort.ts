@@ -29,12 +29,17 @@ export function useSort<T extends Record<string, unknown>>(
   rows: T[],
   defaultKey: string | null = null,
   defaultDir: 'asc' | 'desc' = 'asc',
+  /** true: klik ketiga pada kolom yang sama menghapus urutan (kembali ke urutan asli `rows`). */
+  clearable = false,
 ) {
   const [sortKey, setSortKey] = useState<string | null>(defaultKey)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultDir)
 
   const toggleSort = (key: string) => {
-    if (sortKey === key) {
+    if (sortKey === key && clearable && sortDir === 'desc') {
+      setSortKey(null)
+      setSortDir('asc')
+    } else if (sortKey === key) {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
