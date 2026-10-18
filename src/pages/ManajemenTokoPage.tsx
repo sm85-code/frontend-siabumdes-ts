@@ -41,6 +41,7 @@ import {
   type TxRow,
   buildJournalRows,
   buildSkuStockRows,
+  type SkuStockRow,
   type StockMoveRec,
   weekCount,
   type JournalRec,
@@ -602,6 +603,17 @@ function SkuStockTable({ period, internal = false }: { period: string; internal?
     queryFn: async () => (await api.get<StockMoveRec[]>(`${INV}/movements`, { params: { ...range, unit_usaha_id: unitId, limit: 2000 } })).data,
   })
   const rows = useMemo(() => buildSkuStockRows(q.data ?? [], period, internal), [q.data, period, internal])
+  // Kunci urut sel In/Out: Eksternal = In + Out (total pergerakan), Internal = Out.
+  const sortable = useMemo(() => rows.map((r) => {
+    const k = (i: number, o: number) => (internal ? o : i + o)
+    const rec: Record<string, unknown> = { key: r.key, row: r, jumlah: k(r.totalIn, r.totalOut) }
+    for (const w of WEEKS) rec[`w${w}`] = r.weeks[w] ? k(r.weeks[w].in, r.weeks[w].out) : null
+    return rec
+  }), [rows, internal])
+  const { sorted, headerProps, sortIndicator } = useSort(sortable, null, 'asc', true)
+  const sortHead = (key: string, text: string) => (
+    <TableHead {...headerProps(key)} className="text-right tabular-nums cursor-pointer select-none whitespace-nowrap">{text}{sortIndicator(key)}</TableHead>
+  )
   const title = internal ? 'Rincian Transaksi Stok (Internal)' : 'Rincian Transaksi Stok (Eksternal)'
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
   const pad = Math.max(DEFAULT_TX_ROWS - rows.length, 0)
@@ -626,12 +638,12 @@ function SkuStockTable({ period, internal = false }: { period: string; internal?
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
           <TableHead>SKU</TableHead>
-          {WEEKS.map((w) => <TableHead key={w} className="text-right whitespace-nowrap">Minggu ke-{w}</TableHead>)}
-          <TableHead className="text-right">Jumlah</TableHead>
+          {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`)}</Fragment>)}
+          {sortHead('jumlah', 'Jumlah')}
           <TableHead />
         </TableRow></TableHeader>
         <TableBody>
-          {rows.map((r, idx) => (
+          {sorted.map((rec) => rec.row as SkuStockRow).map((r, idx) => (
             <TableRow key={r.key}>
               <TableCell>{idx + 1}</TableCell>
               <TableCell className="min-w-0" title={r.name ? `${r.sku} — ${r.name}` : r.sku}>
@@ -716,7 +728,7 @@ function AutoTable({ title, label, doc, period, rows }: { title: string; label: 
         </colgroup>
         <TableHeader className={headerClass}><TableRow>
           <TableHead>No.</TableHead>
-          {sortHead('uraian', 'Uraian')}
+          <TableHead className="col-name">Uraian</TableHead>
           {WEEKS.map((w) => <Fragment key={w}>{sortHead(`w${w}`, `Minggu ke-${w}`, true)}</Fragment>)}
           {sortHead('jumlah', 'Jumlah', true)}
           <TableHead className="text-center">{docLabel}</TableHead>
