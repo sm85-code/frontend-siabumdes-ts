@@ -95,8 +95,6 @@ export default function ReportsPage() {
     share_dana_sosial: 5,
     share_pades: 30,
     share_modal_bumdes: 18,
-    share_unit_pengelola: 30,
-    share_unit_bumdes: 70,
   })
 
   const [closeGroup, setCloseGroup] = useState('BUMDES')
@@ -433,20 +431,17 @@ export default function ReportsPage() {
                 <h4 className="font-heading mb-2 font-semibold" style={{ color: 'var(--primary-dark)' }}>
                   Alokasi Bagi Hasil Unit Usaha {groupKey}:
                 </h4>
-                <ol className="ml-5 list-decimal space-y-1 text-sm">
-                  <li>
-                    Pengelola Unit ({bagiHasil.share_unit_pengelola}%) ={' '}
-                    <b data-testid="share-pengelola">
-                      {fmtRp(Math.round((labaBersih * Number(bagiHasil.share_unit_pengelola || 0)) / 100))}
-                    </b>
-                  </li>
-                  <li>
-                    BUMDes ({bagiHasil.share_unit_bumdes}%) ={' '}
-                    <b data-testid="share-bumdes">
-                      {fmtRp(Math.round((labaBersih * Number(bagiHasil.share_unit_bumdes || 0)) / 100))}
-                    </b>
-                  </li>
-                </ol>
+{(() => {
+                  const bhu = (data as { bagi_hasil_unit?: { share_pengelola: string | number; share_bumdes: string | number; persen_pengelola: number; persen_bumdes: number; proporsi_bervariasi?: boolean } } | null)?.bagi_hasil_unit
+                  if (!bhu) return <p className="text-sm">–</p>
+                  return (
+                    <ol className="ml-5 list-decimal space-y-1 text-sm">
+                      <li>Pengelola Unit ({bhu.persen_pengelola}%) = <b data-testid="share-pengelola">{fmtRp(Number(bhu.share_pengelola))}</b></li>
+                      <li>BUMDes ({bhu.persen_bumdes}%) = <b data-testid="share-bumdes">{fmtRp(Number(bhu.share_bumdes))}</b></li>
+                      {bhu.proporsi_bervariasi && <li className="list-none text-xs">Proporsi berubah dalam rentang ini; nominal dihitung per bulan, persen = bulan terakhir.</li>}
+                    </ol>
+                  )
+                })()}
               </div>
             )}
             {active === 'laba-rugi' && !activeUnitId && !isPengelola && (

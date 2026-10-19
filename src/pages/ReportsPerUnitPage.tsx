@@ -37,6 +37,8 @@ type UnitRow = {
   laba_bersih: number
   share_pengelola_30: number
   share_bumdes_70: number
+  persen_pengelola?: number
+  persen_bumdes?: number
 }
 
 export default function ReportsPerUnitPage() {
@@ -128,8 +130,8 @@ export default function ReportsPerUnitPage() {
                   <TableHead className="num">Pendapatan</TableHead>
                   <TableHead className="num">Beban</TableHead>
                   <TableHead className="num">Laba Bersih</TableHead>
-                  <TableHead className="num">30% Pengelola</TableHead>
-                  <TableHead className="num">70% BUMDes</TableHead>
+                  <TableHead className="num">Pengelola</TableHead>
+                  <TableHead className="num">BUMDes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,10 +152,10 @@ export default function ReportsPerUnitPage() {
                       {fmtRp(u.laba_bersih)}
                     </TableCell>
                     <TableCell className="num" style={{ color: 'var(--primary-dark)' }}>
-                      {fmtRp(u.share_pengelola_30)}
+                      {fmtRp(u.share_pengelola_30)}{u.persen_pengelola != null && <span className="block text-xs text-muted-foreground">{u.persen_pengelola}%</span>}
                     </TableCell>
                     <TableCell className="num" style={{ color: 'var(--primary-dark)' }}>
-                      {fmtRp(u.share_bumdes_70)}
+                      {fmtRp(u.share_bumdes_70)}{u.persen_bumdes != null && <span className="block text-xs text-muted-foreground">{u.persen_bumdes}%</span>}
                     </TableCell>
                   </TableRow>
                 ))}

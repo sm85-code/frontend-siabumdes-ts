@@ -30,6 +30,7 @@ import {
   type EditUnitFormValues,
 } from '@/schemas/units'
 import PageHeader from '@/components/typography/PageHeader'
+import UnitBagiHasilSection from '@/pages/unit/UnitBagiHasilSection'
 
 const BUSINESS_TYPES = [
   { value: 'jasa', label: 'Jasa' },
@@ -370,6 +371,7 @@ export default function UnitUsahaPage() {
               </DialogFooter>
             </form>
           )}
+          {editing && <UnitBagiHasilSection unitId={editing.id} isAdmin={user?.role === 'admin'} />}
         </DialogContent>
       </Dialog>
     </div>
