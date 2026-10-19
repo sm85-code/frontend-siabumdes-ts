@@ -42,30 +42,56 @@ export default function UnitBagiHasilSection({ unitId, isAdmin }: { unitId: stri
     try { await api.delete(`/unit-usaha/${unitId}/bagi-hasil-shares/${r.id}`); await load() }
     catch (e) { notify(getApiError(e), { type: 'error' }) } finally { setBusy(false) }
   }
+  const bumdesPct = valid ? 100 - p : null
   return (
-    <div className="space-y-2 border-t pt-3" data-testid="unit-bagi-hasil">
-      <p className="text-sm font-semibold">Proporsi Bagi Hasil</p>
-      {data && <p className="text-sm">Berlaku bulan ini: Pengelola {data.effective.share_pengelola}% · BUMDes {data.effective.share_bumdes}%
-        {data.effective.source === 'default' ? ' (default Profil BUMDes)' : ''}</p>}
-      {data && data.history.length > 0 && (
-        <ul className="space-y-1 text-sm">
-          {[...data.history].reverse().map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-2">
-              <span className="tabular-nums">Mulai {r.effective_from}: Pengelola {r.share_pengelola}% · BUMDes {r.share_bumdes}%</span>
-              {isAdmin && <Button type="button" variant="ghost" size="icon" className="size-7" disabled={busy}
-                aria-label={`Hapus proporsi mulai ${r.effective_from}`} title="Hapus" onClick={() => void remove(r)}><Trash2 className="size-4" /></Button>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {isAdmin && (
-        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-          <div><Label htmlFor="bh-from">Berlaku mulai</Label><Input id="bh-from" type="month" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-          <div><Label htmlFor="bh-peng">Pengelola (%)</Label><Input id="bh-peng" type="number" min={0} max={100} step="0.01" value={peng} onChange={(e) => setPeng(e.target.value)} /></div>
-          <Button type="button" disabled={busy || !valid} onClick={() => void save()}>Simpan</Button>
-          <p className="help-text col-span-3">BUMDes = {valid ? 100 - p : '–'}%. Hanya bisa mulai bulan yang belum tutup buku dan belum ditransfer bagi hasilnya; bulan sebelumnya tidak berubah.</p>
+    <section className="space-y-3 border-t pt-4" data-testid="unit-bagi-hasil" aria-labelledby="bh-title">
+      <h3 id="bh-title" className="text-sm font-semibold">Proporsi Bagi Hasil</h3>
+      {data && (
+        <div className="rounded-lg border bg-muted/40 p-3">
+          <p className="text-xs text-muted-foreground">Berlaku bulan ini{data.effective.source === 'default' ? ' (default Profil BUMDes)' : ''}</p>
+          <div className="mt-1.5 flex flex-wrap gap-2 text-sm">
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-medium tabular-nums text-primary">Pengelola {data.effective.share_pengelola}%</span>
+            <span className="rounded-full bg-secondary px-2.5 py-0.5 font-medium tabular-nums">BUMDes {data.effective.share_bumdes}%</span>
+          </div>
         </div>
       )}
-    </div>
+      {data && data.history.length > 0 && (
+        <div>
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Riwayat</p>
+          <ul className="divide-y rounded-lg border">
+            {[...data.history].reverse().map((r) => (
+              <li key={r.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">Mulai {fmtBulan(r.effective_from)}</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">Pengelola {r.share_pengelola}% · BUMDes {r.share_bumdes}%</p>
+                </div>
+                {isAdmin && <Button type="button" variant="ghost" size="icon" className="size-8 shrink-0" disabled={busy}
+                  aria-label={`Hapus proporsi mulai ${fmtBulan(r.effective_from)}`} title="Hapus" onClick={() => void remove(r)}><Trash2 className="size-4" /></Button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {isAdmin && (
+        <div className="space-y-3 rounded-lg border p-3">
+          <p className="text-xs font-medium text-muted-foreground">Ubah proporsi</p>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="space-y-1"><Label htmlFor="bh-from">Berlaku mulai</Label><Input id="bh-from" type="month" className="w-full" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+              <div className="space-y-1"><Label htmlFor="bh-peng">Pengelola (%)</Label><Input id="bh-peng" type="number" inputMode="decimal" min={0} max={100} step="0.01" className="w-full" value={peng} onChange={(e) => setPeng(e.target.value)} /></div>
+              <div className="space-y-1"><Label htmlFor="bh-bumdes">BUMDes (%)</Label><Input id="bh-bumdes" readOnly tabIndex={-1} className="w-full bg-muted/50" value={bumdesPct ?? ''} placeholder="Otomatis" /></div>
+            </div>
+          </div>
+          <Button type="button" variant="outline" className="w-full" disabled={busy || !valid} onClick={() => void save()}>Tambah Proporsi</Button>
+          <p className="help-text">Hanya untuk bulan yang belum tutup buku/ditransfer; bulan sebelumnya tidak berubah.</p>
+        </div>
+      )}
+    </section>
   )
+}
+
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+function fmtBulan(ym: string): string {
+  const [y, m] = ym.split('-').map(Number)
+  return m ? `${BULAN[m - 1]} ${y}` : ym
 }
