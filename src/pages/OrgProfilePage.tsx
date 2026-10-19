@@ -333,7 +333,7 @@ export default function OrgProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="font-heading flex items-center gap-1 text-lg">Bagi Hasil<HelpHint label="Tentang Bagi Hasil"><p>Proporsi ini dipakai saat Tutup Buku bulanan (jurnal alokasi laba) dan di Laporan Perubahan Ekuitas / ringkasan per-unit. Ubah di sini berlaku untuk penutupan bulan berikutnya — periode yang sudah ditutup tidak berubah.</p></HelpHint></CardTitle>
+              <CardTitle className="font-heading flex items-center gap-1 text-lg">Bagi Hasil<HelpHint label="Tentang Bagi Hasil"><p>Proporsi ini dipakai saat Tutup Buku bulanan (jurnal alokasi laba) dan di Laporan Perubahan Ekuitas / ringkasan per-unit. Ubah di sini berlaku untuk penutupan bulan berikutnya — periode yang sudah ditutup tidak berubah.</p><p>Proporsi Unit Usaha di sini hanya default untuk unit baru; proporsi tiap unit (berlaku mulai bulan tertentu) diatur admin di Profil Unit Usaha.</p></HelpHint></CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
 
@@ -377,7 +377,7 @@ export default function OrgProfilePage() {
 
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-semibold">Unit Usaha</span>
+                  <span className="text-sm font-semibold">Unit Usaha (default unit baru)</span>
                   <span
                     className="rounded-full px-2 py-0.5 font-mono text-xs"
                     style={{

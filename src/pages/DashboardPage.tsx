@@ -260,7 +260,7 @@ export default function DashboardPage() {
           <CardContent className="p-5 sm:p-6">
             <h3 className="font-heading mb-2 text-center text-lg font-semibold">Kontribusi Per Unit Usaha</h3>
             <p className="mb-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-              Berdasarkan bagi hasil yang diterima BUMDes dari tiap unit, sesuai proporsi konfigurasi ({data.unit_share_persen?.bumdes ?? 70}%).
+              Berdasarkan bagi hasil yang diterima BUMDes dari tiap unit, sesuai proporsi bagi hasil masing-masing unit.
             </p>
             {profitableUnits.length > 0 ? (
               <div className="grid items-center gap-4 lg:grid-cols-2">
@@ -364,8 +364,7 @@ export default function DashboardPage() {
         </TableShell>
       </Card>
       <UnitFinancialTable title="Bagi Hasil Usaha - Unit Usaha BUMDes" rows={activeUnits} columns={[
-        ['share_pengelola', `Pengelola (${data.unit_share_persen?.pengelola ?? 30}%)`],
-        ['share_bumdes', `BUMDes (${data.unit_share_persen?.bumdes ?? 70}%)`], ['laba', 'Jumlah'],
+        ['share_pengelola', 'Pengelola'], ['share_bumdes', 'BUMDes'], ['laba', 'Jumlah'],
       ]} />
       <UnitFinancialTable title="Posisi Keuangan - Unit Usaha BUMDes" rows={activeUnits} columns={[
         ['total_aset', 'Total Aset'], ['total_kewajiban', 'Total Kewajiban'],
