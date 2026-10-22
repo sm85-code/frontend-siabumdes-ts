@@ -44,6 +44,13 @@ export const WALLPAPERS = [
   { id: 'dots', label: 'Dot Grid' },
   { id: 'glow', label: 'Ripple' },
   { id: 'aurora', label: 'Aurora' },
+  { id: 'mesh', label: 'Gradasi Lembut' },
+  { id: 'sunset', label: 'Senja' },
+  { id: 'waves', label: 'Ombak' },
+  { id: 'leaves', label: 'Daun (Alam)' },
+  { id: 'paws', label: 'Tapak Hewan' },
+  { id: 'geo', label: 'Geometris' },
+  { id: 'grid', label: 'Kotak Halus' },
 ] as const
 
 export type FontId = (typeof FONTS)[number]['id']

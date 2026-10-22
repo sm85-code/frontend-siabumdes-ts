@@ -254,3 +254,33 @@
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
   overflow: hidden; text-overflow: ellipsis; overflow-wrap: anywhere; line-height: 1.35;
 }
+
+/* CSS/SVG wallpapers: tinted by the active theme colour, so they follow light/dark + colour theme. */
+.wallpaper-css { position: absolute; inset: 0; }
+.wallpaper-mesh {
+  background:
+    radial-gradient(at 10% 10%, color-mix(in oklch, var(--primary) 22%, transparent) 0, transparent 50%),
+    radial-gradient(at 90% 15%, color-mix(in oklch, oklch(0.75 0.15 330) 16%, transparent) 0, transparent 45%),
+    radial-gradient(at 80% 90%, color-mix(in oklch, oklch(0.8 0.14 80) 18%, transparent) 0, transparent 50%),
+    radial-gradient(at 15% 85%, color-mix(in oklch, var(--primary) 14%, transparent) 0, transparent 45%);
+}
+.wallpaper-sunset {
+  background:
+    radial-gradient(120% 70% at 50% 0%, color-mix(in oklch, oklch(0.8 0.15 60) 22%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklch, oklch(0.72 0.16 20) 10%, transparent), color-mix(in oklch, oklch(0.6 0.15 290) 12%, transparent));
+}
+.wallpaper-waves, .wallpaper-leaves, .wallpaper-paws, .wallpaper-geo {
+  background-color: color-mix(in oklch, var(--primary) 12%, transparent);
+  -webkit-mask-repeat: repeat; mask-repeat: repeat;
+}
+.wallpaper-waves { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27160%27%20height%3D%2740%27%3E%3Cpath%20d%3D%27M0%2020c40-20%2040%2020%2080%200s40%2020%2080%200%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%271.5%27/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27160%27%20height%3D%2740%27%3E%3Cpath%20d%3D%27M0%2020c40-20%2040%2020%2080%200s40%2020%2080%200%27%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%271.5%27/%3E%3C/svg%3E"); background-color: color-mix(in oklch, var(--primary) 18%, transparent); }
+.wallpaper-leaves { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27120%27%20height%3D%27120%27%3E%3Cg%20fill%3D%27black%27%3E%3Cpath%20d%3D%27M20%2040c10-22%2034-24%2040-22-2%2016-14%2034-40%2022z%27/%3E%3Cpath%20d%3D%27M80%20100c6-18%2026-22%2032-20-2%2014-12%2028-32%2020z%27/%3E%3Cpath%20d%3D%27M70%2030c4-10%2016-12%2020-11-1%208-8%2016-20%2011z%27/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27120%27%20height%3D%27120%27%3E%3Cg%20fill%3D%27black%27%3E%3Cpath%20d%3D%27M20%2040c10-22%2034-24%2040-22-2%2016-14%2034-40%2022z%27/%3E%3Cpath%20d%3D%27M80%20100c6-18%2026-22%2032-20-2%2014-12%2028-32%2020z%27/%3E%3Cpath%20d%3D%27M70%2030c4-10%2016-12%2020-11-1%208-8%2016-20%2011z%27/%3E%3C/g%3E%3C/svg%3E"); background-color: color-mix(in oklch, oklch(0.6 0.14 145) 14%, transparent); }
+.wallpaper-paws { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27140%27%20height%3D%27140%27%3E%3Cg%20fill%3D%27black%27%3E%3Cg%20transform%3D%27translate%2830%2030%29%20rotate%28-15%29%27%3E%3Cellipse%20cx%3D%270%27%20cy%3D%2710%27%20rx%3D%279%27%20ry%3D%277%27/%3E%3Ccircle%20cx%3D%27-9%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%27-3%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%274%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%2710%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3C/g%3E%3Cg%20transform%3D%27translate%28100%20100%29%20rotate%2820%29%27%3E%3Cellipse%20cx%3D%270%27%20cy%3D%2710%27%20rx%3D%279%27%20ry%3D%277%27/%3E%3Ccircle%20cx%3D%27-9%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%27-3%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%274%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%2710%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%27140%27%20height%3D%27140%27%3E%3Cg%20fill%3D%27black%27%3E%3Cg%20transform%3D%27translate%2830%2030%29%20rotate%28-15%29%27%3E%3Cellipse%20cx%3D%270%27%20cy%3D%2710%27%20rx%3D%279%27%20ry%3D%277%27/%3E%3Ccircle%20cx%3D%27-9%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%27-3%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%274%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%2710%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3C/g%3E%3Cg%20transform%3D%27translate%28100%20100%29%20rotate%2820%29%27%3E%3Cellipse%20cx%3D%270%27%20cy%3D%2710%27%20rx%3D%279%27%20ry%3D%277%27/%3E%3Ccircle%20cx%3D%27-9%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%27-3%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%274%27%20cy%3D%27-8%27%20r%3D%273.5%27/%3E%3Ccircle%20cx%3D%2710%27%20cy%3D%27-3%27%20r%3D%273.5%27/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+.wallpaper-geo { -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2780%27%20height%3D%2780%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%271%27%3E%3Cpath%20d%3D%27M40%204%2076%2040%2040%2076%204%2040z%27/%3E%3Ccircle%20cx%3D%2740%27%20cy%3D%2740%27%20r%3D%276%27/%3E%3C/g%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2780%27%20height%3D%2780%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27black%27%20stroke-width%3D%271%27%3E%3Cpath%20d%3D%27M40%204%2076%2040%2040%2076%204%2040z%27/%3E%3Ccircle%20cx%3D%2740%27%20cy%3D%2740%27%20r%3D%276%27/%3E%3C/g%3E%3C/svg%3E"); background-color: color-mix(in oklch, var(--primary) 16%, transparent); }
+.wallpaper-grid {
+  background-image:
+    linear-gradient(color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, var(--foreground) 6%, transparent) 1px, transparent 1px),
+    radial-gradient(80% 60% at 50% 0%, color-mix(in oklch, var(--primary) 12%, transparent), transparent);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+}

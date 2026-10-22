@@ -12,6 +12,9 @@ export default function WallpaperLayer() {
       {wallpaper === 'dots' && <DotPattern />}
       {wallpaper === 'glow' && <Ripple />}
       {wallpaper === 'aurora' && <AuroraBackground />}
+      {wallpaper !== 'dots' && wallpaper !== 'glow' && wallpaper !== 'aurora' && (
+        <div className={`wallpaper-css wallpaper-${wallpaper}`} data-testid={`wallpaper-${wallpaper}`} />
+      )}
     </div>
   )
 }
