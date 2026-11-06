@@ -24,6 +24,7 @@ import {
   ROLES_USERS,
   can,
 } from '@/config/roles'
+import { RISKA_ENABLED } from '@/config/features'
 import type { Role } from '@/types'
 
 export type NavGroup = 'beranda' | 'unit' | 'keuangan' | 'profil' | 'admin' | 'akun'
@@ -66,7 +67,7 @@ export const NAV: NavItem[] = [
   { group: 'profil', to: '/profil-bumdes', label: 'Profil BUMDes', icon: Building2, roles: ROLES_ORG_PROFILE },
   { group: 'profil', to: '/unit-usaha', label: 'Profil Unit Usaha', icon: Building2, roles: ROLES_UNIT_USAHA },
   { group: 'admin', to: '/users', label: 'Kelola Pengguna', icon: Users, roles: ROLES_USERS },
-  { group: 'admin', to: '/riska-permissions', label: 'Izin Riska', icon: Users, roles: ['admin'] },
+  ...(RISKA_ENABLED ? [{ group: 'admin', to: '/riska-permissions', label: 'Izin Riska', icon: Users, roles: ['admin'] } satisfies NavItem] : []),
   { group: 'admin', to: '/audit-log', label: 'Audit Log', icon: ClipboardList, roles: ROLES_AUDIT_LOG },
   { group: 'akun', to: '/profile', label: 'Profil Saya', icon: UserCircle, roles: READ_MOST },
 ]

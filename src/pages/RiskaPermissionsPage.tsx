@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { RISKA_ENABLED } from '@/config/features'
 import api from '@/api/client'
 import { Switch } from '@/components/ui/switch'
 import PageHeader from '@/components/typography/PageHeader'
@@ -7,6 +8,10 @@ type Assignment = { user_id: string; name: string; username: string; role: strin
 const key = ['riska-assignments']
 
 export default function RiskaPermissionsPage() {
+  return RISKA_ENABLED ? <RiskaPermissionsContent /> : null
+}
+
+function RiskaPermissionsContent() {
   const client = useQueryClient()
   const { data, isPending, error } = useQuery({ queryKey: key, refetchInterval: 5_000, queryFn: async () => (await api.get<Assignment[]>('/v1/admin/riska-assignments')).data })
   const mutation = useMutation({ mutationFn: async (body: { user_id: string; is_allowed: boolean }) => api.patch('/v1/admin/riska-assignments', body),

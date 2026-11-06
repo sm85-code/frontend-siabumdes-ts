@@ -17,6 +17,8 @@ import {
 import { AuthProvider, useAuth } from '@/lib/auth'
 import type { Role } from '@/types'
 
+import { RISKA_ENABLED } from '@/config/features'
+
 const RiskaPermissionsPage = lazy(() => import('@/pages/RiskaPermissionsPage'))
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
@@ -223,7 +225,7 @@ export default function App() {
                   </Protected>
                 }
               />
-              <Route path="/riska-permissions" element={<Protected roles={["admin"]}><LazyPage><RiskaPermissionsPage /></LazyPage></Protected>} />
+              <Route path="/riska-permissions" element={RISKA_ENABLED ? <Protected roles={["admin"]}><LazyPage><RiskaPermissionsPage /></LazyPage></Protected> : <Navigate to="/dashboard" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AuthProvider>

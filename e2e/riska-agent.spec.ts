@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('Riska uses agent conversation for free text and token-free shortcuts on mobile', async ({ page }) => {
+  test.skip(process.env.VITE_RISKA_ENABLED !== 'true', 'Riska is disabled by default')
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   const requests: Record<string, unknown>[] = []
