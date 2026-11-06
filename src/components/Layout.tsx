@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import AppearancePopover from '@/components/AppearancePopover'
 import BottomNav from '@/components/BottomNav'
+import { RISKA_ENABLED } from '@/config/features'
 import RiskaChatBox from '@/components/RiskaChatBox'
 import WallpaperLayer from '@/components/WallpaperLayer'
 import { Button } from '@/components/ui/button'
@@ -199,7 +200,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="siabumdes-content fade-in mx-auto w-full max-w-[1400px] p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
 
-      <RiskaChatBox />
+      {RISKA_ENABLED && <RiskaChatBox />}
       <BottomNav items={bottomItems} onOpenMore={() => setOpen(true)} moreActive={moreActive} />
     </div>
   )

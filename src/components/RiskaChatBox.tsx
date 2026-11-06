@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
+import { RISKA_ENABLED } from '@/config/features'
 import api from '@/api/client'
 import RiskaTypedReply from '@/components/RiskaTypedReply'
 import { useAuth } from '@/lib/auth'
@@ -38,7 +39,7 @@ const RISKA_NAME = '👩‍💼 Riska (Asisten Keuangan)'
 
 export default function RiskaChatBox() {
   const { user } = useAuth()
-  return user ? <RiskaSessionChat key={`${user.id}:${user.role}:${user.unit_usaha_id || ''}`} /> : null
+  return RISKA_ENABLED && user ? <RiskaSessionChat key={`${user.id}:${user.role}:${user.unit_usaha_id || ''}`} /> : null
 }
 
 function RiskaSessionChat() {
