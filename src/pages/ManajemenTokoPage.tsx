@@ -3,7 +3,7 @@ import HelpHint from '@/components/HelpHint'
 import EmptyCellDash, { EMPTY_CELL_DASH } from '@/components/EmptyCellDash'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, ClipboardList, Database, Download, FileBarChart, Plus, Receipt, Trash2 } from 'lucide-react'
-import api, { getApiError, parseMoney } from '@/api/client'
+import api, { fmtRp, getApiError, parseMoney } from '@/api/client'
 import { triggerBlobDownload } from '@/api/transactions'
 import { useAuth } from '@/lib/auth'
 import { useUnitsQuery } from '@/hooks/useUnits'
@@ -147,7 +147,7 @@ export default function ManajemenTokoPage() {
             {tab === 'otomatis' && <AutoTables period={period} />}
           </section>
           <section hidden={tab !== 'labarugi'} role="tabpanel" id="toko-panel-labarugi" aria-labelledby="toko-tab-labarugi" className="min-w-0 space-y-6">
-            {tab === 'labarugi' && <LabaRugi period={period} />}
+            {tab === 'labarugi' && <LabaRugi period={period} unitId={unit?.id} />}
           </section>
           <section hidden={tab !== 'data'} role="tabpanel" id="toko-panel-data" aria-labelledby="toko-tab-data" className="min-w-0 space-y-3">
             <HelpHint label="Tentang tab Data">Isi Nama Baris di tabel Uraian Pemasukan atau Uraian Pengeluaran; baris otomatis tampil sebagai Uraian di tabel Pemasukan/Pengeluaran Catatan Toko.</HelpHint>
@@ -295,7 +295,7 @@ function startedWeeks(period: string): Set<string> {
   return set
 }
 
-function LabaRugi({ period }: { period: string }) {
+function LabaRugi({ period, unitId }: { period: string; unitId?: string }) {
   const q = useGl(period)
   if (q.error) return <p role="alert">{getApiError(q.error)}</p>
   if (q.isLoading || !q.data) return <Spinner label="Memuat laporan..." />
@@ -364,6 +364,7 @@ function LabaRugi({ period }: { period: string }) {
         </TableRow></tfoot>
       </Table></TableShell></Card>
       <Neraca period={period} />
+      {unitId && started.size > 0 && <BagiHasilNote period={period} unitId={unitId} laba={laba.jumlah} />}
     </div>
   )
 }
@@ -464,6 +465,34 @@ function Neraca({ period }: { period: string }) {
         </TableRow></tfoot>
       </Table></TableShell></Card>
       {started.size > 0 && <DiffNote pos={last} />}
+    </div>
+  )
+}
+
+type UnitShareResp = { period: string; effective: { share_pengelola: number; share_bumdes: number; source: string } }
+
+/** Catatan di bawah Neraca: alokasi bagi hasil Unit 5 dari LABA/RUGI BERSIH (Jumlah) memakai proporsi unit bulan ini (sama seperti Laporan Keuangan). */
+function BagiHasilNote({ period, unitId, laba }: { period: string; unitId: string; laba: number }) {
+  const q = useQuery({
+    queryKey: ['toko', 'bagi-hasil-shares', unitId, period],
+    queryFn: async () => (await api.get<UnitShareResp>(`/unit-usaha/${unitId}/bagi-hasil-shares`, { params: { period } })).data,
+  })
+  const eff = q.data?.effective
+  return (
+    <div className="mt-6 rounded-lg p-4" data-testid="bagi-hasil-info"
+      style={{ background: 'var(--primary-light)', border: '1px solid var(--legacy-border)' }}>
+      <h4 className="font-heading mb-2 font-semibold" style={{ color: 'var(--primary-dark)' }}>
+        Alokasi Bagi Hasil Unit Usaha {TOKO_UNIT_CODE}:
+      </h4>
+      {q.error ? <p role="alert" className="text-sm">{getApiError(q.error)}</p>
+        : !eff ? <p className="text-sm">–</p>
+        : (
+          <ol className="ml-5 list-decimal space-y-1 text-sm">
+            <li>Pengelola Unit ({eff.share_pengelola}%) = <b data-testid="share-pengelola">{fmtRp(Math.round((laba * eff.share_pengelola) / 100))}</b></li>
+            <li>BUMDes ({eff.share_bumdes}%) = <b data-testid="share-bumdes">{fmtRp(Math.round((laba * eff.share_bumdes) / 100))}</b></li>
+            <li className="list-none text-xs text-muted-foreground">Dari LABA/RUGI BERSIH (Jumlah) {fmtRp(laba)}; proporsi unit bulan ini{eff.source === 'default' ? ' (default Profil BUMDes)' : ''}.</li>
+          </ol>
+        )}
     </div>
   )
 }
