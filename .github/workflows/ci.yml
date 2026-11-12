@@ -50,7 +50,9 @@ jobs:
   # and CLOUDFLARE_ACCOUNT_ID. Skips (with a notice) while they are not set.
   deploy:
     needs: lint-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Nonaktif: produksi ak-siabumdes kini dibangun dari monorepo sm85-code/siabumdes (frontend/).
+    # Deploy dari repo lama ini menimpa halaman Summary (12 Nov 2026). Jangan aktifkan lagi.
+    if: false
     runs-on: ubuntu-latest
     concurrency:
       group: pages-deploy-production
